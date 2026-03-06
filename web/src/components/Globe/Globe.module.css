@@ -1,4 +1,6 @@
 .container {
+  position: relative;
+  width: 100%;
   user-select: none;
   cursor: grab;
 }
@@ -9,4 +11,34 @@
 
 .arrow {
   pointer-events: none;
+}
+
+.zoomControls {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zoomBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(26, 29, 39, 0.85);
+  border: 1px solid var(--colour-border);
+  color: var(--colour-text);
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  backdrop-filter: blur(4px);
+}
+
+.zoomBtn:hover {
+  background: var(--colour-surface-raised);
 }

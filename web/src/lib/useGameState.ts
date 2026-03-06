@@ -95,5 +95,11 @@ export function useGameState(gameId: string) {
     [gameId, today],
   );
 
-  return { todayResult, streak, longestStreak, history: persisted.history, recordResult };
+  const resetForDev = useCallback(() => {
+    const next: PersistedState = { history: [] };
+    localStorage.setItem(storageKey(gameId), JSON.stringify(next));
+    setPersisted(next);
+  }, [gameId]);
+
+  return { todayResult, streak, longestStreak, history: persisted.history, recordResult, resetForDev };
 }

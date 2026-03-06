@@ -31,7 +31,7 @@ export function WhereMost() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const { todayResult, streak, longestStreak, recordResult } = useGameState(GAME_ID);
+  const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
   const isWon = guesses.some((g) => g.result.isCorrect);
   const isGameOver = isWon || guesses.length >= MAX_GUESSES;
@@ -139,7 +139,22 @@ export function WhereMost() {
 
   return (
     <div className={styles.page}>
-      <Link to="/" className={styles.backLink}>← Geogames</Link>
+      <div className={styles.topBar}>
+        <Link to="/" className={styles.backLink}>← Geogames</Link>
+        {import.meta.env.DEV && (
+          <button
+            className={styles.devResetBtn}
+            onClick={() => {
+              resetForDev();
+              setGuesses([]);
+              setStats(null);
+            }}
+            title="Dev only — reset today's play"
+          >
+            ↺ reset
+          </button>
+        )}
+      </div>
 
       <DailyHeader
         today={today}
