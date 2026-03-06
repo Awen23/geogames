@@ -1,0 +1,210 @@
+.layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 300px;
+  min-width: 280px;
+  background: var(--colour-surface);
+  border-right: 1px solid var(--colour-border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.header {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--colour-border);
+}
+
+.title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--colour-text);
+}
+
+.subtitle {
+  font-size: 0.7rem;
+  color: var(--colour-text-muted);
+  margin-top: 2px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sectionTitle {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--colour-text-muted);
+}
+
+/* City picker */
+
+.cityGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.cityBtn {
+  padding: var(--space-2) var(--space-3);
+  border-radius: 6px;
+  background: var(--colour-surface-raised);
+  border: 1px solid var(--colour-border);
+  color: var(--colour-text);
+  font-size: 0.82rem;
+  transition: background 0.12s, border-color 0.12s;
+  text-align: center;
+}
+
+.cityBtn:hover {
+  background: var(--colour-border);
+}
+
+.cityBtnActive {
+  background: var(--colour-accent);
+  border-color: var(--colour-accent);
+  color: #fff;
+}
+
+/* Layer toggles */
+
+.layerList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.layerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--colour-surface-raised);
+  border-radius: 8px;
+  cursor: pointer;
+  gap: var(--space-3);
+  transition: background 0.1s;
+}
+
+.layerRow:hover {
+  background: var(--colour-border);
+}
+
+.layerInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.layerLabel {
+  font-size: 0.875rem;
+  color: var(--colour-text);
+}
+
+.layerDesc {
+  font-size: 0.68rem;
+  color: var(--colour-text-muted);
+}
+
+.layerCount {
+  color: var(--colour-accent);
+}
+
+/* Toggle switch */
+
+.toggle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--colour-border);
+  position: relative;
+  transition: background 0.18s;
+  padding: 0;
+}
+
+.toggleOn {
+  background: var(--colour-accent);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s;
+  pointer-events: none;
+}
+
+.toggleOn .toggleThumb {
+  transform: translateX(18px);
+}
+
+/* Zoom controls */
+
+.zoomPresets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.zoomPresetBtn {
+  padding: var(--space-2) 0;
+  border-radius: 6px;
+  background: var(--colour-surface-raised);
+  border: 1px solid var(--colour-border);
+  color: var(--colour-text);
+  font-size: 0.72rem;
+  transition: background 0.12s;
+}
+
+.zoomPresetBtn:hover {
+  background: var(--colour-border);
+}
+
+.zoomValue {
+  font-weight: 400;
+  color: var(--colour-accent);
+  font-size: 0.8rem;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.zoomSlider {
+  width: 100%;
+  accent-color: var(--colour-accent);
+  cursor: pointer;
+}
+
+/* Perspective (pitch) */
+
+.perspectiveRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--colour-surface-raised);
+  border-radius: 8px;
+  gap: var(--space-3);
+}
+
+/* Map area */
+
+.map {
+  flex: 1;
+  min-width: 0;
+}
