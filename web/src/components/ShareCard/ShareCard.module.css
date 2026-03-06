@@ -1,0 +1,29 @@
+.card {
+  text-align: center;
+}
+
+.grid {
+  font-size: 1.6rem;
+  letter-spacing: 2px;
+  margin-bottom: var(--space-3);
+}
+
+.score {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+}
+
+.copyBtn {
+  background: var(--colour-accent);
+  color: var(--colour-text);
+  padding: var(--space-2) var(--space-6);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.copyBtn:hover {
+  background: var(--colour-accent-hover);
+}

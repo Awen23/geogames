@@ -1,0 +1,109 @@
+.page {
+  min-height: 100%;
+  padding: var(--space-8) var(--space-6);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: var(--space-12);
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin-top: var(--space-2);
+  color: var(--colour-text-muted);
+}
+
+.error {
+  color: var(--colour-cold);
+  text-align: center;
+  font-size: 0.9rem;
+  margin-bottom: var(--space-4);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+  border-radius: 12px;
+  padding: var(--space-6);
+  text-decoration: none;
+  transition: border-color 0.15s, transform 0.1s;
+  display: block;
+  position: relative;
+}
+
+.card:hover {
+  border-color: var(--colour-accent);
+  transform: translateY(-2px);
+}
+
+.cardPlayed {
+  opacity: 0.8;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-3);
+}
+
+.cardIcon {
+  font-size: 2rem;
+}
+
+.playedBadge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--colour-bullseye);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.cardTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--colour-text);
+  margin-bottom: var(--space-2);
+}
+
+.cardTagline {
+  font-size: 0.875rem;
+  color: var(--colour-text-muted);
+}
+
+.playedHint {
+  margin-top: var(--space-3);
+  font-size: 0.8rem;
+  color: var(--colour-text-muted);
+  font-style: italic;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+}

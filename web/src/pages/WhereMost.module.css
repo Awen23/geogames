@@ -1,0 +1,157 @@
+.page {
+  min-height: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.backLink {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  color: var(--colour-text-muted);
+}
+
+.backLink:hover {
+  color: var(--colour-text);
+}
+
+.loading,
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-12);
+  color: var(--colour-text-muted);
+}
+
+.errorDetail {
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+/* Guess list */
+.guessList {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.guessItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 8px;
+  background: var(--colour-surface);
+  border-left: 4px solid transparent;
+}
+
+.guessItem.tier-bullseye { border-left-color: var(--colour-bullseye); }
+.guessItem.tier-top5     { border-left-color: var(--colour-top5); }
+.guessItem.tier-top15    { border-left-color: var(--colour-top15); }
+.guessItem.tier-cold     { border-left-color: var(--colour-cold); }
+
+.guessIso3 {
+  font-weight: 700;
+  font-size: 0.9rem;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.guessLabel {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.guessDistance {
+  font-size: 0.8rem;
+  color: var(--colour-text-muted);
+}
+
+/* End screen */
+.endScreen {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  padding-top: var(--space-6);
+}
+
+.endResult {
+  text-align: center;
+}
+
+.endWon {
+  font-size: 1.3rem;
+  color: var(--colour-bullseye);
+}
+
+.endLost {
+  font-size: 1.1rem;
+  color: var(--colour-text-muted);
+}
+
+.statsRow {
+  display: flex;
+  gap: var(--space-8);
+  justify-content: center;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.statValue {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--colour-text-muted);
+  text-align: center;
+}
+
+.streakRow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.streak {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.streakSub {
+  font-size: 0.8rem;
+  color: var(--colour-text-muted);
+}
+
+.hubLink {
+  font-size: 0.9rem;
+  color: var(--colour-accent);
+}
+
+.hubLink:hover {
+  color: var(--colour-accent-hover);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-3);
+  }
+}

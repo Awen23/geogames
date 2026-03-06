@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.js.map
+web/dist/
+api/dist/
+playwright-report/
+test-results/

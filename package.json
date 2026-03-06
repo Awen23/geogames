@@ -1,0 +1,39 @@
+{
+  "name": "geogames",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm run dev --prefix api",
+    "dev:client": "npm run dev --prefix web",
+    "dev:db:up": "docker-compose up -d --wait",
+    "dev:db:down": "docker-compose down",
+    "dev:db:reset": "docker-compose down -v && docker-compose up -d --wait && npm run db:migrate",
+    "dev:db:logs": "docker-compose logs -f postgres",
+    "db:generate": "npm run db:generate --prefix api",
+    "db:migrate": "npm run db:migrate --prefix api",
+    "typecheck": "npm run typecheck --prefix api && npm run typecheck --prefix web",
+    "test": "npm test --prefix api",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.60.0",
+    "@types/d3-geo": "^3.1.0",
+    "@types/topojson-client": "^3.1.5",
+    "concurrently": "^9.2.1",
+    "d3-geo": "^3.1.1",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.3.0",
+    "prettier": "^3.8.3",
+    "topojson-client": "^3.1.0",
+    "tsx": "^4.22.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.3"
+  },
+  "dependencies": {
+    "world-atlas": "^2.0.2"
+  }
+}

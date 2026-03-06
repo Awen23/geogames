@@ -1,0 +1,12 @@
+.container {
+  user-select: none;
+  cursor: grab;
+}
+
+.container:active {
+  cursor: grabbing;
+}
+
+.arrow {
+  pointer-events: none;
+}
