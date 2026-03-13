@@ -4,13 +4,16 @@ export type LayerGroupId =
   | 'buildings'
   | 'roads'
   | 'landmarks'
-  | 'labels';
+  | 'labels'
+  | 'placeLabels';
 
 export interface LayerGroup {
   id: LayerGroupId;
   label: string;
   description: string;
   defaultVisible: boolean;
+  /** If true, this group must never be revealed during gameplay (it gives away the city). */
+  alwaysHiddenInGame?: boolean;
 }
 
 export const LAYER_GROUPS: LayerGroup[] = [
@@ -46,23 +49,33 @@ export const LAYER_GROUPS: LayerGroup[] = [
   },
   {
     id: 'labels',
-    label: 'Labels',
-    description: 'Street names, POIs, place names',
+    label: 'Street Names',
+    description: 'Road/street labels — hint at language and naming style',
     defaultVisible: false,
+  },
+  {
+    id: 'placeLabels',
+    label: 'Place Names',
+    description: 'City, country and admin labels — reveals the answer',
+    defaultVisible: false,
+    alwaysHiddenInGame: true,
   },
 ];
 
 /**
- * Classify a MapLibre layer ID into a game reveal group.
+ * Classify a MapLibre layer into a game reveal group.
  *
- * All matching is done on the lowercase layer ID so it handles both
- * snake_case OpenMapTiles layers ("waterway") and the human-readable
- * title-case IDs used by MapTiler styles ("Water", "Road network", etc.)
+ * ID matching is done lowercase to handle both snake_case OpenMapTiles IDs
+ * ("waterway") and the human-readable title-case IDs MapTiler uses ("Road network").
+ *
+ * sourceLayer is the vector tile source-layer (e.g. "transportation_name", "place").
+ * It is used to split symbol layers into street labels vs place-name labels, which
+ * is critical for the game — place labels reveal the city name and must stay hidden.
  *
  * Returns null for layers that should always remain visible (background,
  * unrecognised fills that make up the base land appearance).
  */
-export function classifyLayer(layerId: string, layerType: string): LayerGroupId | null {
+export function classifyLayer(layerId: string, layerType: string, sourceLayer?: string): LayerGroupId | null {
   const id = layerId.toLowerCase();
 
   // Background — always visible; removing it blanks the map
@@ -70,8 +83,13 @@ export function classifyLayer(layerId: string, layerType: string): LayerGroupId 
     return null;
   }
 
-  // All symbol layers (text + icons) → labels group
+  // Symbol layers: split by source-layer to separate city/country names from street names.
+  // OpenMapTiles uses source-layer "place" for admin/city/country labels.
+  // Everything else (transportation_name, poi, housenumber, waterway, …) is street-level.
   if (layerType === 'symbol') {
+    if (sourceLayer === 'place' || sourceLayer === 'place_label') {
+      return 'placeLabels';
+    }
     return 'labels';
   }
 

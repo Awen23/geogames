@@ -110,6 +110,23 @@
 .layerLabel {
   font-size: 0.875rem;
   color: var(--colour-text);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.spoilerBadge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #e8a44a;
+  background: rgba(232, 164, 74, 0.15);
+  border: 1px solid rgba(232, 164, 74, 0.35);
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 1.4;
 }
 
 .layerDesc {

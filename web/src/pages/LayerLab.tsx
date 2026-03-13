@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapGL, Marker, Popup, NavigationControl } from 'maplibre-gl';
+import { Map as MapGL, Marker, NavigationControl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { LAYER_GROUPS, LayerGroupId, classifyLayer } from '../components/CityRevealMap/layers';
 import { LAB_CITIES, LabCity } from '../data/layerLabCities';
@@ -24,6 +24,42 @@ function buildDefaultVisibility(): LayerVisibility {
   ) as LayerVisibility;
 }
 
+/** Creates a circular photo marker element for always-visible landmark display */
+function createPhotoMarkerEl(imageUrl: string | null): HTMLDivElement {
+  const el = document.createElement('div');
+  Object.assign(el.style, {
+    width: '56px',
+    height: '56px',
+    borderRadius: '50%',
+    overflow: 'hidden',
+    border: '2.5px solid #ffffff',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+    backgroundColor: '#23263a',
+    cursor: 'default',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  });
+
+  if (imageUrl) {
+    const img = document.createElement('img');
+    img.src = imageUrl;
+    img.alt = '';
+    Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' });
+    img.onerror = () => {
+      img.remove();
+      el.textContent = '📍';
+      Object.assign(el.style, { fontSize: '22px' });
+    };
+    el.appendChild(img);
+  } else {
+    el.textContent = '⏳';
+    Object.assign(el.style, { fontSize: '18px', color: '#8b8fa8' });
+  }
+
+  return el;
+}
+
 export function LayerLab() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapGL | null>(null);
@@ -36,6 +72,26 @@ export function LayerLab() {
   const [pitch, setPitch] = useState<number>(0);
   const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>(buildDefaultVisibility);
   const [mapReady, setMapReady] = useState(false);
+  // wikiTitle → fetched thumbnail URL
+  const [landmarkImages, setLandmarkImages] = useState<Record<string, string>>({});
+
+  // Pre-fetch Wikipedia thumbnails for all cities on mount
+  useEffect(() => {
+    const allLandmarks = LAB_CITIES.flatMap((c) => c.landmarks);
+    for (const lm of allLandmarks) {
+      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(lm.wikiTitle)}`)
+        .then((r) => {
+          if (!r.ok) { throw new Error(`HTTP ${r.status}`); }
+          return r.json() as Promise<{ thumbnail?: { source: string } }>;
+        })
+        .then((data) => {
+          if (data.thumbnail?.source) {
+            setLandmarkImages((prev) => ({ ...prev, [lm.wikiTitle]: data.thumbnail!.source }));
+          }
+        })
+        .catch((err) => console.warn(`[LayerLab] No Wikipedia image for "${lm.wikiTitle}":`, err));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialise the map once on mount
   useEffect(() => {
@@ -61,7 +117,9 @@ export function LayerLab() {
       });
 
       for (const layer of map.getStyle().layers) {
-        const group = classifyLayer(layer.id, layer.type);
+        // Pass source-layer so place-name symbols are separated from street-name symbols
+        const sourceLayer = (layer as Record<string, unknown>)['source-layer'] as string | undefined;
+        const group = classifyLayer(layer.id, layer.type, sourceLayer);
         if (group) {
           grouped[group]!.push(layer.id);
         }
@@ -117,7 +175,7 @@ export function LayerLab() {
     }
   }, [layerVisibility, mapReady]);
 
-  // Sync landmark markers whenever city or landmark toggle changes
+  // Sync landmark markers whenever city, landmark toggle, or fetched images change
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) {
@@ -132,25 +190,16 @@ export function LayerLab() {
     }
 
     for (const landmark of activeCity.landmarks) {
-      const popup = new Popup({ offset: 25, maxWidth: '220px' }).setHTML(`
-        <div style="text-align:center">
-          <img
-            src="${landmark.imageUrl}"
-            alt="${landmark.name}"
-            style="width:200px;height:130px;object-fit:cover;border-radius:6px;display:block;margin-bottom:6px"
-          />
-          <p style="font-size:0.75rem;color:#8b8fa8;margin:0">${landmark.name}</p>
-        </div>
-      `);
+      const imageUrl = landmarkImages[landmark.wikiTitle] ?? null;
+      const el = createPhotoMarkerEl(imageUrl);
 
-      const marker = new Marker({ color: '#5c6bc0' })
+      const marker = new Marker({ element: el, anchor: 'center' })
         .setLngLat([landmark.lon, landmark.lat])
-        .setPopup(popup)
         .addTo(map);
 
       markersRef.current.push(marker);
     }
-  }, [activeCity, layerVisibility.landmarks, mapReady]);
+  }, [activeCity, layerVisibility.landmarks, mapReady, landmarkImages]);
 
   function handleCityChange(city: LabCity) {
     setActiveCity(city);
@@ -205,7 +254,12 @@ export function LayerLab() {
             {LAYER_GROUPS.map((group) => (
               <div key={group.id} className={styles.layerRow} onClick={() => handleToggle(group.id)}>
                 <span className={styles.layerInfo}>
-                  <span className={styles.layerLabel}>{group.label}</span>
+                  <span className={styles.layerLabel}>
+                    {group.label}
+                    {group.alwaysHiddenInGame && (
+                      <span className={styles.spoilerBadge}>reveals city</span>
+                    )}
+                  </span>
                   <span className={styles.layerDesc}>
                     {group.description}
                     {layerCounts[group.id] !== undefined && (
