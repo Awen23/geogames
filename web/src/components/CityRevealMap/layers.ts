@@ -103,10 +103,9 @@ export function classifyLayer(layerId: string, layerType: string, sourceLayer?: 
     return 'buildings';
   }
 
-  // Water: rivers, lakes, ocean, sea, reservoirs
-  // Using \b word-boundaries where safe; 'river' / 'water' / 'lake' as substrings
-  if (/water|river|lake|ocean|reservoir|canal|swimming.pool/.test(id)) {
-    // Exclude "water" in purely underground/tunnel contexts that belong with roads
+  // Water: rivers, lakes, ocean, sea, reservoirs, aqueducts
+  if (/water|river|lake|ocean|reservoir|canal|swimming.pool|aqueduct/.test(id)) {
+    // Underground waterways in tunnel context belong with roads
     if (/river.tunnel|water.tunnel/.test(id)) {
       return 'roads';
     }
@@ -114,7 +113,7 @@ export function classifyLayer(layerId: string, layerType: string, sourceLayer?: 
   }
 
   // Terrain: elevation features, land cover, land use zones, boundaries
-  if (/hillshade|contour|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|residential|industrial|commercial|military|cemetery|hospital|stadium|landcover|landuse|wetland|meadow|farmland|border|boundary|admin/.test(id)) {
+  if (/hillshade|contour|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|residential|industrial|commercial|military|cemetery|hospital|stadium|landcover|landuse|wetland|meadow|farmland|border|boundary|admin|crop|school|college|university/.test(id)) {
     return 'terrain';
   }
 
@@ -123,8 +122,8 @@ export function classifyLayer(layerId: string, layerType: string, sourceLayer?: 
     return 'buildings';
   }
 
-  // Roads and all surface/underground transport
-  if (/road|highway|motorway|trunk|primary|secondary|street|tunnel|bridge|pier|steps|pedestrian|path|track|trail|ferrata|lift|chair|cable|aerialway|ferry|aeroway|runway|taxiway|railway|transit/.test(id)) {
+  // Roads and all surface/underground transport (incl. rail, airport, heliport)
+  if (/road|highway|motorway|trunk|primary|secondary|street|tunnel|bridge|pier|steps|pedestrian|path|track|trail|ferrata|lift|chair|cable|aerialway|ferry|aeroway|runway|taxiway|railway|transit|\brail\b|airport|heliport/.test(id)) {
     return 'roads';
   }
 
