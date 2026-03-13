@@ -1,9 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapGL, Marker, NavigationControl, type FilterSpecification } from 'maplibre-gl';
+import { Map as MapGL, Marker, NavigationControl, type GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { LAYER_GROUPS, LayerGroupId, classifyLayer } from '../components/CityRevealMap/layers';
-import { LAB_CITIES, LabCity } from '../data/layerLabCities';
+import { LAB_CITIES, LabCity, type CuratedLabel } from '../data/layerLabCities';
 import styles from './LayerLab.module.css';
+
+const CURATED_LABELS_SOURCE = 'curated-labels';
+const CURATED_LABELS_LAYER = 'curated-labels';
+
+function buildCuratedLabelGeoJSON(labels: CuratedLabel[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: labels.map((l) => ({
+      type: 'Feature' as const,
+      geometry: { type: 'Point' as const, coordinates: [l.lon, l.lat] },
+      properties: { text: l.text },
+    })),
+  };
+}
 
 // streets-v2 is better for urban city identification:
 // separate road-class layers, clear building data, standard urban POIs
@@ -126,9 +140,10 @@ export function LayerLab() {
       }
       layerMapRef.current = grouped;
 
-      // Apply initial visibility state from defaults
+      // Apply initial visibility state from defaults.
+      // MapTiler 'labels' layers are permanently hidden — replaced by curated GeoJSON labels.
       for (const group of LAYER_GROUPS) {
-        const visibility = group.defaultVisible ? 'visible' : 'none';
+        const visibility = group.id === 'labels' || !group.defaultVisible ? 'none' : 'visible';
         for (const id of grouped[group.id] ?? []) {
           try {
             map.setLayoutProperty(id, 'visibility', visibility);
@@ -137,6 +152,33 @@ export function LayerLab() {
           }
         }
       }
+
+      // Curated GeoJSON labels replace the raw MapTiler transportation/POI labels.
+      // Using Noto Sans for broad script support (Cyrillic, CJK, Latin, etc.)
+      map.addSource(CURATED_LABELS_SOURCE, {
+        type: 'geojson',
+        data: buildCuratedLabelGeoJSON(activeCity.curatedLabels),
+      });
+      map.addLayer({
+        id: CURATED_LABELS_LAYER,
+        type: 'symbol',
+        source: CURATED_LABELS_SOURCE,
+        layout: {
+          'text-field': ['get', 'text'],
+          'text-size': 13,
+          'text-font': ['Noto Sans Regular', 'Open Sans Regular', 'Arial Unicode MS Regular'],
+          'text-anchor': 'center',
+          'text-max-width': 10,
+          'text-allow-overlap': false,
+          'text-padding': 8,
+          visibility: 'none',
+        },
+        paint: {
+          'text-color': '#444444',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.5,
+        },
+      });
 
       setMapReady(true);
     });
@@ -157,41 +199,38 @@ export function LayerLab() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keep city-name exclusion filter on street-label layers in sync with active city.
-  // Filters out any feature whose 'name' contains the city name (case-insensitive)
-  // so station labels like "Bern West" or "Osaka Station" don't give away the answer.
-  // The filter is always applied regardless of visibility so it is ready when labels toggle on.
+  // Update curated GeoJSON labels when city changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) {
       return;
     }
-    const cityName = activeCity.name.toLowerCase();
-    // Exclude features whose rendered name contains the city name (case-insensitive).
-    // We check both 'name' and 'name:en' because road label layers use
-    // ['coalesce', ['get', 'name:en'], ['get', 'name']] as their text-field.
-    const containsCity = (field: string) =>
-      ['>=', ['index-of', cityName, ['downcase', ['coalesce', ['get', field], '']]], 0];
-    const cityNameFilter = [
-      '!',
-      ['any', containsCity('name'), containsCity('name:en')],
-    ] as unknown as FilterSpecification;
-    for (const id of layerMapRef.current['labels'] ?? []) {
-      try {
-        map.setFilter(id, cityNameFilter);
-      } catch (err) {
-        console.warn(`[LayerLab] setFilter failed for "${id}":`, err);
-      }
+    const source = map.getSource(CURATED_LABELS_SOURCE) as GeoJSONSource | undefined;
+    if (source) {
+      source.setData(buildCuratedLabelGeoJSON(activeCity.curatedLabels));
     }
   }, [activeCity, mapReady]);
 
-  // Sync layer visibility to the map whenever toggles change
+  // Sync layer visibility to the map whenever toggles change.
+  // The 'labels' group controls the curated GeoJSON layer; MapTiler labels stay permanently hidden.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) {
       return;
     }
     for (const group of LAYER_GROUPS) {
+      if (group.id === 'labels') {
+        try {
+          map.setLayoutProperty(
+            CURATED_LABELS_LAYER,
+            'visibility',
+            layerVisibility.labels ? 'visible' : 'none',
+          );
+        } catch (err) {
+          console.error('[LayerLab] curated-labels visibility failed:', err);
+        }
+        continue;
+      }
       const visibility = layerVisibility[group.id] ? 'visible' : 'none';
       for (const id of layerMapRef.current[group.id] ?? []) {
         try {
@@ -290,7 +329,7 @@ export function LayerLab() {
                   </span>
                   <span className={styles.layerDesc}>
                     {group.description}
-                    {layerCounts[group.id] !== undefined && (
+                    {group.id !== 'labels' && layerCounts[group.id] !== undefined && (
                       <span className={styles.layerCount}> · {layerCounts[group.id]!.length}</span>
                     )}
                   </span>

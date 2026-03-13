@@ -49,8 +49,8 @@ export const LAYER_GROUPS: LayerGroup[] = [
   },
   {
     id: 'labels',
-    label: 'Street Names',
-    description: 'Road/street labels — hint at language and naming style',
+    label: 'Street Labels',
+    description: '2 street names + 2 place names, visible at any zoom',
     defaultVisible: false,
   },
   {
