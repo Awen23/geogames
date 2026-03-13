@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapGL, Marker, NavigationControl } from 'maplibre-gl';
+import { Map as MapGL, Marker, NavigationControl, type FilterSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { LAYER_GROUPS, LayerGroupId, classifyLayer } from '../components/CityRevealMap/layers';
 import { LAB_CITIES, LabCity } from '../data/layerLabCities';
@@ -156,6 +156,34 @@ export function LayerLab() {
       mapRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep city-name exclusion filter on street-label layers in sync with active city.
+  // Filters out any feature whose 'name' contains the city name (case-insensitive)
+  // so station labels like "Bern West" or "Osaka Station" don't give away the answer.
+  // The filter is always applied regardless of visibility so it is ready when labels toggle on.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) {
+      return;
+    }
+    const cityName = activeCity.name.toLowerCase();
+    // Exclude features whose rendered name contains the city name (case-insensitive).
+    // We check both 'name' and 'name:en' because road label layers use
+    // ['coalesce', ['get', 'name:en'], ['get', 'name']] as their text-field.
+    const containsCity = (field: string) =>
+      ['>=', ['index-of', cityName, ['downcase', ['coalesce', ['get', field], '']]], 0];
+    const cityNameFilter = [
+      '!',
+      ['any', containsCity('name'), containsCity('name:en')],
+    ] as unknown as FilterSpecification;
+    for (const id of layerMapRef.current['labels'] ?? []) {
+      try {
+        map.setFilter(id, cityNameFilter);
+      } catch (err) {
+        console.warn(`[LayerLab] setFilter failed for "${id}":`, err);
+      }
+    }
+  }, [activeCity, mapReady]);
 
   // Sync layer visibility to the map whenever toggles change
   useEffect(() => {
