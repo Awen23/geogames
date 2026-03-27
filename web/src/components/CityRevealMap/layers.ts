@@ -1,10 +1,15 @@
 export type LayerGroupId =
   | 'terrain'
   | 'water'
+  | 'urbanFabric'
   | 'buildings'
-  | 'roads'
+  | 'majorRoads'
+  | 'roadNames'
+  | 'streetGrid'
+  | 'railways'
   | 'landmarks'
   | 'labels'
+  | 'districtLabels'
   | 'placeLabels';
 
 export interface LayerGroup {
@@ -20,7 +25,7 @@ export const LAYER_GROUPS: LayerGroup[] = [
   {
     id: 'terrain',
     label: 'Terrain',
-    description: 'Hillshade, contours, land cover',
+    description: 'Hillshade, contours, natural land cover',
     defaultVisible: true,
   },
   {
@@ -30,15 +35,39 @@ export const LAYER_GROUPS: LayerGroup[] = [
     defaultVisible: false,
   },
   {
-    id: 'buildings',
-    label: 'Buildings',
-    description: 'Building footprints and 3D heights',
+    id: 'urbanFabric',
+    label: 'Urban Fabric',
+    description: 'Residential, commercial and industrial zone fills',
     defaultVisible: false,
   },
   {
-    id: 'roads',
-    label: 'Roads',
-    description: 'Road network, paths, transport links',
+    id: 'buildings',
+    label: 'Buildings',
+    description: 'Building footprints (2D)',
+    defaultVisible: false,
+  },
+  {
+    id: 'majorRoads',
+    label: 'Major Roads',
+    description: 'Motorways, primary roads',
+    defaultVisible: false,
+  },
+  {
+    id: 'roadNames',
+    label: 'Road Names',
+    description: 'Highway shields and major road name labels',
+    defaultVisible: false,
+  },
+  {
+    id: 'streetGrid',
+    label: 'Street Grid',
+    description: 'Secondary streets, residential roads, footways',
+    defaultVisible: false,
+  },
+  {
+    id: 'railways',
+    label: 'Railways',
+    description: 'Rail, metro and transit lines',
     defaultVisible: false,
   },
   {
@@ -50,7 +79,13 @@ export const LAYER_GROUPS: LayerGroup[] = [
   {
     id: 'labels',
     label: 'Street Labels',
-    description: '2 street names + 2 place names, visible at any zoom',
+    description: '6 curated street/square names',
+    defaultVisible: false,
+  },
+  {
+    id: 'districtLabels',
+    label: 'District Names',
+    description: 'Neighbourhood and suburb names (safe — no city name)',
     defaultVisible: false,
   },
   {
@@ -69,13 +104,17 @@ export const LAYER_GROUPS: LayerGroup[] = [
  * ("waterway") and the human-readable title-case IDs MapTiler uses ("Road network").
  *
  * sourceLayer is the vector tile source-layer (e.g. "transportation_name", "place").
- * It is used to split symbol layers into street labels vs place-name labels, which
- * is critical for the game — place labels reveal the city name and must stay hidden.
+ * minzoom is the layer's minimum zoom level from the style definition.
  *
  * Returns null for layers that should always remain visible (background,
  * unrecognised fills that make up the base land appearance).
  */
-export function classifyLayer(layerId: string, layerType: string, sourceLayer?: string): LayerGroupId | null {
+export function classifyLayer(
+  layerId: string,
+  layerType: string,
+  sourceLayer?: string,
+  minzoom?: number,
+): LayerGroupId | null {
   const id = layerId.toLowerCase();
 
   // Background — always visible; removing it blanks the map
@@ -83,12 +122,26 @@ export function classifyLayer(layerId: string, layerType: string, sourceLayer?: 
     return null;
   }
 
-  // Symbol layers: split by source-layer to separate city/country names from street names.
-  // OpenMapTiles uses source-layer "place" for admin/city/country labels.
-  // Everything else (transportation_name, poi, housenumber, waterway, …) is street-level.
+  // Symbol layers: split by source-layer.
+  // - transportation_name → roadNames (road shields/labels, separate from road geometry)
+  // - place suburb/neighbourhood → districtLabels (safe — these are quarter names)
+  // - place city/town/country  → placeLabels (always hidden in game — reveals the answer)
+  // - everything else           → labels (permanently hidden, replaced by curated GeoJSON)
   if (layerType === 'symbol') {
     if (sourceLayer === 'place' || sourceLayer === 'place_label') {
+      // In OpenMapTiles, sub-city labels (suburbs, neighbourhoods) have minzoom >= 10.
+      // City/town/country labels appear at much smaller zoom levels (minzoom < 10).
+      // Fall back to ID-keyword matching for styles that use descriptive layer names.
+      const isSubCityLevel =
+        (minzoom !== undefined && minzoom >= 10) ||
+        /suburb|neighbourhood|neighborhood|quarter|district|locality/.test(id);
+      if (isSubCityLevel) {
+        return 'districtLabels';
+      }
       return 'placeLabels';
+    }
+    if (sourceLayer === 'transportation_name') {
+      return 'roadNames';
     }
     return 'labels';
   }
@@ -98,33 +151,48 @@ export function classifyLayer(layerId: string, layerType: string, sourceLayer?: 
     return 'terrain';
   }
 
-  // 3D extruded buildings
+  // 3D extruded buildings — classified but filtered to 2D-only in LayerLab
   if (layerType === 'fill-extrusion') {
     return 'buildings';
   }
 
   // Water: rivers, lakes, ocean, sea, reservoirs, aqueducts
   if (/water|river|lake|ocean|reservoir|canal|swimming.pool|aqueduct/.test(id)) {
-    // Underground waterways in tunnel context belong with roads
+    // Underground waterways in tunnel context belong with the street grid
     if (/river.tunnel|water.tunnel/.test(id)) {
-      return 'roads';
+      return 'streetGrid';
     }
     return 'water';
   }
 
-  // Terrain: elevation features, land cover, land use zones, boundaries
-  if (/hillshade|contour|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|residential|industrial|commercial|military|cemetery|hospital|stadium|landcover|landuse|wetland|meadow|farmland|border|boundary|admin|crop|school|college|university/.test(id)) {
+  // Urban fabric: man-made land-use zone fills (checked before terrain to avoid overlap)
+  if (/\bresidential\b|\bindustrial\b|\bcommercial\b|\bmilitary\b|\bcemetery\b|\bhospital\b|\bstadium\b|\bschool\b|\bcollege\b|\buniversity\b/.test(id)) {
+    return 'urbanFabric';
+  }
+
+  // Terrain: topographic and natural land-cover features
+  if (/hillshade|contour|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|landcover|landuse|wetland|meadow|farmland|border|boundary|admin|crop/.test(id)) {
     return 'terrain';
   }
 
-  // Buildings (flat footprints — 3D extrusion caught above)
+  // Building footprints
   if (/building/.test(id)) {
     return 'buildings';
   }
 
-  // Roads and all surface/underground transport (incl. rail, airport, heliport)
-  if (/road|highway|motorway|trunk|primary|secondary|street|tunnel|bridge|pier|steps|pedestrian|path|track|trail|ferrata|lift|chair|cable|aerialway|ferry|aeroway|runway|taxiway|railway|transit|\brail\b|airport|heliport/.test(id)) {
-    return 'roads';
+  // Railways — checked before roads because "railway" contains "way"
+  if (/railway|\brail\b|transit|metro|tram|subway/.test(id)) {
+    return 'railways';
+  }
+
+  // Major roads: motorways, trunk, primary, secondary, airports + highway class
+  if (/motorway|trunk|primary|secondary|highway|aeroway|runway|taxiway|airport|heliport/.test(id)) {
+    return 'majorRoads';
+  }
+
+  // Street grid: all other surface/underground transport
+  if (/road|street|tunnel|bridge|pier|steps|pedestrian|path|track|trail|ferrata|lift|chair|cable|aerialway|ferry/.test(id)) {
+    return 'streetGrid';
   }
 
   // Unrecognised layers stay always visible (safe default)

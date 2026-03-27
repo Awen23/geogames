@@ -160,9 +160,14 @@ export function LayerLab() {
       });
 
       for (const layer of map.getStyle().layers) {
-        // Pass source-layer so place-name symbols are separated from street-name symbols
-        const sourceLayer = (layer as Record<string, unknown>)['source-layer'] as string | undefined;
-        const group = classifyLayer(layer.id, layer.type, sourceLayer);
+        const raw = layer as Record<string, unknown>;
+        const sourceLayer = raw['source-layer'] as string | undefined;
+        const minzoom = raw['minzoom'] as number | undefined;
+        const group = classifyLayer(layer.id, layer.type, sourceLayer, minzoom);
+        // Log all 'place' source-layer symbols so we can verify district-label detection
+        if (sourceLayer === 'place' && layer.type === 'symbol') {
+          console.log(`[LayerLab] place symbol: "${layer.id}" minzoom=${minzoom} → ${group}`);
+        }
         if (group) {
           grouped[group]!.push(layer.id);
         }
@@ -178,6 +183,45 @@ export function LayerLab() {
             map.setLayoutProperty(id, 'visibility', visibility);
           } catch (err) {
             console.error(`[LayerLab] setLayoutProperty failed for "${id}":`, err);
+          }
+        }
+      }
+
+      // Boost hillshade exaggeration so elevation is more visually prominent
+      for (const layerId of grouped['terrain'] ?? []) {
+        const layerDef = map.getStyle().layers.find((l) => l.id === layerId);
+        if (layerDef?.type === 'hillshade') {
+          try {
+            map.setPaintProperty(layerId, 'hillshade-exaggeration', 0.85);
+            map.setPaintProperty(layerId, 'hillshade-shadow-color', 'rgba(0,0,0,0.65)');
+          } catch (err) {
+            console.warn('[LayerLab] hillshade boost failed:', err);
+          }
+        }
+      }
+
+      // 2D buildings only: strip fill-extrusion layers from the group so the toggle only
+      // shows flat footprints. Lower minzoom so footprints appear at district zoom.
+      grouped['buildings'] = (grouped['buildings'] ?? []).filter((layerId) => {
+        const layerDef = map.getStyle().layers.find((l) => l.id === layerId);
+        return layerDef?.type !== 'fill-extrusion';
+      });
+      for (const layerId of grouped['buildings'] ?? []) {
+        map.setLayerZoomRange(layerId, 13, 24);
+      }
+
+      // Railways: lower minzoom so they appear at city zoom, and make lines bolder
+      for (const layerId of grouped['railways'] ?? []) {
+        const layerDef = map.getStyle().layers.find((l) => l.id === layerId);
+        if (!layerDef) { continue; }
+        map.setLayerZoomRange(layerId, 9, 24);
+        if (layerDef.type === 'line') {
+          try {
+            map.setPaintProperty(layerId, 'line-width', 2.5);
+            map.setPaintProperty(layerId, 'line-color', '#8B7355');
+            map.setPaintProperty(layerId, 'line-opacity', 1);
+          } catch (err) {
+            console.warn(`[LayerLab] railway style override failed for "${layerId}":`, err);
           }
         }
       }
