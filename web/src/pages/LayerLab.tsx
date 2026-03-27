@@ -38,10 +38,15 @@ function buildDefaultVisibility(): LayerVisibility {
   ) as LayerVisibility;
 }
 
-/** Creates a circular photo marker element for always-visible landmark display */
-function createPhotoMarkerEl(imageUrl: string | null): HTMLDivElement {
+/** Creates a circular photo marker element for always-visible landmark display.
+ *  `el` is a zero-size wrapper that MapLibre positions via its own transform.
+ *  The visible circle lives in `inner` so hover transforms don't fight MapLibre. */
+function createPhotoMarkerEl(imageUrl: string | null, onClick?: () => void): HTMLDivElement {
   const el = document.createElement('div');
-  Object.assign(el.style, {
+
+  // inner holds all visual styles — transform here won't clobber MapLibre's positioning
+  const inner = document.createElement('div');
+  Object.assign(inner.style, {
     width: '56px',
     height: '56px',
     borderRadius: '50%',
@@ -49,11 +54,24 @@ function createPhotoMarkerEl(imageUrl: string | null): HTMLDivElement {
     border: '2.5px solid #ffffff',
     boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
     backgroundColor: '#23263a',
-    cursor: 'default',
+    cursor: onClick ? 'pointer' : 'default',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    transition: 'transform 0.15s, box-shadow 0.15s',
   });
+
+  if (onClick) {
+    inner.addEventListener('mouseenter', () => {
+      inner.style.transform = 'scale(1.08)';
+      inner.style.boxShadow = '0 4px 16px rgba(0,0,0,0.6)';
+    });
+    inner.addEventListener('mouseleave', () => {
+      inner.style.transform = '';
+      inner.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
+    });
+    inner.addEventListener('click', onClick);
+  }
 
   if (imageUrl) {
     const img = document.createElement('img');
@@ -62,15 +80,16 @@ function createPhotoMarkerEl(imageUrl: string | null): HTMLDivElement {
     Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' });
     img.onerror = () => {
       img.remove();
-      el.textContent = '📍';
-      Object.assign(el.style, { fontSize: '22px' });
+      inner.textContent = '📍';
+      Object.assign(inner.style, { fontSize: '22px' });
     };
-    el.appendChild(img);
+    inner.appendChild(img);
   } else {
-    el.textContent = '⏳';
-    Object.assign(el.style, { fontSize: '18px', color: '#8b8fa8' });
+    inner.textContent = '⏳';
+    Object.assign(inner.style, { fontSize: '18px', color: '#8b8fa8' });
   }
 
+  el.appendChild(inner);
   return el;
 }
 
@@ -88,6 +107,16 @@ export function LayerLab() {
   const [mapReady, setMapReady] = useState(false);
   // wikiTitle → fetched thumbnail URL
   const [landmarkImages, setLandmarkImages] = useState<Record<string, string>>({});
+  const [selectedLandmark, setSelectedLandmark] = useState<{ label: string; imageUrl: string } | null>(null);
+
+  // Close modal on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { setSelectedLandmark(null); }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Pre-fetch Wikipedia thumbnails for all cities on mount
   useEffect(() => {
@@ -258,7 +287,10 @@ export function LayerLab() {
 
     for (const landmark of activeCity.landmarks) {
       const imageUrl = landmarkImages[landmark.wikiTitle] ?? null;
-      const el = createPhotoMarkerEl(imageUrl);
+      const onClick = imageUrl
+        ? () => setSelectedLandmark({ label: landmark.label, imageUrl })
+        : undefined;
+      const el = createPhotoMarkerEl(imageUrl, onClick);
 
       const marker = new Marker({ element: el, anchor: 'center' })
         .setLngLat([landmark.lon, landmark.lat])
@@ -399,6 +431,26 @@ export function LayerLab() {
       </aside>
 
       <div ref={mapContainerRef} className={styles.map} data-testid="layer-lab-map" />
+
+      {selectedLandmark && (
+        <div className={styles.modalOverlay} onClick={() => setSelectedLandmark(null)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <button
+              className={styles.modalClose}
+              onClick={() => setSelectedLandmark(null)}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <img
+              className={styles.modalImg}
+              src={selectedLandmark.imageUrl}
+              alt={selectedLandmark.label}
+            />
+            <p className={styles.modalLabel}>{selectedLandmark.label}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
