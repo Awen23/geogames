@@ -8,6 +8,7 @@ import styles from './LayerLab.module.css';
 const CURATED_LABELS_SOURCE = 'curated-labels';
 const CURATED_LABELS_LAYER = 'curated-labels';
 const TERRAIN_DEM_SOURCE = 'maptiler-dem';
+const CUSTOM_HILLSHADE_LAYER = 'layerlab-hillshade';
 
 function buildCuratedLabelGeoJSON(labels: CuratedLabel[]) {
   return {
@@ -20,9 +21,8 @@ function buildCuratedLabelGeoJSON(labels: CuratedLabel[]) {
   };
 }
 
-// landscape-v4 gives natural hypsometric tinting + built-in hillshade so elevation
-// is clearly readable without any custom shading layer
-const STYLE_URL = `https://api.maptiler.com/maps/landscape-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
+// streets-v4 combines clear road hierarchy with built-in terrain hillshade
+const STYLE_URL = `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
 
 const ZOOM_PRESETS = [
   { label: 'Regional', zoom: 9 },
@@ -165,22 +165,42 @@ export function LayerLab() {
         const sourceLayer = raw['source-layer'] as string | undefined;
         const minzoom = raw['minzoom'] as number | undefined;
         const group = classifyLayer(layer.id, layer.type, sourceLayer, minzoom);
-        // Log all 'place' source-layer symbols so we can verify district-label detection
-        if (sourceLayer === 'place' && layer.type === 'symbol') {
-          console.log(`[LayerLab] place symbol: "${layer.id}" minzoom=${minzoom} → ${group}`);
+        if (sourceLayer === 'place_label' && layer.type === 'symbol') {
+          console.log(`[LayerLab] place_label symbol: "${layer.id}" minzoom=${minzoom} → ${group}`);
         }
         if (group) {
           grouped[group]!.push(layer.id);
         }
       }
-      // Load the terrain DEM. streets-v2 has no built-in hillshade, so we add our own layer
-      // driven by this source. The same source also powers the 3D Terrain toggle.
+      // DEM source — used for the custom hillshade layer below and the 3D Terrain toggle.
       map.addSource(TERRAIN_DEM_SOURCE, {
         type: 'raster-dem',
         url: `https://api.maptiler.com/tiles/terrain-rgb/tiles.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
         tileSize: 256,
         maxzoom: 12,
       });
+
+      // Gentle hillshade from DEM so elevation is readable without drowning the streets.
+      // Inserted before the first road layer so roads always render on top.
+      const firstRoadId =
+        (grouped['majorRoads'] ?? [])[0] ?? (grouped['streetGrid'] ?? [])[0];
+      map.addLayer(
+        {
+          id: CUSTOM_HILLSHADE_LAYER,
+          type: 'hillshade',
+          source: TERRAIN_DEM_SOURCE,
+          paint: {
+            'hillshade-exaggeration': 0.25,
+            'hillshade-shadow-color': 'rgba(45,30,15,0.22)',
+            'hillshade-highlight-color': 'rgba(255,252,235,0.09)',
+            'hillshade-illumination-direction': 335,
+            'hillshade-illumination-anchor': 'map',
+          },
+          layout: { visibility: 'visible' },
+        },
+        firstRoadId,
+      );
+      grouped['terrain'] = [CUSTOM_HILLSHADE_LAYER, ...(grouped['terrain'] ?? [])];
 
       layerMapRef.current = grouped;
 
@@ -265,6 +285,12 @@ export function LayerLab() {
           'text-halo-width': 1.5,
         },
       });
+
+      // Expose for Playwright e2e tests — allows tests to inspect layer classification
+      if (import.meta.env.DEV) {
+        (window as unknown as Record<string, unknown>)['__layerLabGroups'] = layerMapRef.current;
+        (window as unknown as Record<string, unknown>)['__layerLabMap'] = map;
+      }
 
       setMapReady(true);
     });
@@ -407,6 +433,7 @@ export function LayerLab() {
             {LAB_CITIES.map((city) => (
               <button
                 key={city.id}
+                aria-pressed={activeCity.id === city.id}
                 className={`${styles.cityBtn} ${activeCity.id === city.id ? styles.cityBtnActive : ''}`}
                 onClick={() => handleCityChange(city)}
               >

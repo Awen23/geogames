@@ -137,29 +137,49 @@ export function classifyLayer(
   }
 
   // Symbol layers: split by source-layer.
-  // - transportation_name → roadNames (road shields/labels, separate from road geometry)
-  // - place suburb/neighbourhood → districtLabels (safe — these are quarter names)
-  // - place city/town/country  → placeLabels (always hidden in game — reveals the answer)
-  // - everything else           → labels (permanently hidden, replaced by curated GeoJSON)
+  // Handles both OpenMapTiles v2 naming (streets-v2, outdoor-v2) and
+  // MapTiler v4 naming (streets-v4) which uses different source-layer names.
   if (layerType === 'symbol') {
-    if (sourceLayer === 'place' || sourceLayer === 'place_label') {
-      // In OpenMapTiles, sub-city labels (suburbs, neighbourhoods) have minzoom >= 10.
-      // City/town/country labels appear at much smaller zoom levels (minzoom < 10).
-      // Fall back to ID-keyword matching for styles that use descriptive layer names.
+    // ── City / country / region names — always hidden in game (reveals the answer) ──
+    // v2: source-layer "place" or "place_label"
+    // v4: separate source-layers per level: city_label, country_label, town_label, etc.
+    const isCityOrCountryLayer =
+      sourceLayer === 'place' ||
+      sourceLayer === 'city_label' ||
+      sourceLayer === 'country_label' ||
+      sourceLayer === 'country_disputed_label' ||
+      sourceLayer === 'continent_label' ||
+      sourceLayer === 'archipelago_label' ||
+      sourceLayer === 'island_label' ||
+      sourceLayer === 'state_label' ||
+      sourceLayer === 'town_label';
+
+    if (isCityOrCountryLayer) {
+      return 'placeLabels';
+    }
+
+    // ── Neighbourhood / suburb names — safe to reveal (don't contain the city name) ──
+    // v2: source-layer "place_label" with minzoom >= 10 are sub-city level
+    if (sourceLayer === 'place_label') {
       const isSubCityLevel =
         (minzoom !== undefined && minzoom >= 10) ||
         /suburb|neighbourhood|neighborhood|quarter|district|locality/.test(id);
-      if (isSubCityLevel) {
-        return 'districtLabels';
-      }
-      return 'placeLabels';
+      return isSubCityLevel ? 'districtLabels' : 'placeLabels';
     }
-    if (sourceLayer === 'transportation_name') {
+
+    // ── Road name labels and highway shields ──
+    // v2: transportation_name   v4: road_label
+    if (sourceLayer === 'transportation_name' || sourceLayer === 'road_label') {
       return 'roadNames';
     }
+
+    // ── Contour elevation labels ──
     if (sourceLayer === 'contour') {
-      return 'contours'; // Elevation number labels toggle with contour lines
+      return 'contours';
     }
+
+    // Everything else (POIs, building numbers, water names, ferry labels, etc.)
+    // goes into the permanently-hidden pool — our curated GeoJSON labels replace them.
     return 'labels';
   }
 
