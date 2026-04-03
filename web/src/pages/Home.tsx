@@ -7,6 +7,7 @@ import styles from './Home.module.css';
 
 const GAME_ROUTE: Record<string, string> = {
   'where-most': '/games/where-most',
+  'geoplace': '/games/geoplace',
 };
 
 function GameCard({ game }: { game: GameInfo }) {
@@ -31,12 +32,14 @@ function GameCard({ game }: { game: GameInfo }) {
       <h2 className={styles.cardTitle}>{game.title}</h2>
       <p className={styles.cardTagline}>{game.tagline}</p>
       {played && (
-        <p className={styles.playedHint}>
-          {todayResult.won
-            ? `Won in ${todayResult.guesses} guess${todayResult.guesses > 1 ? 'es' : ''}`
-            : `Played — come back tomorrow`}
-        </p>
-      )}
+          <p className={styles.playedHint}>
+            {game.id === 'geoplace'
+              ? `Score: ${todayResult.guesses}%`
+              : todayResult.won
+                ? `Won in ${todayResult.guesses} guess${todayResult.guesses > 1 ? 'es' : ''}`
+                : `Played — come back tomorrow`}
+          </p>
+        )}
     </Link>
   );
 }

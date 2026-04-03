@@ -1,0 +1,259 @@
+.page {
+  min-height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.topBar {
+  align-self: stretch;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: var(--colour-text-muted);
+}
+
+.backLink:hover {
+  color: var(--colour-text);
+}
+
+.devResetBtn {
+  font-size: 0.75rem;
+  color: var(--colour-text-muted);
+  border: 1px dashed var(--colour-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.devResetBtn:hover {
+  opacity: 1;
+  color: var(--colour-text);
+}
+
+/* Header */
+.header {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.roundCounter {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--colour-text-muted);
+}
+
+.prompt {
+  font-size: 1.15rem;
+  color: var(--colour-text);
+  line-height: 1.4;
+}
+
+.prompt strong {
+  color: var(--colour-accent-hover);
+}
+
+.scoreBadge {
+  font-weight: 700;
+  color: var(--colour-ghost-stroke);
+}
+
+.referenceHint {
+  font-size: 0.8rem;
+  color: var(--colour-text-muted);
+}
+
+.referenceName {
+  color: var(--colour-reference);
+  font-weight: 600;
+}
+
+/* Globe */
+.globeWrapper {
+  width: 100%;
+}
+
+/* Action panel */
+.actionPanel {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 80px;
+}
+
+.instruction {
+  font-size: 0.9rem;
+  color: var(--colour-text-muted);
+  text-align: center;
+}
+
+.nextBtn {
+  padding: var(--space-3) var(--space-8);
+  background: var(--colour-accent);
+  color: white;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.nextBtn:hover {
+  background: var(--colour-accent-hover);
+}
+
+/* Results */
+.results {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.resultsTitle {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--colour-text);
+}
+
+.scoreList {
+  list-style: none;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  background: var(--colour-surface);
+  border-radius: 8px;
+}
+
+.scoreRound {
+  font-size: 0.95rem;
+  color: var(--colour-text);
+}
+
+.scoreValue {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--colour-cold);
+}
+
+.scoreValue[data-ok='true'] {
+  color: var(--colour-top15);
+}
+
+.scoreValue[data-good='true'] {
+  color: var(--colour-bullseye);
+}
+
+.avgRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-6);
+  background: var(--colour-surface-raised);
+  border-radius: 10px;
+  border: 1px solid var(--colour-border);
+}
+
+.avgLabel {
+  font-size: 0.9rem;
+  color: var(--colour-text-muted);
+}
+
+.avgValue {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--colour-text);
+}
+
+.revealNote {
+  font-size: 0.8rem;
+  color: var(--colour-text-muted);
+}
+
+.shareBtn {
+  padding: var(--space-3) var(--space-8);
+  background: var(--colour-accent);
+  color: white;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.15s;
+  min-width: 140px;
+}
+
+.shareBtn:hover {
+  background: var(--colour-accent-hover);
+}
+
+.hubLink {
+  font-size: 0.9rem;
+  color: var(--colour-text-muted);
+}
+
+.hubLink:hover {
+  color: var(--colour-text);
+}
+
+/* Already played */
+.alreadyPlayed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-12);
+  text-align: center;
+}
+
+.alreadyPlayedTitle {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--colour-text);
+}
+
+.alreadyPlayedScore {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--colour-accent-hover);
+}
+
+.alreadyPlayedSub {
+  font-size: 0.9rem;
+  color: var(--colour-text-muted);
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-2) var(--space-3) var(--space-6);
+  }
+
+  .prompt {
+    font-size: 1rem;
+  }
+}

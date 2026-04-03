@@ -28,6 +28,13 @@
   --colour-globe-border: #3d4278;
   --colour-globe-ocean: #1a1d27;
 
+  /* GeoPlace game */
+  --colour-reference: #7986cb;
+  --colour-ghost: rgba(255, 183, 77, 0.55);
+  --colour-ghost-stroke: #ffb74d;
+  --colour-geoplace-placed: rgba(255, 183, 77, 0.75);
+  --colour-geoplace-reveal: #e91e63;
+
   /* Spacing */
   --space-1: 4px;
   --space-2: 8px;

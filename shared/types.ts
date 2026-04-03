@@ -48,3 +48,13 @@ export interface GameInfo {
   tagline: string;
   enabled: boolean;
 }
+
+export interface GeoplacePuzzle {
+  referenceIso3: string;
+  rounds: Array<{ targetIso3: string }>;
+}
+
+export interface GeoplaceStatsResponse {
+  plays: number;
+  avgScore: number;
+}

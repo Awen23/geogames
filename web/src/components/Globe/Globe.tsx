@@ -21,12 +21,35 @@ const MIN_SCALE = 200;
 const MAX_SCALE = 1800;
 const BASE_ROTATION_SENSITIVITY = 0.4;
 
+const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
+
+export interface PlacedCountryData {
+  iso3: string;
+  lat: number;
+  lon: number;
+  label: string;
+}
+
 export interface GlobeProps {
   onCountryClick: (iso3: string) => void;
   highlight?: Record<string, Tier>;
   /** Arrow from the guessed country pointing in the direction of the answer */
   arrow?: { fromIso3: string; bearingDeg: number };
   disabled?: boolean;
+  /** GeoPlace: ghost country shape follows cursor */
+  ghostIso3?: string;
+  /** GeoPlace: called on click with the lat/lon under the cursor */
+  onPlace?: (lat: number, lon: number) => void;
+  /** GeoPlace: frozen placed shapes accumulated across rounds */
+  placedCountries?: PlacedCountryData[];
+  /** GeoPlace: shown at end reveal — highlights correct country positions */
+  revealIso3s?: string[];
+  /** GeoPlace: always-on reference country highlight */
+  referenceIso3?: string;
+  /** Override the initial globe rotation — [-lon, -lat] centres on that point */
+  initialRotation?: [number, number];
+  /** When true, renders all regular countries as ocean colour — only reference/placed/revealed countries are visible */
+  blankGlobe?: boolean;
 }
 
 const TIER_COLOUR: Record<Tier, string> = {
@@ -59,7 +82,7 @@ function destPoint(lon0: number, lat0: number, bearing: number, arcDeg: number):
 
 function HintArrow({ fromIso3, bearingDeg }: { fromIso3: string; bearingDeg: number }) {
   const { projection } = useMapContext();
-  const fromData = (centroids as Record<string, { lat: number; lon: number }>)[fromIso3];
+  const fromData = CENTROID_MAP[fromIso3];
 
   if (!fromData || !projection) { return null; }
 
@@ -99,13 +122,166 @@ function HintArrow({ fromIso3, bearingDeg }: { fromIso3: string; bearingDeg: num
   );
 }
 
-export function Globe({ onCountryClick, highlight = {}, arrow, disabled = false }: GlobeProps) {
-  const [rotation, setRotation] = useState<[number, number]>([0, -30]);
+/** Ghost country shape that follows the mouse cursor */
+function GhostCountry({
+  geo,
+  iso3,
+  mouseSvgPos,
+}: {
+  geo: GeoPermissibleObjects;
+  iso3: string;
+  mouseSvgPos: [number, number];
+}) {
+  const { projection } = useMapContext();
+  const centroidData = CENTROID_MAP[iso3];
+  if (!centroidData || !projection) { return null; }
+
+  const centroidPt = projection([centroidData.lon, centroidData.lat]);
+  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
+
+  const [cx, cy] = centroidPt;
+  const [mx, my] = mouseSvgPos;
+
+  return (
+    <g
+      transform={`translate(${mx - cx}, ${my - cy})`}
+      style={{ pointerEvents: 'none' }}
+    >
+      <Geography
+        geography={geo}
+        fill="var(--colour-ghost)"
+        stroke="var(--colour-ghost-stroke)"
+        strokeWidth={1}
+        style={{
+          default: { outline: 'none' },
+          hover: { outline: 'none' },
+          pressed: { outline: 'none' },
+        }}
+      />
+    </g>
+  );
+}
+
+/** Frozen placed country shape rendered at the player's clicked position */
+function PlacedCountry({
+  geo,
+  iso3,
+  lat,
+  lon,
+  label,
+}: PlacedCountryData & { geo: GeoPermissibleObjects }) {
+  const { projection } = useMapContext();
+  const centroidData = CENTROID_MAP[iso3];
+  if (!centroidData || !projection) { return null; }
+
+  const centroidPt = projection([centroidData.lon, centroidData.lat]);
+  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
+
+  const placedPt = projection([lon, lat]);
+  if (!placedPt || isNaN(placedPt[0])) { return null; }
+
+  const [cx, cy] = centroidPt;
+  const [px, py] = placedPt;
+
+  return (
+    <g
+      transform={`translate(${px - cx}, ${py - cy})`}
+      style={{ pointerEvents: 'none' }}
+    >
+      <Geography
+        geography={geo}
+        fill="var(--colour-geoplace-placed)"
+        stroke="var(--colour-ghost-stroke)"
+        strokeWidth={1}
+        style={{
+          default: { outline: 'none' },
+          hover: { outline: 'none' },
+          pressed: { outline: 'none' },
+        }}
+      />
+      {/* Score label above the placed centroid */}
+      <text
+        x={cx}
+        y={cy - 14}
+        textAnchor="middle"
+        dominantBaseline="auto"
+        fill="white"
+        fontSize={13}
+        fontWeight="bold"
+        stroke="rgba(0,0,0,0.8)"
+        strokeWidth={3}
+        paintOrder="stroke"
+        style={{ userSelect: 'none' }}
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
+/**
+ * Transparent SVG rect that sits on top of all geography elements.
+ * Captures clicks (and touch taps via React's synthetic onClick) and converts
+ * them to lat/lon via projection.invert.
+ */
+function PlaceClickTarget({
+  onPlace,
+  didDragRef,
+}: {
+  onPlace: (lat: number, lon: number) => void;
+  didDragRef: React.RefObject<boolean>;
+}) {
+  const { projection } = useMapContext();
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent<SVGRectElement>) => {
+      if (didDragRef.current) { return; }
+      const svg = e.currentTarget.ownerSVGElement;
+      if (!svg) { return; }
+      const rect = (svg as Element).getBoundingClientRect();
+      const svgX = ((e.clientX - rect.left) / rect.width) * WIDTH;
+      const svgY = ((e.clientY - rect.top) / rect.height) * HEIGHT;
+      // d3-geo projection.invert returns [NaN, NaN] for points outside the disc
+      const coords = (projection as unknown as { invert?: (p: [number, number]) => [number, number] | null }).invert?.([svgX, svgY]);
+      if (!coords || isNaN(coords[0]) || isNaN(coords[1])) { return; }
+      const [lon, lat] = coords;
+      onPlace(lat, lon);
+    },
+    [onPlace, didDragRef, projection],
+  );
+
+  return (
+    <rect
+      x={0}
+      y={0}
+      width={WIDTH}
+      height={HEIGHT}
+      fill="transparent"
+      style={{ cursor: 'crosshair' }}
+      onClick={handleClick}
+    />
+  );
+}
+
+export function Globe({
+  onCountryClick,
+  highlight = {},
+  arrow,
+  disabled = false,
+  ghostIso3,
+  onPlace,
+  placedCountries,
+  revealIso3s,
+  referenceIso3,
+  initialRotation,
+  blankGlobe = false,
+}: GlobeProps) {
+  const [rotation, setRotation] = useState<[number, number]>(initialRotation ?? [0, -30]);
   const [scale, setScale] = useState(BASE_SCALE);
+  const [mouseSvgPos, setMouseSvgPos] = useState<[number, number] | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; rotation: [number, number] } | null>(null);
   const didDragRef = useRef(false);
-  // Stores state at the start of a pinch gesture
   const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
 
   // Non-passive wheel listener so we can preventDefault and prevent page scroll
@@ -158,6 +334,27 @@ export function Globe({ onCountryClick, highlight = {}, arrow, disabled = false 
     dragRef.current = null;
   }, []);
 
+  /** Tracks mouse position in SVG coordinate space for ghost shape rendering */
+  const handleContainerMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!ghostIso3) { return; }
+      const el = containerRef.current;
+      if (!el) { return; }
+      const svg = el.querySelector('svg');
+      if (!svg) { return; }
+      const rect = svg.getBoundingClientRect();
+      const svgX = ((e.clientX - rect.left) / rect.width) * WIDTH;
+      const svgY = ((e.clientY - rect.top) / rect.height) * HEIGHT;
+      setMouseSvgPos([svgX, svgY]);
+    },
+    [ghostIso3],
+  );
+
+  const handleContainerMouseLeave = useCallback(() => {
+    if (!ghostIso3) { return; }
+    setMouseSvgPos(null);
+  }, [ghostIso3]);
+
   const handleTouchStart = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
       if (e.touches.length === 1) {
@@ -205,10 +402,11 @@ export function Globe({ onCountryClick, highlight = {}, arrow, disabled = false 
 
   const handleCountryClick = useCallback(
     (iso3: string) => {
-      if (disabled || didDragRef.current) { return; }
+      // In placement mode country clicks are handled by PlaceClickTarget
+      if (disabled || didDragRef.current || onPlace) { return; }
       onCountryClick(iso3);
     },
-    [disabled, onCountryClick],
+    [disabled, onCountryClick, onPlace],
   );
 
   const zoomIn = useCallback(() => setScale((s) => Math.min(MAX_SCALE, s * 1.4)), []);
@@ -220,6 +418,8 @@ export function Globe({ onCountryClick, highlight = {}, arrow, disabled = false 
       className={styles.container}
       data-testid="globe"
       ref={containerRef}
+      onMouseMove={handleContainerMouseMove}
+      onMouseLeave={handleContainerMouseLeave}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMoveState}
       onTouchEnd={handleTouchEnd}
@@ -243,32 +443,90 @@ export function Globe({ onCountryClick, highlight = {}, arrow, disabled = false 
         />
         <Graticule stroke="var(--colour-globe-border)" strokeWidth={0.3} />
         <Geographies geography={GEO_URL}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
+          {({ geographies }) => {
+            // Build an iso3 → geo lookup for ghost and placed shapes
+            const geoByIso3 = new Map<string, GeoPermissibleObjects>();
+            for (const geo of geographies) {
               const iso3 = numericToIso3[String(geo.id).padStart(3, '0')];
-              const tier = iso3 ? highlight[iso3] : undefined;
-              const fill = tier ? TIER_COLOUR[tier] : 'var(--colour-globe-land)';
-              return (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo as unknown as GeoPermissibleObjects}
-                  fill={fill}
-                  stroke="var(--colour-globe-border)"
-                  strokeWidth={0.4}
-                  onClick={() => iso3 && handleCountryClick(iso3)}
-                  style={{
-                    default: { outline: 'none' },
-                    hover: {
-                      outline: 'none',
-                      fill: disabled ? fill : 'var(--colour-accent)',
-                      cursor: disabled ? 'default' : 'pointer',
-                    },
-                    pressed: { outline: 'none' },
-                  }}
-                />
-              );
-            })
-          }
+              if (iso3) { geoByIso3.set(iso3, geo as unknown as GeoPermissibleObjects); }
+            }
+
+            return (
+              <>
+                {/* Base country fill layer */}
+                {geographies.map((geo) => {
+                  const iso3 = numericToIso3[String(geo.id).padStart(3, '0')];
+                  const isRevealed = iso3 ? (revealIso3s?.includes(iso3) ?? false) : false;
+                  const isReference = iso3 === referenceIso3;
+                  const isSpecial = isRevealed || isReference;
+                  const tier = iso3 ? highlight[iso3] : undefined;
+
+                  // In blank-globe mode, skip all ordinary countries entirely so no SVG paths
+                  // (even transparent paths) cause visible artefacts on the empty globe
+                  if (blankGlobe && !isSpecial && !tier) { return null; }
+
+                  let fill: string;
+                  if (isRevealed) {
+                    fill = 'var(--colour-geoplace-reveal)';
+                  } else if (isReference) {
+                    fill = 'var(--colour-reference)';
+                  } else if (tier) {
+                    fill = TIER_COLOUR[tier];
+                  } else {
+                    fill = 'var(--colour-globe-land)';
+                  }
+
+                  const hoverFill = onPlace
+                    ? fill
+                    : disabled
+                      ? fill
+                      : 'var(--colour-accent)';
+
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo as unknown as GeoPermissibleObjects}
+                      fill={fill}
+                      stroke="var(--colour-globe-border)"
+                      strokeWidth={0.4}
+                      onClick={() => iso3 && handleCountryClick(iso3)}
+                      style={{
+                        default: { outline: 'none' },
+                        hover: {
+                          outline: 'none',
+                          fill: hoverFill,
+                          cursor: onPlace ? 'crosshair' : disabled ? 'default' : 'pointer',
+                        },
+                        pressed: { outline: 'none' },
+                      }}
+                    />
+                  );
+                })}
+
+                {/* Ghost shape following cursor */}
+                {ghostIso3 && mouseSvgPos && geoByIso3.get(ghostIso3) && (
+                  <GhostCountry
+                    geo={geoByIso3.get(ghostIso3)!}
+                    iso3={ghostIso3}
+                    mouseSvgPos={mouseSvgPos}
+                  />
+                )}
+
+                {/* Frozen placed shapes from previous rounds */}
+                {placedCountries?.map((p) => {
+                  const geo = geoByIso3.get(p.iso3);
+                  return geo ? (
+                    <PlacedCountry key={`placed-${p.iso3}`} geo={geo} {...p} />
+                  ) : null;
+                })}
+
+                {/* Click target for placement mode — rendered last so it sits on top */}
+                {onPlace && (
+                  <PlaceClickTarget onPlace={onPlace} didDragRef={didDragRef} />
+                )}
+              </>
+            );
+          }}
         </Geographies>
         {arrow && <HintArrow fromIso3={arrow.fromIso3} bearingDeg={arrow.bearingDeg} />}
       </ComposableMap>

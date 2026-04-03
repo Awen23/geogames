@@ -10,5 +10,11 @@ gamesRouter.get('/', (_req, res) => {
       tagline: 'Which country consumes the most?',
       enabled: true,
     },
+    {
+      id: 'geoplace',
+      title: 'GeoPlace',
+      tagline: 'Place the country on the globe',
+      enabled: true,
+    },
   ]);
 });
