@@ -127,6 +127,26 @@ export const LAB_CITIES: LabCity[] = [
     ],
   },
   {
+    id: 'la-paz',
+    name: 'La Paz',
+    lat: -16.4966,
+    lon: -68.1335,
+    zoom: 11,
+    landmarks: [
+      { label: 'Witches Market', lat: -16.4986, lon: -68.1372, wikiTitle: 'Mercado de las Brujas' },
+      { label: 'Valley of the Moon', lat: -16.5559, lon: -68.0725, wikiTitle: 'Valle de la Luna (La Paz)' },
+      { label: 'Main Square', lat: -16.4966, lon: -68.1335, wikiTitle: 'Plaza Murillo' },
+    ],
+    curatedLabels: [
+      { text: 'El Alto', lat: -16.505, lon: -68.195 },        // high plateau district above the canyon
+      { text: 'Sopocachi', lat: -16.508, lon: -68.118 },       // central residential
+      { text: 'Miraflores', lat: -16.483, lon: -68.118 },      // lower northeast
+      { text: 'Zona Sur', lat: -16.538, lon: -68.080 },        // wealthy south at lower altitude
+      { text: 'Calle Sagárnaga', lat: -16.498, lon: -68.138 }, // tourist market street, old town
+      { text: 'San Pedro', lat: -16.503, lon: -68.143 },       // historic central neighbourhood
+    ],
+  },
+  {
     id: 'perth',
     name: 'Perth',
     lat: -31.9505,

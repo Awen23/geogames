@@ -1,5 +1,7 @@
 export type LayerGroupId =
   | 'terrain'
+  | 'contours'
+  | 'terrain3d'
   | 'water'
   | 'urbanFabric'
   | 'buildings'
@@ -25,8 +27,20 @@ export const LAYER_GROUPS: LayerGroup[] = [
   {
     id: 'terrain',
     label: 'Terrain',
-    description: 'Hillshade, contours, natural land cover',
+    description: 'Hillshade and natural land cover',
     defaultVisible: true,
+  },
+  {
+    id: 'contours',
+    label: 'Contour Lines',
+    description: 'Elevation contour lines',
+    defaultVisible: false,
+  },
+  {
+    id: 'terrain3d',
+    label: '3D Terrain',
+    description: 'Raises the map surface with real elevation — best with tilt',
+    defaultVisible: false,
   },
   {
     id: 'water',
@@ -143,6 +157,9 @@ export function classifyLayer(
     if (sourceLayer === 'transportation_name') {
       return 'roadNames';
     }
+    if (sourceLayer === 'contour') {
+      return 'contours'; // Elevation number labels toggle with contour lines
+    }
     return 'labels';
   }
 
@@ -170,8 +187,13 @@ export function classifyLayer(
     return 'urbanFabric';
   }
 
+  // Contour lines — separate toggle so they can be layered on top of anything
+  if (/contour/.test(id)) {
+    return 'contours';
+  }
+
   // Terrain: topographic and natural land-cover features
-  if (/hillshade|contour|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|landcover|landuse|wetland|meadow|farmland|border|boundary|admin|crop/.test(id)) {
+  if (/hillshade|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|landcover|landuse|wetland|meadow|farmland|border|boundary|admin|crop/.test(id)) {
     return 'terrain';
   }
 

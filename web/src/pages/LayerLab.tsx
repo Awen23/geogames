@@ -7,6 +7,7 @@ import styles from './LayerLab.module.css';
 
 const CURATED_LABELS_SOURCE = 'curated-labels';
 const CURATED_LABELS_LAYER = 'curated-labels';
+const TERRAIN_DEM_SOURCE = 'maptiler-dem';
 
 function buildCuratedLabelGeoJSON(labels: CuratedLabel[]) {
   return {
@@ -19,9 +20,9 @@ function buildCuratedLabelGeoJSON(labels: CuratedLabel[]) {
   };
 }
 
-// streets-v2 is better for urban city identification:
-// separate road-class layers, clear building data, standard urban POIs
-const STYLE_URL = `https://api.maptiler.com/maps/streets-v2/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
+// landscape-v4 gives natural hypsometric tinting + built-in hillshade so elevation
+// is clearly readable without any custom shading layer
+const STYLE_URL = `https://api.maptiler.com/maps/landscape-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
 
 const ZOOM_PRESETS = [
   { label: 'Regional', zoom: 9 },
@@ -172,6 +173,15 @@ export function LayerLab() {
           grouped[group]!.push(layer.id);
         }
       }
+      // Load the terrain DEM. streets-v2 has no built-in hillshade, so we add our own layer
+      // driven by this source. The same source also powers the 3D Terrain toggle.
+      map.addSource(TERRAIN_DEM_SOURCE, {
+        type: 'raster-dem',
+        url: `https://api.maptiler.com/tiles/terrain-rgb/tiles.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
+        tileSize: 256,
+        maxzoom: 12,
+      });
+
       layerMapRef.current = grouped;
 
       // Apply initial visibility state from defaults.
@@ -187,15 +197,18 @@ export function LayerLab() {
         }
       }
 
-      // Boost hillshade exaggeration so elevation is more visually prominent
-      for (const layerId of grouped['terrain'] ?? []) {
+      // Contour lines: lower minzoom so they show at city view, and make them bolder
+      for (const layerId of grouped['contours'] ?? []) {
         const layerDef = map.getStyle().layers.find((l) => l.id === layerId);
-        if (layerDef?.type === 'hillshade') {
+        if (!layerDef) { continue; }
+        map.setLayerZoomRange(layerId, 8, 24);
+        if (layerDef.type === 'line') {
           try {
-            map.setPaintProperty(layerId, 'hillshade-exaggeration', 0.85);
-            map.setPaintProperty(layerId, 'hillshade-shadow-color', 'rgba(0,0,0,0.65)');
+            map.setPaintProperty(layerId, 'line-color', '#8B6947');
+            map.setPaintProperty(layerId, 'line-opacity', 0.9);
+            map.setPaintProperty(layerId, 'line-width', 1.5);
           } catch (err) {
-            console.warn('[LayerLab] hillshade boost failed:', err);
+            console.warn(`[LayerLab] contour style override failed for "${layerId}":`, err);
           }
         }
       }
@@ -301,6 +314,18 @@ export function LayerLab() {
           );
         } catch (err) {
           console.error('[LayerLab] curated-labels visibility failed:', err);
+        }
+        continue;
+      }
+      if (group.id === 'terrain3d') {
+        try {
+          if (layerVisibility.terrain3d) {
+            map.setTerrain({ source: TERRAIN_DEM_SOURCE, exaggeration: 2.0 });
+          } else {
+            map.setTerrain(null);
+          }
+        } catch (err) {
+          console.error('[LayerLab] terrain3d toggle failed:', err);
         }
         continue;
       }
