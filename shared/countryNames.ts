@@ -24,7 +24,7 @@ export const COUNTRY_NAMES: Record<string, string> = {
   CRI: 'Costa Rica',
   CUB: 'Cuba',
   CYP: 'Cyprus',
-  CZE: 'Czech Republic',
+  CZE: 'Czechia',
   DEU: 'Germany',
   DNK: 'Denmark',
   DOM: 'Dominican Republic',
