@@ -16,20 +16,20 @@ export function fetchToday(): Promise<TodayResponse> {
   return apiFetch('/api/games/where-most/today');
 }
 
-export function gradeGuess(iso3: string, guessIndex: number): Promise<GuessResult> {
+export function gradeGuess(iso3: string): Promise<GuessResult> {
   return apiFetch('/api/games/where-most/grade', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ iso3, guessIndex }),
+    body: JSON.stringify({ iso3 }),
     credentials: 'include',
   });
 }
 
-export function submitResult(won: boolean, guesses: number): Promise<void> {
+export function submitResult(score: number, guesses: number): Promise<void> {
   return apiFetch('/api/games/where-most/result', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ won, guesses }),
+    body: JSON.stringify({ score, guesses }),
     credentials: 'include',
   });
 }

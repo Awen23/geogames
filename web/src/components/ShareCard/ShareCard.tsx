@@ -3,9 +3,8 @@ import type { GuessResult, Tier } from '@shared/types';
 import styles from './ShareCard.module.css';
 
 const TIER_EMOJI: Record<Tier, string> = {
-  bullseye: '🟢',
-  top5: '🟡',
-  top15: '🟠',
+  found: '🟩',
+  warm: '🟨',
   cold: '⬛',
 };
 
@@ -14,17 +13,19 @@ interface ShareCardProps {
   date: string;
   guesses: GuessResult[];
   maxGuesses: number;
-  isWon: boolean;
+  foundCount: number;
+  /** Score as a percentage (0–100, 1 decimal place) */
+  scorePct: number;
 }
 
-export function ShareCard({ gameTitle, date, guesses, maxGuesses, isWon }: ShareCardProps) {
+export function ShareCard({ gameTitle, date, guesses, maxGuesses, foundCount, scorePct }: ShareCardProps) {
   const [copied, setCopied] = useState(false);
 
   const grid = guesses.map((g) => TIER_EMOJI[g.tier]).join('');
   const padding = '⬜'.repeat(maxGuesses - guesses.length);
   const emojiGrid = grid + padding;
 
-  const scoreStr = isWon ? `${guesses.length}/${maxGuesses}` : `X/${maxGuesses}`;
+  const scoreStr = `${foundCount}/5 found · ${scorePct}% · ${guesses.length}/${maxGuesses} guesses`;
   const shareText = `${gameTitle} ${date}\n${scoreStr}\n\n${emojiGrid}`;
 
   async function handleCopy() {

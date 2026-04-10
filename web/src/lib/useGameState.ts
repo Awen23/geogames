@@ -4,6 +4,8 @@ interface DayResult {
   date: string;
   won: boolean;
   guesses: number;
+  /** How many of the 5 top countries were found (0–5) */
+  score?: number;
 }
 
 interface PersistedState {
@@ -81,12 +83,12 @@ export function useGameState(gameId: string) {
   );
 
   const recordResult = useCallback(
-    (won: boolean, guesses: number) => {
+    (won: boolean, guesses: number, score?: number) => {
       setPersisted((prev) => {
         const alreadyRecorded = prev.history.some((r) => r.date === today);
         if (alreadyRecorded) { return prev; }
         const next: PersistedState = {
-          history: [{ date: today, won, guesses }, ...prev.history].slice(0, 90),
+          history: [{ date: today, won, guesses, score }, ...prev.history].slice(0, 90),
         };
         localStorage.setItem(storageKey(gameId), JSON.stringify(next));
         return next;

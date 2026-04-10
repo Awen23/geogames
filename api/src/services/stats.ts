@@ -63,7 +63,8 @@ export async function getTodayStats(
   const row = rows[0];
   return {
     plays: row.plays,
-    bullseyeRate: row.plays > 0 ? row.bullseyeFirstCount / row.plays : 0,
+    // "perfect" = all 5 top countries found = won; bullseyeFirstCount is legacy and unused
+    bullseyeRate: row.plays > 0 ? row.wins / row.plays : 0,
     avgGuesses: row.plays > 0 ? row.totalGuesses / row.plays : 0,
   };
 }

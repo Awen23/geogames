@@ -55,9 +55,8 @@ export interface GlobeProps {
 }
 
 const TIER_COLOUR: Record<Tier, string> = {
-  bullseye: 'var(--colour-bullseye)',
-  top5: 'var(--colour-top5)',
-  top15: 'var(--colour-top15)',
+  found: 'var(--colour-bullseye)',
+  warm: 'var(--colour-top15)',
   cold: 'var(--colour-cold)',
 };
 

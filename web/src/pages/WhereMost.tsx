@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import type { TodayResponse, GuessResult, TodayStatsResponse, Tier, RankedCountry } from '@shared/types';
-import { Globe } from '../components/Globe/Globe';
+import type { TodayResponse, GuessResult, TodayStatsResponse, Tier } from '@shared/types';
 import { CountryInput } from '../components/CountryInput/CountryInput';
 import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
 import { fetchToday, gradeGuess, submitResult, fetchTodayStats } from '../lib/api';
 import { useGameState } from '../lib/useGameState';
+import { progressScore, progressPct } from '../lib/progressScore';
 import { displayName } from '../data/countryNames';
 import styles from './WhereMost.module.css';
 
 const MAX_GUESSES = 5;
+const TOP_N = 5;
 const GAME_ID = 'where-most';
 
 interface Guess {
@@ -19,31 +20,10 @@ interface Guess {
 }
 
 const TIER_BADGE: Record<Tier, string> = {
-  bullseye: '🟢',
-  top5: '🟡',
-  top15: '🟠',
+  found: '🟩',
+  warm: '🟨',
   cold: '⬛',
 };
-
-const BEARING_ARROWS = ['⬆️', '↗️', '➡️', '↘️', '⬇️', '↙️', '⬅️', '↖️'];
-
-function bearingToArrow(deg: number): string {
-  const idx = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
-  return BEARING_ARROWS[idx];
-}
-
-/** Build a heatmap for post-game globe: ISO3 → CSS colour, green (top) → red (bottom). */
-function buildHeatmap(ranking: RankedCountry[]): Record<string, string> {
-  const map: Record<string, string> = {};
-  const last = ranking.length - 1;
-  ranking.forEach((r, i) => {
-    const t = last > 0 ? 1 - i / last : 1;
-    const hue = Math.round(120 * t);
-    const lightness = Math.round(30 + 15 * t);
-    map[r.iso3] = `hsl(${hue}, 75%, ${lightness}%)`;
-  });
-  return map;
-}
 
 function GuessRow({ guess, unit }: { guess: Guess; unit: string }) {
   const { iso3, result } = guess;
@@ -54,18 +34,43 @@ function GuessRow({ guess, unit }: { guess: Guess; unit: string }) {
       <span className={styles.guessStats}>
         {result.rank !== null ? (
           <span className={styles.guessRank}>
-            #{result.rank}{result.value != null ? ` · ${result.value.toFixed(1)} ${unit}` : ''}
+            #{result.rank}{result.value != null ? ` · ${result.value.toFixed(2)} ${unit}` : ''}
           </span>
         ) : (
-          <span className={styles.guessUnranked}>Not ranked</span>
-        )}
-        {!result.isCorrect && (
-          <span className={styles.guessDirection}>
-            {bearingToArrow(result.bearingDeg)} {result.distanceKm.toLocaleString()} km
-          </span>
+          <span className={styles.guessUnranked}>Not in dataset</span>
         )}
       </span>
     </li>
+  );
+}
+
+function ProgressBar({
+  score,
+  maxScoreVal,
+  unit,
+}: {
+  score: number;
+  maxScoreVal: number;
+  unit: string;
+}) {
+  const pct = maxScoreVal > 0 ? Math.min(100, (score / maxScoreVal) * 100) : 0;
+  const pctRounded = Math.round(pct * 10) / 10;
+  return (
+    <div className={styles.progressSection}>
+      <div
+        className={styles.progressBar}
+        role="progressbar"
+        aria-valuenow={pctRounded}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Your score vs top-5 total"
+      >
+        <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+      </div>
+      <p className={styles.progressLabel}>
+        {score.toFixed(1)} / {maxScoreVal.toFixed(1)} {unit} — {pctRounded}%
+      </p>
+    </div>
   );
 }
 
@@ -79,12 +84,14 @@ export function WhereMost() {
 
   const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
-  const isWon = guesses.some((g) => g.result.isCorrect);
-  const isGameOver = isWon || guesses.length >= MAX_GUESSES;
+  const foundCount = guesses.filter((g) => g.result.isTopFive).length;
+  const isAllFound = foundCount === TOP_N;
+  const isGameOver = isAllFound || guesses.length >= MAX_GUESSES;
   const showEndScreen = isGameOver || !!todayResult;
 
   const guessedIso3s = guesses.map((g) => g.iso3);
-  const heatmap = stats?.ranking ? buildHeatmap(stats.ranking) : undefined;
+  const scoreVal = progressScore(guesses);
+  const maxScoreVal = today?.maxScore ?? 0;
 
   useEffect(() => {
     fetchToday()
@@ -100,10 +107,10 @@ export function WhereMost() {
 
   const handleEndGame = useCallback(
     async (finalGuesses: Guess[]) => {
-      const won = finalGuesses.some((g) => g.result.isCorrect);
+      const score = finalGuesses.filter((g) => g.result.isTopFive).length;
       const guessCount = finalGuesses.length;
       try {
-        await submitResult(won, guessCount);
+        await submitResult(score, guessCount);
       } catch (err) {
         console.error('Failed to submit result:', err);
       }
@@ -113,7 +120,7 @@ export function WhereMost() {
       } catch (err) {
         console.error('Failed to fetch stats:', err);
       }
-      recordResult(won, guessCount);
+      recordResult(score === TOP_N, guessCount, score);
     },
     [recordResult],
   );
@@ -125,10 +132,12 @@ export function WhereMost() {
 
       setSubmitting(true);
       try {
-        const result = await gradeGuess(iso3, guesses.length);
+        const result = await gradeGuess(iso3);
         const nextGuesses: Guess[] = [...guesses, { iso3, result }];
         setGuesses(nextGuesses);
-        if (result.isCorrect || nextGuesses.length >= MAX_GUESSES) {
+
+        const nextFoundCount = nextGuesses.filter((g) => g.result.isTopFive).length;
+        if (nextFoundCount === TOP_N || nextGuesses.length >= MAX_GUESSES) {
           await handleEndGame(nextGuesses);
         }
       } catch (err) {
@@ -140,7 +149,7 @@ export function WhereMost() {
     [guesses, isGameOver, submitting, today, handleEndGame],
   );
 
-  // Replay guard — already played today; load stats and jump to end screen
+  // Replay guard — already played today; load stats for end screen
   useEffect(() => {
     if (todayResult && !isGameOver) {
       fetchTodayStats()
@@ -171,6 +180,10 @@ export function WhereMost() {
 
   if (!today) { return null; }
 
+  // For old localStorage records without a stored score, infer from won flag
+  const displayFoundCount = todayResult?.score ?? (todayResult?.won ? TOP_N : foundCount);
+  const displayPct = progressPct(scoreVal, maxScoreVal);
+
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
@@ -190,7 +203,6 @@ export function WhereMost() {
         )}
       </div>
 
-      {/* Icon + question header */}
       <div className={styles.questionHeader}>
         <span className={styles.questionIcon} data-testid="question-icon">{today.icon}</span>
         <DailyHeader
@@ -198,9 +210,15 @@ export function WhereMost() {
           guessesUsed={guesses.length}
           maxGuesses={MAX_GUESSES}
         />
+        <p className={styles.questionDescription}>{today.description}</p>
       </div>
 
-      {/* Guess list — visible throughout */}
+      {/* Progress bar — only shown when there are actual guesses this session */}
+      {guesses.length > 0 && (
+        <ProgressBar score={scoreVal} maxScoreVal={maxScoreVal} unit={today.unit} />
+      )}
+
+      {/* Guess list */}
       {guesses.length > 0 && (
         <ul className={styles.guessList} data-testid="guess-list">
           {guesses.map((g, i) => (
@@ -222,16 +240,19 @@ export function WhereMost() {
       {showEndScreen && (
         <div className={styles.endScreen} data-testid="end-screen">
           <div className={styles.endResult}>
-            {(isWon || todayResult?.won) ? (
+            {isAllFound || todayResult?.won ? (
               <h2 className={styles.endWon}>
-                🎉{' '}
-                {guesses.length > 0
-                  ? `Found it in ${guesses.length} guess${guesses.length > 1 ? 'es' : ''}!`
-                  : 'You already played today!'}
+                🎉 All 5 found{guesses.length > 0 ? ` — ${displayPct}%!` : '!'}
+              </h2>
+            ) : guesses.length === 0 ? (
+              <h2 className={styles.endLost}>
+                {`You played today — ${displayFoundCount}/5 found`}
               </h2>
             ) : (
               <h2 className={styles.endLost}>
-                No more guesses — the answer was the <strong>{today.metric}</strong> leader.
+                {displayFoundCount > 0
+                  ? `${displayFoundCount}/5 found — score: ${displayPct}%`
+                  : `No top countries found — score: 0%`}
               </h2>
             )}
           </div>
@@ -242,7 +263,8 @@ export function WhereMost() {
               date={today.date}
               guesses={guesses.map((g) => g.result)}
               maxGuesses={MAX_GUESSES}
-              isWon={isWon}
+              foundCount={foundCount}
+              scorePct={displayPct}
             />
           )}
 
@@ -254,9 +276,9 @@ export function WhereMost() {
               </div>
               <div className={styles.stat}>
                 <span className={styles.statValue}>
-                  {Math.round(stats.bullseyeRate * 100)}%
+                  {Math.round(stats.perfectRate * 100)}%
                 </span>
-                <span className={styles.statLabel}>first-guess rate</span>
+                <span className={styles.statLabel}>all-5 rate</span>
               </div>
               <div className={styles.stat}>
                 <span className={styles.statValue}>
@@ -267,17 +289,17 @@ export function WhereMost() {
             </div>
           )}
 
-          {/* Post-game globe — coloured by ranking value */}
-          {heatmap && (
-            <div className={styles.heatmapSection}>
-              <p className={styles.heatmapLabel}>{today.metric} by country</p>
-              <Globe
-                onCountryClick={() => {}}
-                heatmap={heatmap}
-                disabled
-              />
-            </div>
-          )}
+          {/* Post-game choropleth map from OWID */}
+          <div className={styles.mapSection}>
+            <p className={styles.mapLabel}>{today.metric} — world map</p>
+            <iframe
+              className={styles.mapEmbed}
+              src={today.mapEmbedUrl}
+              title={`${today.metric} choropleth map`}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
 
           <div className={styles.streakRow}>
             <span className={styles.streak}>🔥 {streak} day streak</span>

@@ -54,7 +54,7 @@ export const COUNTRIES: CountryEntry[] = [
   { iso3: 'HRV', iso2: 'HR', name: 'Croatia' },
   { iso3: 'CUB', iso2: 'CU', name: 'Cuba' },
   { iso3: 'CYP', iso2: 'CY', name: 'Cyprus' },
-  { iso3: 'CZE', iso2: 'CZ', name: 'Czech Republic', aliases: ['Czechia'] },
+  { iso3: 'CZE', iso2: 'CZ', name: 'Czechia', aliases: ['Czech Republic'] },
   { iso3: 'DNK', iso2: 'DK', name: 'Denmark' },
   { iso3: 'DJI', iso2: 'DJ', name: 'Djibouti' },
   { iso3: 'DOM', iso2: 'DO', name: 'Dominican Republic' },

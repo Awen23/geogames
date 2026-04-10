@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { seedIndex, utcDateString } from '../services/daily';
-import { scoreGuess } from '../services/scoring';
+import { scoreGuess, maxScore } from '../services/scoring';
 import { recordPlay, getTodayStats } from '../services/stats';
 import { questions } from '../data/questions';
-import centroids from '@shared/centroids.json';
 
 export const whereMostRouter = Router();
 
@@ -18,13 +17,12 @@ function getTodayQuestion() {
 
 whereMostRouter.get('/today', (_req, res) => {
   const { question, date } = getTodayQuestion();
-  const { id, prompt, metric, unit, source, sourceUrl, icon } = question;
-  res.json({ id, date, prompt, metric, unit, source, sourceUrl, icon });
+  const { id, prompt, description, metric, unit, source, sourceUrl, icon, mapEmbedUrl } = question;
+  res.json({ id, date, prompt, description, metric, unit, source, sourceUrl, icon, mapEmbedUrl, maxScore: maxScore(question) });
 });
 
 const gradeSchema = z.object({
   iso3: z.string().length(3).toUpperCase(),
-  guessIndex: z.number().int().min(0).max(4),
 });
 
 whereMostRouter.post('/grade', (req, res) => {
@@ -36,12 +34,12 @@ whereMostRouter.post('/grade', (req, res) => {
 
   const { iso3 } = parsed.data;
   const { question } = getTodayQuestion();
-  const result = scoreGuess(question, iso3, centroids);
+  const result = scoreGuess(question, iso3);
   res.json(result);
 });
 
 const resultSchema = z.object({
-  won: z.boolean(),
+  score: z.number().int().min(0).max(5),
   guesses: z.number().int().min(1).max(5),
 });
 
@@ -56,8 +54,9 @@ whereMostRouter.post('/result', async (req, res) => {
     (req.cookies['geogames_device_id'] as string | undefined) ??
     `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const { won, guesses } = parsed.data;
+  const { score, guesses } = parsed.data;
   const { date } = getTodayQuestion();
+  const won = score === 5;
 
   await recordPlay({ deviceId, gameId: GAME_ID, date, won, guesses });
 
@@ -72,6 +71,6 @@ whereMostRouter.post('/result', async (req, res) => {
 
 whereMostRouter.get('/stats/today', async (_req, res) => {
   const { date, question } = getTodayQuestion();
-  const stats = await getTodayStats(GAME_ID, date);
-  res.json({ ...stats, ranking: question.ranking });
+  const { plays, bullseyeRate: perfectRate, avgGuesses } = await getTodayStats(GAME_ID, date);
+  res.json({ plays, perfectRate, avgGuesses, ranking: question.ranking });
 });

@@ -12,7 +12,7 @@
     "db:generate": "npm run db:generate --prefix api",
     "db:migrate": "npm run db:migrate --prefix api",
     "typecheck": "npm run typecheck --prefix api && npm run typecheck --prefix web",
-    "test": "npm test --prefix api",
+    "test": "npm test --prefix api && npm test --prefix web",
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "format": "prettier --write ."
