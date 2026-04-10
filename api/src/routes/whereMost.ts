@@ -18,8 +18,8 @@ function getTodayQuestion() {
 
 whereMostRouter.get('/today', (_req, res) => {
   const { question, date } = getTodayQuestion();
-  const { id, prompt, metric, unit, source, sourceUrl } = question;
-  res.json({ id, date, prompt, metric, unit, source, sourceUrl });
+  const { id, prompt, metric, unit, source, sourceUrl, icon } = question;
+  res.json({ id, date, prompt, metric, unit, source, sourceUrl, icon });
 });
 
 const gradeSchema = z.object({
@@ -71,7 +71,7 @@ whereMostRouter.post('/result', async (req, res) => {
 });
 
 whereMostRouter.get('/stats/today', async (_req, res) => {
-  const { date } = getTodayQuestion();
+  const { date, question } = getTodayQuestion();
   const stats = await getTodayStats(GAME_ID, date);
-  res.json(stats);
+  res.json({ ...stats, ranking: question.ranking });
 });

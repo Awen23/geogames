@@ -12,6 +12,8 @@ export interface Question {
   unit: string;
   source: string;
   sourceUrl: string;
+  /** Emoji representing the question theme */
+  icon: string;
   /** index 0 = #1 in the world = the correct answer */
   ranking: RankedCountry[];
 }
@@ -20,6 +22,8 @@ export interface GuessResult {
   tier: Tier;
   /** 1-based rank; null if iso3 not in ranking */
   rank: number | null;
+  /** Raw value for the guessed country; null if not in ranking */
+  value: number | null;
   isCorrect: boolean;
   distanceKm: number;
   bearingDeg: number;
@@ -33,6 +37,7 @@ export interface TodayResponse {
   unit: string;
   source: string;
   sourceUrl: string;
+  icon: string;
   // ranking deliberately omitted — it's the answer
 }
 
@@ -40,6 +45,8 @@ export interface TodayStatsResponse {
   plays: number;
   bullseyeRate: number;
   avgGuesses: number;
+  /** Full ranking revealed once the game is over */
+  ranking: RankedCountry[];
 }
 
 export interface GameInfo {

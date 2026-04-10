@@ -50,6 +50,8 @@ export interface GlobeProps {
   initialRotation?: [number, number];
   /** When true, renders all regular countries as ocean colour — only reference/placed/revealed countries are visible */
   blankGlobe?: boolean;
+  /** Heatmap colouring — ISO3 → CSS colour string. Takes precedence over tier highlight. */
+  heatmap?: Record<string, string>;
 }
 
 const TIER_COLOUR: Record<Tier, string> = {
@@ -275,6 +277,7 @@ export function Globe({
   referenceIso3,
   initialRotation,
   blankGlobe = false,
+  heatmap,
 }: GlobeProps) {
   const [rotation, setRotation] = useState<[number, number]>(initialRotation ?? [0, -30]);
   const [scale, setScale] = useState(BASE_SCALE);
@@ -465,8 +468,12 @@ export function Globe({
                   // (even transparent paths) cause visible artefacts on the empty globe
                   if (blankGlobe && !isSpecial && !tier) { return null; }
 
+                  const heatmapColour = iso3 ? heatmap?.[iso3] : undefined;
+
                   let fill: string;
-                  if (isRevealed) {
+                  if (heatmapColour) {
+                    fill = heatmapColour;
+                  } else if (isRevealed) {
                     fill = 'var(--colour-geoplace-reveal)';
                   } else if (isReference) {
                     fill = 'var(--colour-reference)';

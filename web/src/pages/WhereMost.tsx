@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import type { TodayResponse, GuessResult, TodayStatsResponse, Tier } from '@shared/types';
+import type { TodayResponse, GuessResult, TodayStatsResponse, Tier, RankedCountry } from '@shared/types';
 import { Globe } from '../components/Globe/Globe';
+import { CountryInput } from '../components/CountryInput/CountryInput';
 import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
 import { fetchToday, gradeGuess, submitResult, fetchTodayStats } from '../lib/api';
 import { useGameState } from '../lib/useGameState';
+import { displayName } from '../data/countryNames';
 import styles from './WhereMost.module.css';
 
 const MAX_GUESSES = 5;
@@ -16,12 +18,56 @@ interface Guess {
   result: GuessResult;
 }
 
-const TIER_LABEL: Record<Tier, string> = {
-  bullseye: '🟢 #1 — Correct!',
-  top5: '🟡 Top 5',
-  top15: '🟠 Top 15',
-  cold: '⬛ Outside top 15',
+const TIER_BADGE: Record<Tier, string> = {
+  bullseye: '🟢',
+  top5: '🟡',
+  top15: '🟠',
+  cold: '⬛',
 };
+
+const BEARING_ARROWS = ['⬆️', '↗️', '➡️', '↘️', '⬇️', '↙️', '⬅️', '↖️'];
+
+function bearingToArrow(deg: number): string {
+  const idx = Math.round(((deg % 360) + 360) % 360 / 45) % 8;
+  return BEARING_ARROWS[idx];
+}
+
+/** Build a heatmap for post-game globe: ISO3 → CSS colour, green (top) → red (bottom). */
+function buildHeatmap(ranking: RankedCountry[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  const last = ranking.length - 1;
+  ranking.forEach((r, i) => {
+    const t = last > 0 ? 1 - i / last : 1;
+    const hue = Math.round(120 * t);
+    const lightness = Math.round(30 + 15 * t);
+    map[r.iso3] = `hsl(${hue}, 75%, ${lightness}%)`;
+  });
+  return map;
+}
+
+function GuessRow({ guess, unit }: { guess: Guess; unit: string }) {
+  const { iso3, result } = guess;
+  return (
+    <li className={`${styles.guessItem} ${styles[`tier-${result.tier}`]}`}>
+      <span className={styles.guessBadge}>{TIER_BADGE[result.tier]}</span>
+      <span className={styles.guessName}>{displayName(iso3)}</span>
+      <span className={styles.guessStats}>
+        {result.rank !== null ? (
+          <span className={styles.guessRank}>
+            #{result.rank}{result.value != null ? ` · ${result.value.toFixed(1)} ${unit}` : ''}
+          </span>
+        ) : (
+          <span className={styles.guessUnranked}>Not ranked</span>
+        )}
+        {!result.isCorrect && (
+          <span className={styles.guessDirection}>
+            {bearingToArrow(result.bearingDeg)} {result.distanceKm.toLocaleString()} km
+          </span>
+        )}
+      </span>
+    </li>
+  );
+}
 
 export function WhereMost() {
   const [today, setToday] = useState<TodayResponse | null>(null);
@@ -35,19 +81,10 @@ export function WhereMost() {
 
   const isWon = guesses.some((g) => g.result.isCorrect);
   const isGameOver = isWon || guesses.length >= MAX_GUESSES;
+  const showEndScreen = isGameOver || !!todayResult;
 
-  const highlight: Record<string, Tier> = {};
-  for (const g of guesses) {
-    highlight[g.iso3] = g.result.tier;
-  }
-
-  const lastWrongGuess = !isWon
-    ? [...guesses].reverse().find((g) => !g.result.isCorrect)
-    : null;
-  const arrow =
-    lastWrongGuess && !isWon
-      ? { fromIso3: lastWrongGuess.iso3, bearingDeg: lastWrongGuess.result.bearingDeg }
-      : undefined;
+  const guessedIso3s = guesses.map((g) => g.iso3);
+  const heatmap = stats?.ranking ? buildHeatmap(stats.ranking) : undefined;
 
   useEffect(() => {
     fetchToday()
@@ -81,7 +118,7 @@ export function WhereMost() {
     [recordResult],
   );
 
-  const handleCountryClick = useCallback(
+  const handleCountrySelect = useCallback(
     async (iso3: string) => {
       if (isGameOver || submitting || !today) { return; }
       if (guesses.some((g) => g.iso3 === iso3)) { return; }
@@ -91,8 +128,7 @@ export function WhereMost() {
         const result = await gradeGuess(iso3, guesses.length);
         const nextGuesses: Guess[] = [...guesses, { iso3, result }];
         setGuesses(nextGuesses);
-        const nextIsOver = result.isCorrect || nextGuesses.length >= MAX_GUESSES;
-        if (nextIsOver) {
+        if (result.isCorrect || nextGuesses.length >= MAX_GUESSES) {
           await handleEndGame(nextGuesses);
         }
       } catch (err) {
@@ -104,7 +140,7 @@ export function WhereMost() {
     [guesses, isGameOver, submitting, today, handleEndGame],
   );
 
-  // Replay guard — if already played today, load stats and jump to end screen
+  // Replay guard — already played today; load stats and jump to end screen
   useEffect(() => {
     if (todayResult && !isGameOver) {
       fetchTodayStats()
@@ -135,8 +171,6 @@ export function WhereMost() {
 
   if (!today) { return null; }
 
-  const showEndScreen = isGameOver || !!todayResult;
-
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
@@ -156,49 +190,49 @@ export function WhereMost() {
         )}
       </div>
 
-      <DailyHeader
-        today={today}
-        guessesUsed={guesses.length}
-        maxGuesses={MAX_GUESSES}
-      />
-
-      {!showEndScreen && (
-        <Globe
-          onCountryClick={handleCountryClick}
-          highlight={highlight}
-          arrow={arrow}
-          disabled={isGameOver || submitting}
+      {/* Icon + question header */}
+      <div className={styles.questionHeader}>
+        <span className={styles.questionIcon} data-testid="question-icon">{today.icon}</span>
+        <DailyHeader
+          today={today}
+          guessesUsed={guesses.length}
+          maxGuesses={MAX_GUESSES}
         />
-      )}
+      </div>
 
-      {guesses.length > 0 && !showEndScreen && (
+      {/* Guess list — visible throughout */}
+      {guesses.length > 0 && (
         <ul className={styles.guessList} data-testid="guess-list">
           {guesses.map((g, i) => (
-            <li key={i} className={`${styles.guessItem} ${styles[`tier-${g.result.tier}`]}`}>
-              <span className={styles.guessIso3}>{g.iso3}</span>
-              <span className={styles.guessLabel}>{TIER_LABEL[g.result.tier]}</span>
-              {!g.result.isCorrect && (
-                <span className={styles.guessDistance}>
-                  {g.result.distanceKm.toLocaleString()} km
-                </span>
-              )}
-            </li>
+            <GuessRow key={i} guess={g} unit={today.unit} />
           ))}
         </ul>
       )}
 
+      {/* Country input — only during active game */}
+      {!showEndScreen && (
+        <CountryInput
+          onSelect={handleCountrySelect}
+          excludeIso3s={guessedIso3s}
+          disabled={isGameOver || submitting}
+        />
+      )}
+
+      {/* End screen */}
       {showEndScreen && (
         <div className={styles.endScreen} data-testid="end-screen">
           <div className={styles.endResult}>
             {(isWon || todayResult?.won) ? (
               <h2 className={styles.endWon}>
-                🎉 {guesses.length > 0
-                  ? (isWon ? `Found it in ${guesses.length} guess${guesses.length > 1 ? 'es' : ''}!` : 'You already played today!')
+                🎉{' '}
+                {guesses.length > 0
+                  ? `Found it in ${guesses.length} guess${guesses.length > 1 ? 'es' : ''}!`
                   : 'You already played today!'}
               </h2>
             ) : (
-              <h2 className={styles.endLost}>No more guesses — the answer was{' '}
-                <strong>{today.metric}</strong> leader.</h2>
+              <h2 className={styles.endLost}>
+                No more guesses — the answer was the <strong>{today.metric}</strong> leader.
+              </h2>
             )}
           </div>
 
@@ -230,6 +264,18 @@ export function WhereMost() {
                 </span>
                 <span className={styles.statLabel}>avg guesses</span>
               </div>
+            </div>
+          )}
+
+          {/* Post-game globe — coloured by ranking value */}
+          {heatmap && (
+            <div className={styles.heatmapSection}>
+              <p className={styles.heatmapLabel}>{today.metric} by country</p>
+              <Globe
+                onCountryClick={() => {}}
+                heatmap={heatmap}
+                disabled
+              />
             </div>
           )}
 

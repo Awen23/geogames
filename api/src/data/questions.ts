@@ -6,6 +6,7 @@ export const questions: Question[] = [
     prompt: 'Which country drinks the most beer per person?',
     metric: 'Beer consumption per capita',
     unit: 'litres/person/year',
+    icon: '🍺',
     source: 'Kirin Holdings via Wikipedia',
     sourceUrl:
       'https://en.wikipedia.org/wiki/List_of_countries_by_beer_consumption_per_capita',
@@ -37,6 +38,7 @@ export const questions: Question[] = [
     prompt: 'Which country drinks the most milk per person?',
     metric: 'Milk consumption per capita',
     unit: 'kg/person/year',
+    icon: '🥛',
     source: 'FAO via Wikipedia',
     sourceUrl:
       'https://en.wikipedia.org/wiki/List_of_countries_by_milk_consumption_per_capita',
@@ -68,6 +70,7 @@ export const questions: Question[] = [
     prompt: 'Which country eats the most meat per person?',
     metric: 'Meat consumption per capita',
     unit: 'kg/person/year',
+    icon: '🥩',
     source: 'FAO via Wikipedia',
     sourceUrl: 'https://en.wikipedia.org/wiki/List_of_countries_by_meat_consumption',
     ranking: [

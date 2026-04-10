@@ -27,6 +27,7 @@ export function scoreGuess(q: Question, iso3: string, centroids: Centroids): Gue
   return {
     tier,
     rank: rank === -1 ? null : rank + 1,
+    value: rank === -1 ? null : q.ranking[rank].value,
     isCorrect: tier === 'bullseye',
     distanceKm: target && guess ? Math.round(haversineKm(from, target)) : 0,
     bearingDeg: target && guess ? Math.round(bearingDeg(from, target)) : 0,

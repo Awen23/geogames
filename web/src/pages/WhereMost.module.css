@@ -55,6 +55,20 @@
   font-family: monospace;
 }
 
+/* Question header */
+.questionHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.questionIcon {
+  font-size: 3rem;
+  line-height: 1;
+}
+
 /* Guess list */
 .guessList {
   list-style: none;
@@ -67,8 +81,8 @@
 .guessItem {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border-radius: 8px;
   background: var(--colour-surface);
   border-left: 4px solid transparent;
@@ -79,21 +93,42 @@
 .guessItem.tier-top15    { border-left-color: var(--colour-top15); }
 .guessItem.tier-cold     { border-left-color: var(--colour-cold); }
 
-.guessIso3 {
-  font-weight: 700;
-  font-size: 0.9rem;
-  width: 40px;
+.guessBadge {
+  font-size: 0.85rem;
   flex-shrink: 0;
 }
 
-.guessLabel {
+.guessName {
   flex: 1;
   font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.guessDistance {
+.guessStats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  gap: 1px;
+}
+
+.guessRank {
+  font-size: 0.8rem;
+  color: var(--colour-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.guessUnranked {
   font-size: 0.8rem;
   color: var(--colour-text-muted);
+}
+
+.guessDirection {
+  font-size: 0.75rem;
+  color: var(--colour-text-muted);
+  white-space: nowrap;
 }
 
 /* End screen */
@@ -103,7 +138,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-6);
-  padding-top: var(--space-6);
+  padding-top: var(--space-4);
 }
 
 .endResult {
@@ -144,6 +179,21 @@
   text-align: center;
 }
 
+/* Post-game heatmap globe */
+.heatmapSection {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.heatmapLabel {
+  font-size: 0.8rem;
+  color: var(--colour-text-muted);
+  text-align: center;
+}
+
 .streakRow {
   display: flex;
   flex-direction: column;
@@ -174,5 +224,9 @@
 @media (max-width: 480px) {
   .page {
     padding: var(--space-3);
+  }
+
+  .questionIcon {
+    font-size: 2.2rem;
   }
 }
