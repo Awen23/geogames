@@ -16,5 +16,11 @@ gamesRouter.get('/', (_req, res) => {
       tagline: 'Place the country on the globe',
       enabled: true,
     },
+    {
+      id: 'city-reveal',
+      title: 'City Reveal',
+      tagline: 'Guess the city from its map',
+      enabled: true,
+    },
   ]);
 });

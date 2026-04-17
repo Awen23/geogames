@@ -8,6 +8,7 @@ import styles from './Home.module.css';
 const GAME_ROUTE: Record<string, string> = {
   'where-most': '/games/where-most',
   'geoplace': '/games/geoplace',
+  'city-reveal': '/games/city-reveal',
 };
 
 function GameCard({ game }: { game: GameInfo }) {

@@ -1,4 +1,5 @@
 import type { TodayResponse, GuessResult, TodayStatsResponse, GameInfo, GeoplaceStatsResponse } from '@shared/types';
+import type { CityRevealTodayResponse, CityRevealGuessResponse } from '@shared/cityRevealTypes';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
@@ -49,4 +50,26 @@ export function submitGeoplaceResult(score: number): Promise<void> {
 
 export function fetchGeoplaceStats(): Promise<GeoplaceStatsResponse> {
   return apiFetch('/api/games/geoplace/stats/today');
+}
+
+export function fetchCityRevealToday(): Promise<CityRevealTodayResponse> {
+  return apiFetch('/api/games/city-reveal/today');
+}
+
+export function guessCityReveal(cityId: string): Promise<CityRevealGuessResponse> {
+  return apiFetch('/api/games/city-reveal/guess', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cityId }),
+    credentials: 'include',
+  });
+}
+
+export function submitCityRevealResult(won: boolean, guesses: number): Promise<void> {
+  return apiFetch('/api/games/city-reveal/result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ won, guesses }),
+    credentials: 'include',
+  });
 }

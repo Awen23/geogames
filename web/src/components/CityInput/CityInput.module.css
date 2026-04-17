@@ -1,0 +1,103 @@
+.container {
+  position: relative;
+  width: 100%;
+}
+
+.inputRow {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #3a3d52;
+  border-radius: 10px;
+  background: #1a1c2e;
+  color: #e8eaf6;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  color: #5a5e7a;
+}
+
+.input:focus {
+  border-color: #6b7cff;
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner {
+  position: absolute;
+  right: 0.75rem;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #3a3d52;
+  border-top-color: #6b7cff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #1e2035;
+  border: 2px solid #3a3d52;
+  border-radius: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+
+.option:hover,
+.optionHighlighted {
+  background: #2a2d47;
+}
+
+.flag {
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cityName {
+  font-weight: 600;
+  color: #e8eaf6;
+  white-space: nowrap;
+}
+
+.countryName {
+  color: #8b8fa8;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
