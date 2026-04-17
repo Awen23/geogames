@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Globe } from '../components/Globe/Globe';
 import type { PlacedCountryData } from '../components/Globe/Globe';
@@ -14,6 +14,7 @@ const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
 const GAME_ID = 'geoplace';
 const MAX_SCORE_KM = 2500;
 const ROUNDS_TOTAL = 3;
+const SESSION_KEY = 'geogames:geoplace:session';
 
 function scoreFromDistance(distKm: number): number {
   return Math.max(0, Math.round((1 - distKm / MAX_SCORE_KM) * 100));
@@ -28,17 +29,58 @@ function countryName(iso3: string): string {
   return COUNTRY_NAMES[iso3] ?? iso3;
 }
 
+function utcToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 type Phase = 'placing' | 'placed' | 'results';
+
+interface GeoplaceSession {
+  date: string;
+  roundIndex: number;
+  phase: Phase;
+  placedCountries: PlacedCountryData[];
+  scores: number[];
+}
+
+function loadSession(): GeoplaceSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) { return null; }
+    const parsed = JSON.parse(raw) as GeoplaceSession;
+    if (parsed.date !== utcToday()) { return null; }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(session: GeoplaceSession) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch {
+    console.error('Failed to save GeoPlace session');
+  }
+}
 
 export function GeoPlace() {
   const puzzle = useMemo(() => getTodayPuzzle(), []);
-  const { todayResult, recordResult, resetForDev } = useGameState(GAME_ID);
+  const { todayResult, recordResult, resetForDev: resetGameState } = useGameState(GAME_ID);
 
-  const [roundIndex, setRoundIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>('placing');
-  const [placedCountries, setPlacedCountries] = useState<PlacedCountryData[]>([]);
-  const [scores, setScores] = useState<number[]>([]);
+  const savedSession = useMemo(() => loadSession(), []);
+
+  const [roundIndex, setRoundIndex] = useState(savedSession?.roundIndex ?? 0);
+  const [phase, setPhase] = useState<Phase>(savedSession?.phase ?? 'placing');
+  const [placedCountries, setPlacedCountries] = useState<PlacedCountryData[]>(
+    savedSession?.placedCountries ?? [],
+  );
+  const [scores, setScores] = useState<number[]>(savedSession?.scores ?? []);
   const [copied, setCopied] = useState(false);
+
+  // Persist session state on every change so navigation restores progress
+  useEffect(() => {
+    saveSession({ date: utcToday(), roundIndex, phase, placedCountries, scores });
+  }, [roundIndex, phase, placedCountries, scores]);
 
   const currentRound = puzzle.rounds[roundIndex];
 
@@ -86,6 +128,15 @@ export function GeoPlace() {
     setPhase('results');
   }, [scores, recordResult]);
 
+  const resetForDev = useCallback(() => {
+    localStorage.removeItem(SESSION_KEY);
+    resetGameState();
+    setRoundIndex(0);
+    setPhase('placing');
+    setPlacedCountries([]);
+    setScores([]);
+  }, [resetGameState]);
+
   const handleCopyShare = useCallback(() => {
     const date = new Date().toISOString().slice(0, 10);
     const roundLines = scores.map(
@@ -99,6 +150,19 @@ export function GeoPlace() {
       console.error('Clipboard write failed:', err),
     );
   }, [scores, puzzle]);
+
+  // Auto-advance after placement: brief pause so the player can see their score and arrow
+  useEffect(() => {
+    if (phase !== 'placed') { return; }
+    const timer = setTimeout(() => {
+      if (roundIndex === ROUNDS_TOTAL - 1) {
+        handleSeeResults();
+      } else {
+        handleNext();
+      }
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, [phase, roundIndex, handleNext, handleSeeResults]);
 
   // Replay guard — already played today (not suppressed when we're actively showing results)
   if (todayResult && phase !== 'results') {
@@ -119,7 +183,6 @@ export function GeoPlace() {
     );
   }
 
-  const isLastRound = roundIndex === ROUNDS_TOTAL - 1;
   const revealIso3s = phase === 'results' ? puzzle.rounds.map((r) => r.targetIso3) : undefined;
   const avg = averageScore(scores);
 
@@ -174,15 +237,6 @@ export function GeoPlace() {
           <p className={styles.instruction}>
             Move the globe to find the country, then click to place it
           </p>
-        )}
-
-        {phase === 'placed' && (
-          <button
-            className={styles.nextBtn}
-            onClick={isLastRound ? handleSeeResults : handleNext}
-          >
-            {isLastRound ? 'See Results' : 'Next Country →'}
-          </button>
         )}
 
         {phase === 'results' && (

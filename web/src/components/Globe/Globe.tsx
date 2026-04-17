@@ -10,6 +10,7 @@ import {
 import type { Tier } from '@shared/types';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import centroids from '@shared/centroids.json';
+import { bearingDeg } from '@shared/distance';
 import styles from './Globe.module.css';
 import { numericToIso3 } from '../../lib/iso3Lookup';
 
@@ -63,6 +64,7 @@ const TIER_COLOUR: Record<Tier, string> = {
 const TO_RAD = Math.PI / 180;
 const TO_DEG = 180 / Math.PI;
 const ARROW_ARC_DEG = 22;
+const PLACED_ARROW_ARC_DEG = 12;
 
 function destPoint(lon0: number, lat0: number, bearing: number, arcDeg: number): [number, number] {
   const d = arcDeg * TO_RAD;
@@ -184,39 +186,73 @@ function PlacedCountry({
   const [cx, cy] = centroidPt;
   const [px, py] = placedPt;
 
+  // Direction arrow from placed centroid toward actual centroid
+  const bearing = bearingDeg({ lat, lon }, { lat: centroidData.lat, lon: centroidData.lon });
+  const [arrowLon, arrowLat] = destPoint(lon, lat, bearing, PLACED_ARROW_ARC_DEG);
+  const arrowPt = projection([arrowLon, arrowLat]);
+  const showArrow = parseInt(label) < 98 && arrowPt != null && !isNaN(arrowPt[0]);
+
   return (
-    <g
-      transform={`translate(${px - cx}, ${py - cy})`}
-      style={{ pointerEvents: 'none' }}
-    >
-      <Geography
-        geography={geo}
-        fill="var(--colour-geoplace-placed)"
-        stroke="var(--colour-ghost-stroke)"
-        strokeWidth={1}
-        style={{
-          default: { outline: 'none' },
-          hover: { outline: 'none' },
-          pressed: { outline: 'none' },
-        }}
-      />
-      {/* Score label above the placed centroid */}
-      <text
-        x={cx}
-        y={cy - 14}
-        textAnchor="middle"
-        dominantBaseline="auto"
-        fill="white"
-        fontSize={13}
-        fontWeight="bold"
-        stroke="rgba(0,0,0,0.8)"
-        strokeWidth={3}
-        paintOrder="stroke"
-        style={{ userSelect: 'none' }}
+    <>
+      <g
+        transform={`translate(${px - cx}, ${py - cy})`}
+        style={{ pointerEvents: 'none' }}
       >
-        {label}
-      </text>
-    </g>
+        <Geography
+          geography={geo}
+          fill="var(--colour-geoplace-placed)"
+          stroke="var(--colour-ghost-stroke)"
+          strokeWidth={1}
+          style={{
+            default: { outline: 'none' },
+            hover: { outline: 'none' },
+            pressed: { outline: 'none' },
+          }}
+        />
+        {/* Score label above the placed centroid */}
+        <text
+          x={cx}
+          y={cy - 14}
+          textAnchor="middle"
+          dominantBaseline="auto"
+          fill="white"
+          fontSize={13}
+          fontWeight="bold"
+          stroke="rgba(0,0,0,0.8)"
+          strokeWidth={3}
+          paintOrder="stroke"
+          style={{ userSelect: 'none' }}
+        >
+          {label}
+        </text>
+      </g>
+      {showArrow && (
+        <g style={{ pointerEvents: 'none' }}>
+          <defs>
+            <marker
+              id={`placed-arrow-${iso3}`}
+              markerWidth="8"
+              markerHeight="6"
+              refX="8"
+              refY="3"
+              orient="auto"
+            >
+              <polygon points="0 0, 8 3, 0 6" fill="rgba(255,255,255,0.9)" />
+            </marker>
+          </defs>
+          <line
+            x1={px}
+            y1={py}
+            x2={arrowPt[0]}
+            y2={arrowPt[1]}
+            stroke="rgba(255,255,255,0.9)"
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            markerEnd={`url(#placed-arrow-${iso3})`}
+          />
+        </g>
+      )}
+    </>
   );
 }
 
