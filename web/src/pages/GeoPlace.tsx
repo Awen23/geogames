@@ -8,6 +8,7 @@ import { haversineKm } from '@shared/distance';
 import centroids from '@shared/centroids.json';
 import { useGameState } from '../lib/useGameState';
 import { submitGeoplaceResult } from '../lib/api';
+import type { GeoplacePlacement } from '@shared/types';
 import styles from './GeoPlace.module.css';
 
 const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
@@ -120,13 +121,19 @@ export function GeoPlace() {
 
   const handleSeeResults = useCallback(() => {
     const avg = averageScore(scores);
-    const won = avg >= 50;
-    recordResult(won, avg);
-    submitGeoplaceResult(avg).catch((err: Error) =>
+    // won=true always for score-only game (means "played")
+    recordResult(true, 0, avg);
+    const placements: GeoplacePlacement[] = placedCountries.map((p, i) => ({
+      targetIso3: p.iso3,
+      clickLat: p.lat,
+      clickLon: p.lon,
+      score: scores[i] ?? 0,
+    }));
+    submitGeoplaceResult(avg, placements).catch((err: Error) =>
       console.error('Failed to submit GeoPlace result:', err),
     );
     setPhase('results');
-  }, [scores, recordResult]);
+  }, [scores, placedCountries, recordResult]);
 
   const resetForDev = useCallback(() => {
     localStorage.removeItem(SESSION_KEY);
@@ -173,7 +180,7 @@ export function GeoPlace() {
         </div>
         <div className={styles.alreadyPlayed}>
           <p className={styles.alreadyPlayedTitle}>Already played today</p>
-          <p className={styles.alreadyPlayedScore}>Your score: {todayResult.guesses}%</p>
+          <p className={styles.alreadyPlayedScore}>Your score: {todayResult.score ?? 0}%</p>
           <p className={styles.alreadyPlayedSub}>Come back tomorrow for a new puzzle</p>
           <button className={styles.devResetBtn} onClick={resetForDev}>
             dev reset

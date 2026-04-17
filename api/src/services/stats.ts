@@ -1,47 +1,109 @@
 import { db } from '../db/client';
-import { dailyStats, plays } from '../db/schema';
+import { dailyStats, whereMostPlays, cityRevealPlays, geoplacePlays, geoplacePlacements } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
-interface PlayRecord {
+interface WhereMostRecord {
   deviceId: string;
-  gameId: string;
+  date: string;
+  guesses: number;
+  score: number; // 0–100
+}
+
+interface CityRevealRecord {
+  deviceId: string;
   date: string;
   won: boolean;
   guesses: number;
 }
 
-export async function recordPlay(record: PlayRecord): Promise<void> {
-  const { deviceId, gameId, date, won, guesses } = record;
+interface GeoplaceRecord {
+  deviceId: string;
+  date: string;
+  score: number; // 0–100 average
+  placements: { targetIso3: string; clickLat: number; clickLon: number; score: number }[];
+}
+
+export async function recordWhereMostPlay(record: WhereMostRecord): Promise<void> {
+  const { deviceId, date, guesses, score } = record;
 
   const inserted = await db
-    .insert(plays)
-    .values({ deviceId, gameId, date, won, guesses })
+    .insert(whereMostPlays)
+    .values({ deviceId, date, guesses, score })
     .onConflictDoNothing()
     .returning();
 
-  // Skip stats update if this device already submitted a result for today
   if (inserted.length === 0) { return; }
 
   await db
     .insert(dailyStats)
-    .values({
-      gameId,
-      date,
-      plays: 1,
-      wins: won ? 1 : 0,
-      totalGuesses: guesses,
-      bullseyeFirstCount: won && guesses === 1 ? 1 : 0,
-    })
+    .values({ gameId: 'where-most', date, plays: 1, wins: 0, totalGuesses: guesses, totalScore: score })
+    .onConflictDoUpdate({
+      target: [dailyStats.gameId, dailyStats.date],
+      set: {
+        plays: sql`${dailyStats.plays} + 1`,
+        totalGuesses: sql`${dailyStats.totalGuesses} + ${guesses}`,
+        totalScore: sql`${dailyStats.totalScore} + ${score}`,
+      },
+    });
+}
+
+export async function recordCityRevealPlay(record: CityRevealRecord): Promise<void> {
+  const { deviceId, date, won, guesses } = record;
+
+  const inserted = await db
+    .insert(cityRevealPlays)
+    .values({ deviceId, date, won, guesses })
+    .onConflictDoNothing()
+    .returning();
+
+  if (inserted.length === 0) { return; }
+
+  await db
+    .insert(dailyStats)
+    .values({ gameId: 'city-reveal', date, plays: 1, wins: won ? 1 : 0, totalGuesses: guesses, totalScore: 0 })
     .onConflictDoUpdate({
       target: [dailyStats.gameId, dailyStats.date],
       set: {
         plays: sql`${dailyStats.plays} + 1`,
         wins: won ? sql`${dailyStats.wins} + 1` : dailyStats.wins,
         totalGuesses: sql`${dailyStats.totalGuesses} + ${guesses}`,
-        bullseyeFirstCount:
-          won && guesses === 1
-            ? sql`${dailyStats.bullseyeFirstCount} + 1`
-            : dailyStats.bullseyeFirstCount,
+      },
+    });
+}
+
+export async function recordGeoplacePlay(record: GeoplaceRecord): Promise<void> {
+  const { deviceId, date, score, placements } = record;
+
+  const inserted = await db
+    .insert(geoplacePlays)
+    .values({ deviceId, date, score })
+    .onConflictDoNothing()
+    .returning();
+
+  if (inserted.length === 0) { return; }
+
+  if (placements.length > 0) {
+    await db
+      .insert(geoplacePlacements)
+      .values(placements.map((p) => ({
+        deviceId,
+        date,
+        targetIso3: p.targetIso3,
+        clickLat: p.clickLat,
+        clickLon: p.clickLon,
+        score: p.score,
+      })))
+      .onConflictDoNothing();
+  }
+
+  await db
+    .insert(dailyStats)
+    .values({ gameId: 'geoplace', date, plays: 1, wins: 0, totalGuesses: 0, totalScore: score })
+    .onConflictDoUpdate({
+      target: [dailyStats.gameId, dailyStats.date],
+      set: {
+        plays: sql`${dailyStats.plays} + 1`,
+        totalScore: sql`${dailyStats.totalScore} + ${score}`,
       },
     });
 }
@@ -49,7 +111,7 @@ export async function recordPlay(record: PlayRecord): Promise<void> {
 export async function getTodayStats(
   gameId: string,
   date: string,
-): Promise<{ plays: number; bullseyeRate: number; avgGuesses: number }> {
+): Promise<{ plays: number; wins: number; totalGuesses: number; totalScore: number }> {
   const rows = await db
     .select()
     .from(dailyStats)
@@ -57,14 +119,9 @@ export async function getTodayStats(
     .limit(1);
 
   if (rows.length === 0) {
-    return { plays: 0, bullseyeRate: 0, avgGuesses: 0 };
+    return { plays: 0, wins: 0, totalGuesses: 0, totalScore: 0 };
   }
 
-  const row = rows[0];
-  return {
-    plays: row.plays,
-    // "perfect" = all 5 top countries found = won; bullseyeFirstCount is legacy and unused
-    bullseyeRate: row.plays > 0 ? row.wins / row.plays : 0,
-    avgGuesses: row.plays > 0 ? row.totalGuesses / row.plays : 0,
-  };
+  const { plays, wins, totalGuesses, totalScore } = rows[0];
+  return { plays, wins, totalGuesses, totalScore };
 }

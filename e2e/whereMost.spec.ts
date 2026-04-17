@@ -98,24 +98,25 @@ test.describe('WhereMost game', () => {
     expect(res.status()).toBe(400);
   });
 
-  test('API /stats/today returns ranking and perfectRate', async ({ request }) => {
+  test('API /stats/today returns ranking and avgScore', async ({ request }) => {
     const res = await request.get('/api/games/where-most/stats/today');
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body).toMatchObject({
       plays: expect.any(Number),
-      perfectRate: expect.any(Number),
+      avgScore: expect.any(Number),
       avgGuesses: expect.any(Number),
       ranking: expect.arrayContaining([
         expect.objectContaining({ iso3: expect.any(String), value: expect.any(Number) }),
       ]),
     });
+    expect((body as Record<string, unknown>).perfectRate).toBeUndefined();
   });
 
   test('replay guard: already played today shows end screen without country input', async ({ page }) => {
     const today = new Date().toISOString().slice(0, 10);
     await page.addInitScript((date) => {
-      const state = { history: [{ date, won: true, guesses: 3, score: 5 }] };
+      const state = { history: [{ date, won: true, guesses: 3, score: 72 }] };
       localStorage.setItem('geogames:where-most:state', JSON.stringify(state));
     }, today);
 

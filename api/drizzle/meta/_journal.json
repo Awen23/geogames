@@ -8,6 +8,13 @@
       "when": 1778842790705,
       "tag": "0000_third_mentor",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1747490400000,
+      "tag": "0001_schema_v2",
+      "breakpoints": true
     }
   ]
 }

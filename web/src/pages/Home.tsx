@@ -35,7 +35,7 @@ function GameCard({ game }: { game: GameInfo }) {
       {played && (
           <p className={styles.playedHint}>
             {game.id === 'geoplace'
-              ? `Score: ${todayResult.guesses}%`
+              ? `Score: ${todayResult.score ?? todayResult.guesses}%`
               : todayResult.won
                 ? `Won in ${todayResult.guesses} guess${todayResult.guesses > 1 ? 'es' : ''}`
                 : `Played — come back tomorrow`}

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import type { TodayResponse, GuessResult, TodayStatsResponse, Tier } from '@shared/types';
+import type { TodayResponse, GuessResult, WhereMostStatsResponse, Tier } from '@shared/types';
 import { CountryInput } from '../components/CountryInput/CountryInput';
 import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
-import { fetchToday, gradeGuess, submitResult, fetchTodayStats } from '../lib/api';
+import { fetchToday, gradeGuess, submitWhereMostResult, fetchTodayStats } from '../lib/api';
 import { useGameState } from '../lib/useGameState';
-import { progressScore, progressPct } from '../lib/progressScore';
+import { progressScore } from '../lib/progressScore';
 import { displayName } from '../data/countryNames';
 import styles from './WhereMost.module.css';
 
@@ -77,7 +77,7 @@ function ProgressBar({
 export function WhereMost() {
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [guesses, setGuesses] = useState<Guess[]>([]);
-  const [stats, setStats] = useState<TodayStatsResponse | null>(null);
+  const [stats, setStats] = useState<WhereMostStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -85,8 +85,7 @@ export function WhereMost() {
   const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
   const foundCount = guesses.filter((g) => g.result.isTopFive).length;
-  const isAllFound = foundCount === TOP_N;
-  const isGameOver = isAllFound || guesses.length >= MAX_GUESSES;
+  const isGameOver = foundCount === TOP_N || guesses.length >= MAX_GUESSES;
   const showEndScreen = isGameOver || !!todayResult;
 
   const guessedIso3s = guesses.map((g) => g.iso3);
@@ -107,10 +106,11 @@ export function WhereMost() {
 
   const handleEndGame = useCallback(
     async (finalGuesses: Guess[]) => {
-      const score = finalGuesses.filter((g) => g.result.isTopFive).length;
       const guessCount = finalGuesses.length;
+      const rawScore = progressScore(finalGuesses);
+      const scorePct = Math.round(Math.min(100, maxScoreVal > 0 ? (rawScore / maxScoreVal) * 100 : 0));
       try {
-        await submitResult(score, guessCount);
+        await submitWhereMostResult(scorePct, guessCount);
       } catch (err) {
         console.error('Failed to submit result:', err);
       }
@@ -120,9 +120,10 @@ export function WhereMost() {
       } catch (err) {
         console.error('Failed to fetch stats:', err);
       }
-      recordResult(score === TOP_N, guessCount, score);
+      // won=true always for score-only game (means "played")
+      recordResult(true, guessCount, scorePct);
     },
-    [recordResult],
+    [recordResult, maxScoreVal],
   );
 
   const handleCountrySelect = useCallback(
@@ -180,9 +181,9 @@ export function WhereMost() {
 
   if (!today) { return null; }
 
-  // For old localStorage records without a stored score, infer from won flag
-  const displayFoundCount = todayResult?.score ?? (todayResult?.won ? TOP_N : foundCount);
-  const displayPct = progressPct(scoreVal, maxScoreVal);
+  // score from localStorage if replaying, otherwise compute from live guesses
+  const displayScore = todayResult?.score ?? Math.round(Math.min(100, maxScoreVal > 0 ? (scoreVal / maxScoreVal) * 100 : 0));
+  const displayFoundCount = foundCount;
 
   return (
     <div className={styles.page}>
@@ -240,21 +241,11 @@ export function WhereMost() {
       {showEndScreen && (
         <div className={styles.endScreen} data-testid="end-screen">
           <div className={styles.endResult}>
-            {isAllFound || todayResult?.won ? (
-              <h2 className={styles.endWon}>
-                🎉 All 5 found{guesses.length > 0 ? ` — ${displayPct}%!` : '!'}
-              </h2>
-            ) : guesses.length === 0 ? (
-              <h2 className={styles.endLost}>
-                {`You played today — ${displayFoundCount}/5 found`}
-              </h2>
-            ) : (
-              <h2 className={styles.endLost}>
-                {displayFoundCount > 0
-                  ? `${displayFoundCount}/5 found — score: ${displayPct}%`
-                  : `No top countries found — score: 0%`}
-              </h2>
-            )}
+            <h2 className={styles.endScore}>
+              {guesses.length > 0
+                ? `${displayFoundCount}/5 found — score: ${displayScore}%`
+                : `You played today — score: ${displayScore}%`}
+            </h2>
           </div>
 
           {guesses.length > 0 && (
@@ -264,7 +255,7 @@ export function WhereMost() {
               guesses={guesses.map((g) => g.result)}
               maxGuesses={MAX_GUESSES}
               foundCount={foundCount}
-              scorePct={displayPct}
+              scorePct={displayScore}
             />
           )}
 
@@ -276,9 +267,9 @@ export function WhereMost() {
               </div>
               <div className={styles.stat}>
                 <span className={styles.statValue}>
-                  {Math.round(stats.perfectRate * 100)}%
+                  {stats.avgScore > 0 ? `${stats.avgScore}%` : '—'}
                 </span>
-                <span className={styles.statLabel}>all-5 rate</span>
+                <span className={styles.statLabel}>avg score</span>
               </div>
               <div className={styles.stat}>
                 <span className={styles.statValue}>

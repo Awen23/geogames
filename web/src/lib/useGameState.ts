@@ -2,9 +2,11 @@ import { useState, useCallback, useMemo } from 'react';
 
 interface DayResult {
   date: string;
+  /** For City Reveal: actually won. For score-only games (Where Most, GeoPlace): always true (means played). */
   won: boolean;
+  /** For guess-count games (Where Most, City Reveal). Not meaningful for GeoPlace. */
   guesses: number;
-  /** How many of the 5 top countries were found (0–5) */
+  /** Game-specific score (0–100 for Where Most and GeoPlace). */
   score?: number;
 }
 

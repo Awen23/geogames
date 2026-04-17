@@ -50,13 +50,19 @@ export interface TodayResponse {
   // ranking deliberately omitted — it's the answer
 }
 
-export interface TodayStatsResponse {
+export interface WhereMostStatsResponse {
   plays: number;
-  /** Rate at which players found all 5 top countries */
-  perfectRate: number;
+  /** Average % of total top-5 metric value achieved across all plays today */
+  avgScore: number;
   avgGuesses: number;
   /** Full ranking revealed once the game is over */
   ranking: RankedCountry[];
+}
+
+export interface CityRevealStatsResponse {
+  plays: number;
+  winRate: number;
+  avgGuesses: number;
 }
 
 export interface GameInfo {
@@ -74,4 +80,11 @@ export interface GeoplacePuzzle {
 export interface GeoplaceStatsResponse {
   plays: number;
   avgScore: number;
+}
+
+export interface GeoplacePlacement {
+  targetIso3: string;
+  clickLat: number;
+  clickLon: number;
+  score: number;
 }

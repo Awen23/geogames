@@ -1,4 +1,11 @@
-import type { TodayResponse, GuessResult, TodayStatsResponse, GameInfo, GeoplaceStatsResponse } from '@shared/types';
+import type {
+  TodayResponse,
+  WhereMostStatsResponse,
+  GuessResult,
+  GameInfo,
+  GeoplaceStatsResponse,
+  GeoplacePlacement,
+} from '@shared/types';
 import type { CityRevealTodayResponse, CityRevealGuessResponse } from '@shared/cityRevealTypes';
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -26,7 +33,8 @@ export function gradeGuess(iso3: string): Promise<GuessResult> {
   });
 }
 
-export function submitResult(score: number, guesses: number): Promise<void> {
+/** Submit Where Most result. score is 0–100 (% of total top-5 value achieved). */
+export function submitWhereMostResult(score: number, guesses: number): Promise<void> {
   return apiFetch('/api/games/where-most/result', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -35,15 +43,16 @@ export function submitResult(score: number, guesses: number): Promise<void> {
   });
 }
 
-export function fetchTodayStats(): Promise<TodayStatsResponse> {
+export function fetchTodayStats(): Promise<WhereMostStatsResponse> {
   return apiFetch('/api/games/where-most/stats/today');
 }
 
-export function submitGeoplaceResult(score: number): Promise<void> {
+/** Submit GeoPlace result. score is 0–100 average. placements holds per-round detail. */
+export function submitGeoplaceResult(score: number, placements: GeoplacePlacement[]): Promise<void> {
   return apiFetch('/api/games/geoplace/result', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ score }),
+    body: JSON.stringify({ score, placements }),
     credentials: 'include',
   });
 }

@@ -187,6 +187,12 @@
   color: var(--colour-text-muted);
 }
 
+.endScore {
+  font-size: 1.1rem;
+  color: var(--colour-text);
+  font-weight: 600;
+}
+
 .statsRow {
   display: flex;
   gap: var(--space-8);

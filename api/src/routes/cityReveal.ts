@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { seedIndex, utcDateString } from '../services/daily';
-import { recordPlay, getTodayStats } from '../services/stats';
+import { utcDateString } from '../services/daily';
+import { recordCityRevealPlay, getTodayStats } from '../services/stats';
+import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
 import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
 import { haversineKm, bearingDeg } from '@shared/distance';
 import { MAX_GUESSES } from '@shared/cityRevealTypes';
@@ -17,14 +18,14 @@ if (IMPLEMENTED_CITIES.length === 0) {
   throw new Error('[city-reveal] No implemented cities — set implemented: true on at least one entry in cityRevealCities.ts');
 }
 
-function getTodayCity() {
+async function getTodayCity() {
   const date = utcDateString();
-  const idx = seedIndex(GAME_ID, date, IMPLEMENTED_CITIES.length);
+  const idx = await getScheduledPuzzleIndex(GAME_ID, date, IMPLEMENTED_CITIES.length);
   return { city: IMPLEMENTED_CITIES[idx], date };
 }
 
-cityRevealRouter.get('/today', (_req, res) => {
-  const { city, date } = getTodayCity();
+cityRevealRouter.get('/today', async (_req, res) => {
+  const { city, date } = await getTodayCity();
   const response: CityRevealTodayResponse = {
     date,
     cityId: city.id,
@@ -39,7 +40,7 @@ const guessSchema = z.object({
   cityId: z.string().min(1).max(64),
 });
 
-cityRevealRouter.post('/guess', (req, res) => {
+cityRevealRouter.post('/guess', async (req, res) => {
   const parsed = guessSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.flatten() });
@@ -47,7 +48,7 @@ cityRevealRouter.post('/guess', (req, res) => {
   }
 
   const { cityId } = parsed.data;
-  const { city: todayCity } = getTodayCity();
+  const { city: todayCity } = await getTodayCity();
   const guessedCity = CITY_REVEAL_CITIES.find((c) => c.id === cityId);
 
   if (!guessedCity) {
@@ -86,9 +87,9 @@ cityRevealRouter.post('/result', async (req, res) => {
     `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const { won, guesses } = parsed.data;
-  const { date } = getTodayCity();
+  const { date } = await getTodayCity();
 
-  await recordPlay({ deviceId, gameId: GAME_ID, date, won, guesses });
+  await recordCityRevealPlay({ deviceId, date, won, guesses });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -100,7 +101,11 @@ cityRevealRouter.post('/result', async (req, res) => {
 });
 
 cityRevealRouter.get('/stats/today', async (_req, res) => {
-  const { date } = getTodayCity();
-  const { plays, bullseyeRate: perfectRate, avgGuesses } = await getTodayStats(GAME_ID, date);
-  res.json({ plays, perfectRate, avgGuesses });
+  const { date } = await getTodayCity();
+  const { plays, wins, totalGuesses } = await getTodayStats(GAME_ID, date);
+  res.json({
+    plays,
+    winRate: plays > 0 ? wins / plays : 0,
+    avgGuesses: plays > 0 ? Math.round((totalGuesses / plays) * 10) / 10 : 0,
+  });
 });

@@ -1,14 +1,22 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { utcDateString } from '../services/daily';
-import { recordPlay, getTodayStats } from '../services/stats';
+import { recordGeoplacePlay, getTodayStats } from '../services/stats';
 
 export const geoplaceRouter = Router();
 
 const GAME_ID = 'geoplace';
 
+const placementSchema = z.object({
+  targetIso3: z.string().length(3),
+  clickLat: z.number().min(-90).max(90),
+  clickLon: z.number().min(-180).max(180),
+  score: z.number().int().min(0).max(100),
+});
+
 const resultSchema = z.object({
   score: z.number().int().min(0).max(100),
+  placements: z.array(placementSchema),
 });
 
 geoplaceRouter.post('/result', async (req, res) => {
@@ -22,11 +30,10 @@ geoplaceRouter.post('/result', async (req, res) => {
     (req.cookies['geogames_device_id'] as string | undefined) ??
     `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const { score } = parsed.data;
+  const { score, placements } = parsed.data;
   const date = utcDateString();
 
-  // Re-use the generic plays table: guesses = score (0–100), won = score >= 50
-  await recordPlay({ deviceId, gameId: GAME_ID, date, won: score >= 50, guesses: score });
+  await recordGeoplacePlay({ deviceId, date, score, placements });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -39,7 +46,9 @@ geoplaceRouter.post('/result', async (req, res) => {
 
 geoplaceRouter.get('/stats/today', async (_req, res) => {
   const date = utcDateString();
-  const stats = await getTodayStats(GAME_ID, date);
-  // avgGuesses holds the average score; bullseyeRate holds the rate of score >= 50
-  res.json({ plays: stats.plays, avgScore: stats.avgGuesses });
+  const { plays, totalScore } = await getTodayStats(GAME_ID, date);
+  res.json({
+    plays,
+    avgScore: plays > 0 ? Math.round(totalScore / plays) : 0,
+  });
 });
