@@ -47,36 +47,84 @@
   color: var(--colour-text-muted);
 }
 
-/* City picker */
+/* City selector */
 
-.cityGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-2);
-}
-
-.cityBtn {
+.citySelect {
+  width: 100%;
   padding: var(--space-2) var(--space-3);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--colour-surface-raised);
   border: 1px solid var(--colour-border);
   color: var(--colour-text);
   font-size: 0.82rem;
-  transition: background 0.12s, border-color 0.12s;
-  text-align: center;
+  cursor: pointer;
 }
 
-.cityBtn:hover {
-  background: var(--colour-border);
+.cityCard {
+  background: var(--colour-surface-raised);
+  border: 1px solid var(--colour-border);
+  border-radius: 10px;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
-.cityBtnActive {
-  background: var(--colour-accent);
-  border-color: var(--colour-accent);
-  color: #fff;
+.cityCardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-/* Layer toggles */
+.cityFlag {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cityCardName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--colour-text);
+}
+
+.cityCardCountry {
+  font-size: 0.72rem;
+  color: var(--colour-text-muted);
+}
+
+.implBadge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.implBadgeYes {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.implBadgeNo {
+  color: var(--colour-text-muted);
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+}
+
+.cityCardMeta {
+  display: flex;
+  gap: var(--space-3);
+  font-size: 0.68rem;
+  color: var(--colour-text-muted);
+  flex-wrap: wrap;
+}
+
+/* Stage / layer toggles */
 
 .layerList {
   display: flex;
@@ -100,42 +148,15 @@
   background: var(--colour-border);
 }
 
-.layerInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.stageIcon {
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .layerLabel {
+  flex: 1;
   font-size: 0.875rem;
   color: var(--colour-text);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.spoilerBadge {
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #e8a44a;
-  background: rgba(232, 164, 74, 0.15);
-  border: 1px solid rgba(232, 164, 74, 0.35);
-  border-radius: 4px;
-  padding: 1px 5px;
-  line-height: 1.4;
-}
-
-.layerDesc {
-  font-size: 0.68rem;
-  color: var(--colour-text-muted);
-}
-
-.layerCount {
-  color: var(--colour-accent);
 }
 
 /* Toggle switch */
@@ -207,16 +228,53 @@
   cursor: pointer;
 }
 
-/* Perspective (pitch) */
+/* Fly to city button */
 
-.perspectiveRow {
+.flyBtn {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 8px;
+  background: var(--colour-surface-raised);
+  border: 1px solid var(--colour-border);
+  color: var(--colour-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.flyBtn:hover {
+  background: var(--colour-border);
+  color: var(--colour-text);
+}
+
+/* Landmark reference list */
+
+.landmarkList {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.landmarkItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   padding: var(--space-2) var(--space-3);
   background: var(--colour-surface-raised);
   border-radius: 8px;
-  gap: var(--space-3);
+  border: 1px solid var(--colour-border);
+}
+
+.landmarkLabel {
+  font-size: 0.8rem;
+  color: var(--colour-text);
+  font-weight: 500;
+}
+
+.landmarkWiki {
+  font-size: 0.68rem;
+  color: var(--colour-text-muted);
 }
 
 /* Map area */

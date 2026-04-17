@@ -11,10 +11,16 @@ export const cityRevealRouter = Router();
 
 const GAME_ID = 'city-reveal';
 
+const IMPLEMENTED_CITIES = CITY_REVEAL_CITIES.filter((c) => c.implemented === true);
+
+if (IMPLEMENTED_CITIES.length === 0) {
+  throw new Error('[city-reveal] No implemented cities — set implemented: true on at least one entry in cityRevealCities.ts');
+}
+
 function getTodayCity() {
   const date = utcDateString();
-  const idx = seedIndex(GAME_ID, date, CITY_REVEAL_CITIES.length);
-  return { city: CITY_REVEAL_CITIES[idx], date };
+  const idx = seedIndex(GAME_ID, date, IMPLEMENTED_CITIES.length);
+  return { city: IMPLEMENTED_CITIES[idx], date };
 }
 
 cityRevealRouter.get('/today', (_req, res) => {

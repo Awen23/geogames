@@ -18,6 +18,12 @@ export interface CityRevealCity {
   /** Locked map zoom level for this city (typically 11–13) */
   zoom: number;
   landmarks: CityRevealLandmark[];
+  /**
+   * When true this city enters the daily puzzle rotation.
+   * Cities without this flag are still searchable/guessable but
+   * never appear as the daily answer.
+   */
+  implemented?: boolean;
 }
 
 export const MAX_GUESSES = 5;

@@ -1,51 +1,56 @@
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapGL, Marker, NavigationControl, type GeoJSONSource } from 'maplibre-gl';
+import { Map as MapGL, Marker, NavigationControl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { LAYER_GROUPS, LayerGroupId, classifyLayer } from '../components/CityRevealMap/layers';
-import { LAB_CITIES, LabCity, type CuratedLabel } from '../data/layerLabCities';
+import { LAYER_GROUPS, type LayerGroupId, classifyLayer } from '../components/CityRevealMap/layers';
+import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
+import type { CityRevealCity } from '@shared/cityRevealTypes';
+import { flagEmoji } from '@shared/cityRevealTypes';
 import styles from './LayerLab.module.css';
 
-const CURATED_LABELS_SOURCE = 'curated-labels';
-const CURATED_LABELS_LAYER = 'curated-labels';
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const STYLE_URL = `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
 const TERRAIN_DEM_SOURCE = 'maptiler-dem';
 const CUSTOM_HILLSHADE_LAYER = 'layerlab-hillshade';
 
-function buildCuratedLabelGeoJSON(labels: CuratedLabel[]) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: labels.map((l) => ({
-      type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [l.lon, l.lat] },
-      properties: { text: l.text },
-    })),
-  };
-}
-
-// streets-v4 combines clear road hierarchy with built-in terrain hillshade
-const STYLE_URL = `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
-
 const ZOOM_PRESETS = [
-  { label: 'Regional', zoom: 9 },
+  { label: 'Region', zoom: 9 },
   { label: 'City', zoom: 11 },
   { label: 'District', zoom: 13 },
   { label: 'Street', zoom: 15 },
 ];
 
-type LayerVisibility = Record<LayerGroupId, boolean>;
+/** The 5 game reveal stages, in reveal order. */
+const GAME_STAGES = [
+  { id: 'terrain', icon: '⛰️', label: 'Terrain', groupIds: ['terrain'] as LayerGroupId[], isMarkers: false },
+  { id: 'water', icon: '💧', label: 'Water', groupIds: ['water'] as LayerGroupId[], isMarkers: false },
+  { id: 'roads', icon: '🛣️', label: 'Roads & Railways', groupIds: ['majorRoads', 'streetGrid', 'railways'] as LayerGroupId[], isMarkers: false },
+  { id: 'landmarks', icon: '📍', label: 'Landmarks', groupIds: [] as LayerGroupId[], isMarkers: true },
+  { id: 'roadNames', icon: '🔤', label: 'Road Names', groupIds: ['roadNames'] as LayerGroupId[], isMarkers: false },
+] as const;
 
-function buildDefaultVisibility(): LayerVisibility {
-  return Object.fromEntries(
-    LAYER_GROUPS.map((g) => [g.id, g.defaultVisible]),
-  ) as LayerVisibility;
-}
+type StageId = typeof GAME_STAGES[number]['id'];
+type StageVisibility = Record<StageId, boolean>;
 
-/** Creates a circular photo marker element for always-visible landmark display.
- *  `el` is a zero-size wrapper that MapLibre positions via its own transform.
- *  The visible circle lives in `inner` so hover transforms don't fight MapLibre. */
+const INITIAL_VISIBILITY: StageVisibility = {
+  terrain: true,
+  water: false,
+  roads: false,
+  landmarks: false,
+  roadNames: false,
+};
+
+// Sorted: verified cities first (alphabetically), then unverified (alphabetically)
+const SORTED_CITIES = [...CITY_REVEAL_CITIES].sort((a, b) => {
+  if (a.implemented && !b.implemented) { return -1; }
+  if (!a.implemented && b.implemented) { return 1; }
+  return a.name.localeCompare(b.name);
+});
+
+// ── Marker element factory ────────────────────────────────────────────────────
+
 function createPhotoMarkerEl(imageUrl: string | null, onClick?: () => void): HTMLDivElement {
   const el = document.createElement('div');
-
-  // inner holds all visual styles — transform here won't clobber MapLibre's positioning
   const inner = document.createElement('div');
   Object.assign(inner.style, {
     width: '56px',
@@ -94,23 +99,23 @@ function createPhotoMarkerEl(imageUrl: string | null, onClick?: () => void): HTM
   return el;
 }
 
+// ── Main component ─────────────────────────────────────────────────────────────
+
 export function LayerLab() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapGL | null>(null);
   const markersRef = useRef<Marker[]>([]);
-  // Maps each LayerGroupId to the array of MapLibre layer IDs classified into it
   const layerMapRef = useRef<Partial<Record<LayerGroupId, string[]>>>({});
 
-  const [activeCity, setActiveCity] = useState<LabCity>(LAB_CITIES[0]);
-  const [zoom, setZoom] = useState<number>(LAB_CITIES[0].zoom);
-  const [pitch, setPitch] = useState<number>(0);
-  const [layerVisibility, setLayerVisibility] = useState<LayerVisibility>(buildDefaultVisibility);
+  const [activeCity, setActiveCity] = useState<CityRevealCity>(SORTED_CITIES[0]);
+  const [stageVisibility, setStageVisibility] = useState<StageVisibility>(INITIAL_VISIBILITY);
+  const [zoom, setZoom] = useState<number>(SORTED_CITIES[0].zoom);
   const [mapReady, setMapReady] = useState(false);
-  // wikiTitle → fetched thumbnail URL
   const [landmarkImages, setLandmarkImages] = useState<Record<string, string>>({});
   const [selectedLandmark, setSelectedLandmark] = useState<{ label: string; imageUrl: string } | null>(null);
 
-  // Close modal on Escape
+  // ── Close modal on Escape ──────────────────────────────────────────────────
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') { setSelectedLandmark(null); }
@@ -119,10 +124,11 @@ export function LayerLab() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Pre-fetch Wikipedia thumbnails for all cities on mount
+  // ── Fetch Wikipedia thumbnails for active city landmarks ───────────────────
+
   useEffect(() => {
-    const allLandmarks = LAB_CITIES.flatMap((c) => c.landmarks);
-    for (const lm of allLandmarks) {
+    for (const lm of activeCity.landmarks) {
+      if (landmarkImages[lm.wikiTitle]) { continue; }
       fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(lm.wikiTitle)}`)
         .then((r) => {
           if (!r.ok) { throw new Error(`HTTP ${r.status}`); }
@@ -133,22 +139,20 @@ export function LayerLab() {
             setLandmarkImages((prev) => ({ ...prev, [lm.wikiTitle]: data.thumbnail!.source }));
           }
         })
-        .catch((err) => console.warn(`[LayerLab] No Wikipedia image for "${lm.wikiTitle}":`, err));
+        .catch((err) => { console.warn(`[LayerLab] No Wikipedia image for "${lm.wikiTitle}":`, err); });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeCity]); // landmarkImages intentionally excluded — used as a cache, not a trigger
 
-  // Initialise the map once on mount
+  // ── Initialise map once ────────────────────────────────────────────────────
+
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) {
-      return;
-    }
+    if (!mapContainerRef.current || mapRef.current) { return; }
 
     const map = new MapGL({
       container: mapContainerRef.current,
       style: STYLE_URL,
       center: [activeCity.lon, activeCity.lat],
       zoom: activeCity.zoom,
-      pitch: 0,
       attributionControl: { compact: true },
     });
 
@@ -156,34 +160,24 @@ export function LayerLab() {
 
     map.on('load', () => {
       const grouped: Partial<Record<LayerGroupId, string[]>> = {};
-      LAYER_GROUPS.forEach((g) => {
-        grouped[g.id] = [];
-      });
+      for (const g of LAYER_GROUPS) { grouped[g.id] = []; }
 
       for (const layer of map.getStyle().layers) {
         const raw = layer as Record<string, unknown>;
         const sourceLayer = raw['source-layer'] as string | undefined;
         const minzoom = raw['minzoom'] as number | undefined;
         const group = classifyLayer(layer.id, layer.type, sourceLayer, minzoom);
-        if (sourceLayer === 'place_label' && layer.type === 'symbol') {
-          console.log(`[LayerLab] place_label symbol: "${layer.id}" minzoom=${minzoom} → ${group}`);
-        }
-        if (group) {
-          grouped[group]!.push(layer.id);
-        }
+        if (group) { grouped[group]!.push(layer.id); }
       }
-      // DEM source — used for the custom hillshade layer below and the 3D Terrain toggle.
+
+      // Custom hillshade from DEM
       map.addSource(TERRAIN_DEM_SOURCE, {
         type: 'raster-dem',
         url: `https://api.maptiler.com/tiles/terrain-rgb/tiles.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
         tileSize: 256,
         maxzoom: 12,
       });
-
-      // Gentle hillshade from DEM so elevation is readable without drowning the streets.
-      // Inserted before the first road layer so roads always render on top.
-      const firstRoadId =
-        (grouped['majorRoads'] ?? [])[0] ?? (grouped['streetGrid'] ?? [])[0];
+      const firstRoadId = (grouped['majorRoads'] ?? [])[0] ?? (grouped['streetGrid'] ?? [])[0];
       map.addLayer(
         {
           id: CUSTOM_HILLSHADE_LAYER,
@@ -202,91 +196,36 @@ export function LayerLab() {
       );
       grouped['terrain'] = [CUSTOM_HILLSHADE_LAYER, ...(grouped['terrain'] ?? [])];
 
+      // 2D buildings only
+      grouped['buildings'] = (grouped['buildings'] ?? []).filter((id) => {
+        return map.getStyle().layers.find((l) => l.id === id)?.type !== 'fill-extrusion';
+      });
+
+      // Lower the minzoom on railways so they appear at city zoom;
+      // leave colour/width at the streets-v4 defaults (thin, dark-grey).
+      for (const id of grouped['railways'] ?? []) {
+        try {
+          map.setLayerZoomRange(id, 9, 24);
+        } catch (err) {
+          console.warn('[LayerLab] railway zoom range failed:', err);
+        }
+      }
+
       layerMapRef.current = grouped;
 
-      // Apply initial visibility state from defaults.
-      // MapTiler 'labels' layers are permanently hidden — replaced by curated GeoJSON labels.
+      // Hide all classified layers except terrain initially.
+      // labels and placeLabels stay permanently hidden (would reveal city name).
       for (const group of LAYER_GROUPS) {
-        const visibility = group.id === 'labels' || !group.defaultVisible ? 'none' : 'visible';
+        const visible = group.id === 'terrain';
         for (const id of grouped[group.id] ?? []) {
           try {
-            map.setLayoutProperty(id, 'visibility', visibility);
+            map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
           } catch (err) {
             console.error(`[LayerLab] setLayoutProperty failed for "${id}":`, err);
           }
         }
       }
 
-      // Contour lines: lower minzoom so they show at city view, and make them bolder
-      for (const layerId of grouped['contours'] ?? []) {
-        const layerDef = map.getStyle().layers.find((l) => l.id === layerId);
-        if (!layerDef) { continue; }
-        map.setLayerZoomRange(layerId, 8, 24);
-        if (layerDef.type === 'line') {
-          try {
-            map.setPaintProperty(layerId, 'line-color', '#8B6947');
-            map.setPaintProperty(layerId, 'line-opacity', 0.9);
-            map.setPaintProperty(layerId, 'line-width', 1.5);
-          } catch (err) {
-            console.warn(`[LayerLab] contour style override failed for "${layerId}":`, err);
-          }
-        }
-      }
-
-      // 2D buildings only: strip fill-extrusion layers from the group so the toggle only
-      // shows flat footprints. Lower minzoom so footprints appear at district zoom.
-      grouped['buildings'] = (grouped['buildings'] ?? []).filter((layerId) => {
-        const layerDef = map.getStyle().layers.find((l) => l.id === layerId);
-        return layerDef?.type !== 'fill-extrusion';
-      });
-      for (const layerId of grouped['buildings'] ?? []) {
-        map.setLayerZoomRange(layerId, 13, 24);
-      }
-
-      // Railways: lower minzoom so they appear at city zoom, and make lines bolder
-      for (const layerId of grouped['railways'] ?? []) {
-        const layerDef = map.getStyle().layers.find((l) => l.id === layerId);
-        if (!layerDef) { continue; }
-        map.setLayerZoomRange(layerId, 9, 24);
-        if (layerDef.type === 'line') {
-          try {
-            map.setPaintProperty(layerId, 'line-width', 2.5);
-            map.setPaintProperty(layerId, 'line-color', '#8B7355');
-            map.setPaintProperty(layerId, 'line-opacity', 1);
-          } catch (err) {
-            console.warn(`[LayerLab] railway style override failed for "${layerId}":`, err);
-          }
-        }
-      }
-
-      // Curated GeoJSON labels replace the raw MapTiler transportation/POI labels.
-      // Using Noto Sans for broad script support (Cyrillic, CJK, Latin, etc.)
-      map.addSource(CURATED_LABELS_SOURCE, {
-        type: 'geojson',
-        data: buildCuratedLabelGeoJSON(activeCity.curatedLabels),
-      });
-      map.addLayer({
-        id: CURATED_LABELS_LAYER,
-        type: 'symbol',
-        source: CURATED_LABELS_SOURCE,
-        layout: {
-          'text-field': ['get', 'text'],
-          'text-size': 13,
-          'text-font': ['Noto Sans Regular', 'Open Sans Regular', 'Arial Unicode MS Regular'],
-          'text-anchor': 'center',
-          'text-max-width': 10,
-          'text-allow-overlap': false,
-          'text-padding': 8,
-          visibility: 'none',
-        },
-        paint: {
-          'text-color': '#444444',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.5,
-        },
-      });
-
-      // Expose for Playwright e2e tests — allows tests to inspect layer classification
       if (import.meta.env.DEV) {
         (window as unknown as Record<string, unknown>)['__layerLabGroups'] = layerMapRef.current;
         (window as unknown as Record<string, unknown>)['__layerLabMap'] = map;
@@ -295,109 +234,69 @@ export function LayerLab() {
       setMapReady(true);
     });
 
-    map.on('zoom', () => {
-      setZoom(Math.round(map.getZoom() * 10) / 10);
-    });
-
-    map.on('pitch', () => {
-      setPitch(Math.round(map.getPitch()));
-    });
+    map.on('zoom', () => { setZoom(Math.round(map.getZoom() * 10) / 10); });
 
     mapRef.current = map;
-
     return () => {
       map.remove();
       mapRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // map is initialised once; city/stage changes handled by separate effects
 
-  // Update curated GeoJSON labels when city changes
+  // ── Sync stage layer visibility ────────────────────────────────────────────
+
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady) {
-      return;
-    }
-    const source = map.getSource(CURATED_LABELS_SOURCE) as GeoJSONSource | undefined;
-    if (source) {
-      source.setData(buildCuratedLabelGeoJSON(activeCity.curatedLabels));
-    }
-  }, [activeCity, mapReady]);
+    if (!map || !mapReady) { return; }
 
-  // Sync layer visibility to the map whenever toggles change.
-  // The 'labels' group controls the curated GeoJSON layer; MapTiler labels stay permanently hidden.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) {
-      return;
-    }
-    for (const group of LAYER_GROUPS) {
-      if (group.id === 'labels') {
-        try {
-          map.setLayoutProperty(
-            CURATED_LABELS_LAYER,
-            'visibility',
-            layerVisibility.labels ? 'visible' : 'none',
-          );
-        } catch (err) {
-          console.error('[LayerLab] curated-labels visibility failed:', err);
-        }
-        continue;
-      }
-      if (group.id === 'terrain3d') {
-        try {
-          if (layerVisibility.terrain3d) {
-            map.setTerrain({ source: TERRAIN_DEM_SOURCE, exaggeration: 2.0 });
-          } else {
-            map.setTerrain(null);
+    for (const stage of GAME_STAGES) {
+      if (stage.isMarkers) { continue; }
+      const visible = stageVisibility[stage.id];
+      for (const groupId of stage.groupIds) {
+        for (const id of layerMapRef.current[groupId] ?? []) {
+          try {
+            map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
+          } catch (err) {
+            console.error(`[LayerLab] stage visibility failed for "${id}":`, err);
           }
-        } catch (err) {
-          console.error('[LayerLab] terrain3d toggle failed:', err);
-        }
-        continue;
-      }
-      const visibility = layerVisibility[group.id] ? 'visible' : 'none';
-      for (const id of layerMapRef.current[group.id] ?? []) {
-        try {
-          map.setLayoutProperty(id, 'visibility', visibility);
-        } catch (err) {
-          console.error(`[LayerLab] toggle setLayoutProperty failed for "${id}":`, err);
         }
       }
     }
-  }, [layerVisibility, mapReady]);
+  }, [stageVisibility, mapReady]);
 
-  // Sync landmark markers whenever city, landmark toggle, or fetched images change
+  // ── Landmark markers ───────────────────────────────────────────────────────
+
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady) {
-      return;
-    }
+    if (!map || !mapReady) { return; }
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    if (!layerVisibility.landmarks) {
-      return;
-    }
+    if (!stageVisibility.landmarks) { return; }
 
-    for (const landmark of activeCity.landmarks) {
-      const imageUrl = landmarkImages[landmark.wikiTitle] ?? null;
+    for (const lm of activeCity.landmarks) {
+      const imageUrl = landmarkImages[lm.wikiTitle] ?? null;
       const onClick = imageUrl
-        ? () => setSelectedLandmark({ label: landmark.label, imageUrl })
+        ? () => setSelectedLandmark({ label: lm.label, imageUrl })
         : undefined;
-      const el = createPhotoMarkerEl(imageUrl, onClick);
-
-      const marker = new Marker({ element: el, anchor: 'center' })
-        .setLngLat([landmark.lon, landmark.lat])
+      const marker = new Marker({ element: createPhotoMarkerEl(imageUrl, onClick), anchor: 'center' })
+        .setLngLat([lm.lon, lm.lat])
         .addTo(map);
-
       markersRef.current.push(marker);
     }
-  }, [activeCity, layerVisibility.landmarks, mapReady, landmarkImages]);
+  }, [activeCity, stageVisibility.landmarks, mapReady, landmarkImages]);
 
-  function handleCityChange(city: LabCity) {
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  function handleCityChange(city: CityRevealCity) {
     setActiveCity(city);
+    setStageVisibility(INITIAL_VISIBILITY);
     mapRef.current?.flyTo({ center: [city.lon, city.lat], zoom: city.zoom, duration: 1400 });
+  }
+
+  function handleFlyToCity() {
+    mapRef.current?.flyTo({ center: [activeCity.lon, activeCity.lat], zoom: activeCity.zoom, duration: 800 });
   }
 
   function handleZoomPreset(z: number) {
@@ -408,69 +307,81 @@ export function LayerLab() {
     mapRef.current?.easeTo({ zoom: parseFloat(e.target.value), duration: 150 });
   }
 
-  function handlePitchToggle() {
-    const next = pitch > 0 ? 0 : 45;
-    mapRef.current?.easeTo({ pitch: next, duration: 500 });
+  function handleStageToggle(stageId: StageId) {
+    setStageVisibility((prev) => ({ ...prev, [stageId]: !prev[stageId] }));
   }
 
-  function handleToggle(groupId: LayerGroupId) {
-    setLayerVisibility((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
-  }
-
-  const layerCounts = mapReady ? layerMapRef.current : {};
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className={styles.layout}>
       <aside className={styles.sidebar}>
         <header className={styles.header}>
-          <h1 className={styles.title}>Layer Lab</h1>
-          <p className={styles.subtitle}>Dev prototype — not a game</p>
+          <h1 className={styles.title}>City Reveal Lab</h1>
+          <p className={styles.subtitle}>Verify zoom & landmarks before enabling</p>
         </header>
 
+        {/* ── City selector ── */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>City</h2>
-          <div className={styles.cityGrid}>
-            {LAB_CITIES.map((city) => (
-              <button
-                key={city.id}
-                aria-pressed={activeCity.id === city.id}
-                className={`${styles.cityBtn} ${activeCity.id === city.id ? styles.cityBtnActive : ''}`}
-                onClick={() => handleCityChange(city)}
-              >
-                {city.name}
-              </button>
-            ))}
+          <select
+            className={styles.citySelect}
+            value={activeCity.id}
+            onChange={(e) => {
+              const city = CITY_REVEAL_CITIES.find((c) => c.id === e.target.value);
+              if (city) { handleCityChange(city); }
+            }}
+          >
+            <optgroup label="✅ Verified">
+              {SORTED_CITIES.filter((c) => c.implemented).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}, {c.country}</option>
+              ))}
+            </optgroup>
+            <optgroup label="🔍 Needs verification">
+              {SORTED_CITIES.filter((c) => !c.implemented).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}, {c.country}</option>
+              ))}
+            </optgroup>
+          </select>
+
+          {/* City info card */}
+          <div className={styles.cityCard}>
+            <div className={styles.cityCardHeader}>
+              <span className={styles.cityFlag}>{flagEmoji(activeCity.countryCode)}</span>
+              <div>
+                <div className={styles.cityCardName}>{activeCity.name}</div>
+                <div className={styles.cityCardCountry}>{activeCity.country}</div>
+              </div>
+              <span className={`${styles.implBadge} ${activeCity.implemented ? styles.implBadgeYes : styles.implBadgeNo}`}>
+                {activeCity.implemented ? '✅ Live' : '🔍 Draft'}
+              </span>
+            </div>
+            <div className={styles.cityCardMeta}>
+              <span>zoom {activeCity.zoom}</span>
+              <span>{activeCity.lat.toFixed(3)}, {activeCity.lon.toFixed(3)}</span>
+              <span>{activeCity.landmarks.length} landmarks</span>
+            </div>
           </div>
         </section>
 
+        {/* ── Reveal stages ── */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Layers</h2>
+          <h2 className={styles.sectionTitle}>Reveal stages</h2>
           <div className={styles.layerList}>
-            {LAYER_GROUPS.map((group) => (
-              <div key={group.id} className={styles.layerRow} onClick={() => handleToggle(group.id)}>
-                <span className={styles.layerInfo}>
-                  <span className={styles.layerLabel}>
-                    {group.label}
-                    {group.alwaysHiddenInGame && (
-                      <span className={styles.spoilerBadge}>reveals city</span>
-                    )}
-                  </span>
-                  <span className={styles.layerDesc}>
-                    {group.description}
-                    {group.id !== 'labels' && layerCounts[group.id] !== undefined && (
-                      <span className={styles.layerCount}> · {layerCounts[group.id]!.length}</span>
-                    )}
-                  </span>
-                </span>
+            {GAME_STAGES.map((stage) => (
+              <div
+                key={stage.id}
+                className={styles.layerRow}
+                onClick={() => handleStageToggle(stage.id)}
+              >
+                <span className={styles.stageIcon}>{stage.icon}</span>
+                <span className={styles.layerLabel}>{stage.label}</span>
                 <button
                   role="switch"
-                  aria-checked={layerVisibility[group.id]}
-                  aria-label={`Toggle ${group.label}`}
-                  className={`${styles.toggle} ${layerVisibility[group.id] ? styles.toggleOn : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggle(group.id);
-                  }}
+                  aria-checked={stageVisibility[stage.id]}
+                  aria-label={`Toggle ${stage.label}`}
+                  className={`${styles.toggle} ${stageVisibility[stage.id] ? styles.toggleOn : ''}`}
+                  onClick={(e) => { e.stopPropagation(); handleStageToggle(stage.id); }}
                 >
                   <span className={styles.toggleThumb} />
                 </button>
@@ -479,6 +390,7 @@ export function LayerLab() {
           </div>
         </section>
 
+        {/* ── Zoom ── */}
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>
             Zoom
@@ -486,11 +398,7 @@ export function LayerLab() {
           </h2>
           <div className={styles.zoomPresets}>
             {ZOOM_PRESETS.map((p) => (
-              <button
-                key={p.zoom}
-                className={styles.zoomPresetBtn}
-                onClick={() => handleZoomPreset(p.zoom)}
-              >
+              <button key={p.zoom} className={styles.zoomPresetBtn} onClick={() => handleZoomPreset(p.zoom)}>
                 {p.label}
               </button>
             ))}
@@ -505,23 +413,21 @@ export function LayerLab() {
             className={styles.zoomSlider}
             aria-label="Zoom level"
           />
+          <button className={styles.flyBtn} onClick={handleFlyToCity}>
+            ↩ Fly to city zoom ({activeCity.zoom})
+          </button>
         </section>
 
+        {/* ── Landmark reference ── */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Perspective</h2>
-          <div className={styles.perspectiveRow}>
-            <span className={styles.layerDesc}>
-              {pitch > 0 ? `${pitch}° tilt (good for 3D buildings)` : 'Top-down (2D)'}
-            </span>
-            <button
-              role="switch"
-              aria-checked={pitch > 0}
-              aria-label="Toggle 3D perspective"
-              className={`${styles.toggle} ${pitch > 0 ? styles.toggleOn : ''}`}
-              onClick={handlePitchToggle}
-            >
-              <span className={styles.toggleThumb} />
-            </button>
+          <h2 className={styles.sectionTitle}>Landmarks</h2>
+          <div className={styles.landmarkList}>
+            {activeCity.landmarks.map((lm) => (
+              <div key={lm.wikiTitle} className={styles.landmarkItem}>
+                <span className={styles.landmarkLabel}>{lm.label}</span>
+                <span className={styles.landmarkWiki}>{lm.wikiTitle}</span>
+              </div>
+            ))}
           </div>
         </section>
       </aside>
@@ -531,18 +437,8 @@ export function LayerLab() {
       {selectedLandmark && (
         <div className={styles.modalOverlay} onClick={() => setSelectedLandmark(null)}>
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-            <button
-              className={styles.modalClose}
-              onClick={() => setSelectedLandmark(null)}
-              aria-label="Close"
-            >
-              ✕
-            </button>
-            <img
-              className={styles.modalImg}
-              src={selectedLandmark.imageUrl}
-              alt={selectedLandmark.label}
-            />
+            <button className={styles.modalClose} onClick={() => setSelectedLandmark(null)} aria-label="Close">✕</button>
+            <img className={styles.modalImg} src={selectedLandmark.imageUrl} alt={selectedLandmark.label} />
             <p className={styles.modalLabel}>{selectedLandmark.label}</p>
           </div>
         </div>
