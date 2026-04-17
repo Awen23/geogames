@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { Map as MapGL, Marker, NavigationControl } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { LAYER_GROUPS, type LayerGroupId, classifyLayer } from '../components/CityRevealMap/layers';
+import type { LayerGroupId } from '../components/CityRevealMap/layers';
 import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
 import type { CityRevealCity } from '@shared/cityRevealTypes';
 import { flagEmoji } from '@shared/cityRevealTypes';
+import {
+  STYLE_URL,
+  setupMapLayers,
+  fetchWikiThumb,
+  createPhotoMarkerEl,
+} from '../lib/cityRevealMap';
 import styles from './LayerLab.module.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-
-const STYLE_URL = `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
-const TERRAIN_DEM_SOURCE = 'maptiler-dem';
-const CUSTOM_HILLSHADE_LAYER = 'layerlab-hillshade';
 
 const ZOOM_PRESETS = [
   { label: 'Region', zoom: 9 },
@@ -47,58 +49,6 @@ const SORTED_CITIES = [...CITY_REVEAL_CITIES].sort((a, b) => {
   return a.name.localeCompare(b.name);
 });
 
-// ── Marker element factory ────────────────────────────────────────────────────
-
-function createPhotoMarkerEl(imageUrl: string | null, onClick?: () => void): HTMLDivElement {
-  const el = document.createElement('div');
-  const inner = document.createElement('div');
-  Object.assign(inner.style, {
-    width: '56px',
-    height: '56px',
-    borderRadius: '50%',
-    overflow: 'hidden',
-    border: '2.5px solid #ffffff',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-    backgroundColor: '#23263a',
-    cursor: onClick ? 'pointer' : 'default',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'transform 0.15s, box-shadow 0.15s',
-  });
-
-  if (onClick) {
-    inner.addEventListener('mouseenter', () => {
-      inner.style.transform = 'scale(1.08)';
-      inner.style.boxShadow = '0 4px 16px rgba(0,0,0,0.6)';
-    });
-    inner.addEventListener('mouseleave', () => {
-      inner.style.transform = '';
-      inner.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
-    });
-    inner.addEventListener('click', onClick);
-  }
-
-  if (imageUrl) {
-    const img = document.createElement('img');
-    img.src = imageUrl;
-    img.alt = '';
-    Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' });
-    img.onerror = () => {
-      img.remove();
-      inner.textContent = '📍';
-      Object.assign(inner.style, { fontSize: '22px' });
-    };
-    inner.appendChild(img);
-  } else {
-    inner.textContent = '⏳';
-    Object.assign(inner.style, { fontSize: '18px', color: '#8b8fa8' });
-  }
-
-  el.appendChild(inner);
-  return el;
-}
-
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function LayerLab() {
@@ -129,17 +79,10 @@ export function LayerLab() {
   useEffect(() => {
     for (const lm of activeCity.landmarks) {
       if (landmarkImages[lm.wikiTitle]) { continue; }
-      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(lm.wikiTitle)}`)
-        .then((r) => {
-          if (!r.ok) { throw new Error(`HTTP ${r.status}`); }
-          return r.json() as Promise<{ thumbnail?: { source: string } }>;
-        })
-        .then((data) => {
-          if (data.thumbnail?.source) {
-            setLandmarkImages((prev) => ({ ...prev, [lm.wikiTitle]: data.thumbnail!.source }));
-          }
-        })
-        .catch((err) => { console.warn(`[LayerLab] No Wikipedia image for "${lm.wikiTitle}":`, err); });
+      fetchWikiThumb(lm.wikiTitle)
+        .then((url) => {
+          if (url) { setLandmarkImages((prev) => ({ ...prev, [lm.wikiTitle]: url })); }
+        });
     }
   }, [activeCity]); // landmarkImages intentionally excluded — used as a cache, not a trigger
 
@@ -159,72 +102,7 @@ export function LayerLab() {
     map.addControl(new NavigationControl(), 'top-right');
 
     map.on('load', () => {
-      const grouped: Partial<Record<LayerGroupId, string[]>> = {};
-      for (const g of LAYER_GROUPS) { grouped[g.id] = []; }
-
-      for (const layer of map.getStyle().layers) {
-        const raw = layer as Record<string, unknown>;
-        const sourceLayer = raw['source-layer'] as string | undefined;
-        const minzoom = raw['minzoom'] as number | undefined;
-        const group = classifyLayer(layer.id, layer.type, sourceLayer, minzoom);
-        if (group) { grouped[group]!.push(layer.id); }
-      }
-
-      // Custom hillshade from DEM
-      map.addSource(TERRAIN_DEM_SOURCE, {
-        type: 'raster-dem',
-        url: `https://api.maptiler.com/tiles/terrain-rgb/tiles.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
-        tileSize: 256,
-        maxzoom: 12,
-      });
-      const firstRoadId = (grouped['majorRoads'] ?? [])[0] ?? (grouped['streetGrid'] ?? [])[0];
-      map.addLayer(
-        {
-          id: CUSTOM_HILLSHADE_LAYER,
-          type: 'hillshade',
-          source: TERRAIN_DEM_SOURCE,
-          paint: {
-            'hillshade-exaggeration': 0.25,
-            'hillshade-shadow-color': 'rgba(45,30,15,0.22)',
-            'hillshade-highlight-color': 'rgba(255,252,235,0.09)',
-            'hillshade-illumination-direction': 335,
-            'hillshade-illumination-anchor': 'map',
-          },
-          layout: { visibility: 'visible' },
-        },
-        firstRoadId,
-      );
-      grouped['terrain'] = [CUSTOM_HILLSHADE_LAYER, ...(grouped['terrain'] ?? [])];
-
-      // 2D buildings only
-      grouped['buildings'] = (grouped['buildings'] ?? []).filter((id) => {
-        return map.getStyle().layers.find((l) => l.id === id)?.type !== 'fill-extrusion';
-      });
-
-      // Lower the minzoom on railways so they appear at city zoom;
-      // leave colour/width at the streets-v4 defaults (thin, dark-grey).
-      for (const id of grouped['railways'] ?? []) {
-        try {
-          map.setLayerZoomRange(id, 9, 24);
-        } catch (err) {
-          console.warn('[LayerLab] railway zoom range failed:', err);
-        }
-      }
-
-      layerMapRef.current = grouped;
-
-      // Hide all classified layers except terrain initially.
-      // labels and placeLabels stay permanently hidden (would reveal city name).
-      for (const group of LAYER_GROUPS) {
-        const visible = group.id === 'terrain';
-        for (const id of grouped[group.id] ?? []) {
-          try {
-            map.setLayoutProperty(id, 'visibility', visible ? 'visible' : 'none');
-          } catch (err) {
-            console.error(`[LayerLab] setLayoutProperty failed for "${id}":`, err);
-          }
-        }
-      }
+      layerMapRef.current = setupMapLayers(map);
 
       if (import.meta.env.DEV) {
         (window as unknown as Record<string, unknown>)['__layerLabGroups'] = layerMapRef.current;

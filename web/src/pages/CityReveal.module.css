@@ -98,6 +98,43 @@
   }
 }
 
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.backLink {
+  font-size: 0.85rem;
+  color: #5a5e7a;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.backLink:hover {
+  color: #e8eaf6;
+}
+
+.devResetBtn {
+  font-size: 0.75rem;
+  color: #5a5e7a;
+  background: none;
+  border: 1px dashed #2a2d47;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.devResetBtn:hover {
+  opacity: 1;
+  color: #e8eaf6;
+}
+
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
 .header {

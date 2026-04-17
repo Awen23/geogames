@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Map as MapGL, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { LAYER_GROUPS, classifyLayer } from '../components/CityRevealMap/layers';
+import { LAYER_GROUPS } from '../components/CityRevealMap/layers';
 import type { LayerGroupId } from '../components/CityRevealMap/layers';
 import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
 import {
@@ -13,37 +14,16 @@ import type { CityRevealCity, CityRevealTodayResponse } from '@shared/cityReveal
 import { CityInput } from '../components/CityInput/CityInput';
 import { useGameState } from '../lib/useGameState';
 import { fetchCityRevealToday, guessCityReveal, submitCityRevealResult } from '../lib/api';
+import {
+  STYLE_URL,
+  STAGE_GROUPS,
+  WIN_GROUPS,
+  STAGE_REVEAL_LABELS,
+  setupMapLayers,
+  fetchWikiThumb,
+  createPhotoMarkerEl,
+} from '../lib/cityRevealMap';
 import styles from './CityReveal.module.css';
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const STYLE_URL = `https://api.maptiler.com/maps/streets-v4/style.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`;
-const TERRAIN_DEM_SOURCE = 'maptiler-dem';
-const CUSTOM_HILLSHADE_LAYER = 'city-reveal-hillshade';
-
-/** Layer groups revealed cumulatively at each wrong-guess stage (0 = start). */
-const ROADS_AND_BELOW: LayerGroupId[] = ['terrain', 'water', 'majorRoads', 'streetGrid', 'railways'];
-const STAGE_GROUPS: Record<number, LayerGroupId[]> = {
-  0: ['terrain'],
-  1: ['terrain', 'water'],
-  2: ROADS_AND_BELOW,
-  3: ROADS_AND_BELOW, // landmarks shown via markers, not layer groups
-  4: [...ROADS_AND_BELOW, 'roadNames'],
-};
-
-/** All groups revealed on win (excludes placeLabels which reveals the city name). */
-const WIN_GROUPS: LayerGroupId[] = [
-  'terrain', 'water', 'majorRoads', 'streetGrid', 'railways',
-  'roadNames', 'urbanFabric', 'buildings', 'districtLabels', 'contours',
-];
-
-/** Human-readable label for what was just revealed at each stage. */
-const STAGE_REVEAL_LABELS: Record<number, string> = {
-  1: '💧 Water revealed',
-  2: '🛣️ Roads & railways revealed',
-  3: '📍 Landmarks revealed',
-  4: '🔤 Road names revealed',
-};
 
 // ── Local game state ──────────────────────────────────────────────────────────
 
@@ -84,74 +64,6 @@ function utcToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// ── Wikipedia thumbnail fetch ─────────────────────────────────────────────────
-
-async function fetchWikiThumb(title: string): Promise<string | null> {
-  try {
-    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-    const res = await fetch(url);
-    if (!res.ok) { return null; }
-    const data = await res.json() as { thumbnail?: { source: string } };
-    return data.thumbnail?.source ?? null;
-  } catch {
-    return null;
-  }
-}
-
-// ── Marker element factory ────────────────────────────────────────────────────
-
-function createPhotoMarkerEl(
-  imageUrl: string | null,
-  onClick?: () => void,
-): HTMLDivElement {
-  const el = document.createElement('div');
-  const inner = document.createElement('div');
-  Object.assign(inner.style, {
-    width: '52px',
-    height: '52px',
-    borderRadius: '50%',
-    overflow: 'hidden',
-    border: '2.5px solid #ffffff',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-    backgroundColor: '#23263a',
-    cursor: onClick ? 'pointer' : 'default',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'transform 0.15s, box-shadow 0.15s',
-  });
-
-  if (onClick) {
-    inner.addEventListener('mouseenter', () => {
-      inner.style.transform = 'scale(1.08)';
-      inner.style.boxShadow = '0 4px 16px rgba(0,0,0,0.6)';
-    });
-    inner.addEventListener('mouseleave', () => {
-      inner.style.transform = '';
-      inner.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
-    });
-    inner.addEventListener('click', onClick);
-  }
-
-  if (imageUrl) {
-    const img = document.createElement('img');
-    img.src = imageUrl;
-    img.alt = '';
-    Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' });
-    img.onerror = () => {
-      img.remove();
-      inner.textContent = '📍';
-      Object.assign(inner.style, { fontSize: '20px' });
-    };
-    inner.appendChild(img);
-  } else {
-    inner.textContent = '⏳';
-    Object.assign(inner.style, { fontSize: '18px', color: '#8b8fa8' });
-  }
-
-  el.appendChild(inner);
-  return el;
-}
 
 // ── Confetti ──────────────────────────────────────────────────────────────────
 
@@ -208,7 +120,7 @@ export function CityReveal() {
   const [selectedLandmark, setSelectedLandmark] = useState<{ label: string; imageUrl: string } | null>(null);
 
   // For the home screen "played today" badge
-  const { recordResult } = useGameState('city-reveal');
+  const { recordResult, resetForDev: resetGameStateBadge } = useGameState('city-reveal');
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
@@ -260,70 +172,7 @@ export function CityReveal() {
     map.touchZoomRotate.disable();
 
     map.on('load', () => {
-      const grouped: Partial<Record<LayerGroupId, string[]>> = {};
-      for (const g of LAYER_GROUPS) { grouped[g.id] = []; }
-
-      // Add custom DEM source + hillshade (same pattern as LayerLab)
-      map.addSource(TERRAIN_DEM_SOURCE, {
-        type: 'raster-dem',
-        url: `https://api.maptiler.com/tiles/terrain-rgb/tiles.json?key=${import.meta.env.VITE_MAPTILER_API_KEY}`,
-        tileSize: 256,
-      });
-
-      // Find first road layer to insert hillshade below it
-      const firstRoadLayer = map.getStyle().layers.find((l) =>
-        /road|street|motorway|trunk|primary/.test(l.id.toLowerCase()),
-      )?.id;
-
-      map.addLayer(
-        {
-          id: CUSTOM_HILLSHADE_LAYER,
-          type: 'hillshade',
-          source: TERRAIN_DEM_SOURCE,
-          paint: {
-            'hillshade-exaggeration': 0.25,
-            'hillshade-shadow-color': 'rgba(45,30,15,0.22)',
-            'hillshade-highlight-color': 'rgba(255,252,235,0.09)',
-          },
-        },
-        firstRoadLayer,
-      );
-      grouped['terrain']!.push(CUSTOM_HILLSHADE_LAYER);
-
-      // Classify all style layers into groups
-      for (const layer of map.getStyle().layers) {
-        const raw = layer as Record<string, unknown>;
-        const sourceLayer = raw['source-layer'] as string | undefined;
-        const minzoom = raw['minzoom'] as number | undefined;
-        const group = classifyLayer(layer.id, layer.type, sourceLayer, minzoom);
-        if (group !== null) {
-          (grouped[group] ??= []).push(layer.id);
-        }
-      }
-
-      // Filter out fill-extrusion (3D buildings) and lower min-zoom for 2D buildings
-      if (grouped['buildings']) {
-        grouped['buildings'] = grouped['buildings'].filter((id) => {
-          const l = map.getLayer(id);
-          return l?.type !== 'fill-extrusion';
-        });
-        for (const id of grouped['buildings']) {
-          map.setLayerZoomRange(id, 13, 24);
-        }
-      }
-
-      layerMapRef.current = grouped;
-
-      // Set initial visibility: only terrain visible; hide all other groups including
-      // labels/placeLabels which are never revealed (they'd expose the city name).
-      const initialVisible = new Set<string>(STAGE_GROUPS[0]);
-      for (const group of LAYER_GROUPS) {
-        const visibility = initialVisible.has(group.id) ? 'visible' : 'none';
-        for (const id of grouped[group.id] ?? []) {
-          try { map.setLayoutProperty(id, 'visibility', visibility); } catch { /* layer may not support */ }
-        }
-      }
-
+      layerMapRef.current = setupMapLayers(map);
       setMapReady(true);
     });
 
@@ -467,6 +316,15 @@ export function CityReveal() {
     [loadingGuess, finished, gameState, recordResult],
   );
 
+  // ── Dev reset ─────────────────────────────────────────────────────────────
+
+  const resetForDev = useCallback(() => {
+    if (!gameState) { return; }
+    localStorage.removeItem(storageKey(gameState.date));
+    resetGameStateBadge();
+    setGameState({ date: gameState.date, guesses: [], won: false, gameOver: false });
+  }, [gameState, resetGameStateBadge]);
+
   // ── Stage indicator data ───────────────────────────────────────────────────
 
   const stageSteps = [
@@ -527,6 +385,13 @@ export function CityReveal() {
 
       {/* ── Game UI ── */}
       <div className={styles.gamePanel}>
+        <div className={styles.topBar}>
+          <Link to="/" className={styles.backLink}>← Games</Link>
+          {import.meta.env.DEV && (
+            <button className={styles.devResetBtn} onClick={resetForDev}>dev reset</button>
+          )}
+        </div>
+
         <header className={styles.header}>
           <h1 className={styles.title}>City Reveal</h1>
           <p className={styles.date}>{today}</p>
