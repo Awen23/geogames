@@ -34,11 +34,16 @@ export function gradeGuess(iso3: string): Promise<GuessResult> {
 }
 
 /** Submit Where Most result. score is 0–100 (% of total top-5 value achieved). */
-export function submitWhereMostResult(score: number, guesses: number): Promise<void> {
+export function submitWhereMostResult(
+  score: number,
+  guesses: number,
+  exactMatches: number,
+  guessCountries: string[],
+): Promise<void> {
   return apiFetch('/api/games/where-most/result', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ score, guesses }),
+    body: JSON.stringify({ score, guesses, exactMatches, guessCountries }),
     credentials: 'include',
   });
 }

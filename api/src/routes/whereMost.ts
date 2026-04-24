@@ -5,6 +5,7 @@ import { scoreGuess, maxScore } from '../services/scoring';
 import { recordWhereMostPlay, getTodayStats } from '../services/stats';
 import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
 import { questions } from '../data/questions';
+import { VALID_COUNTRY_ISO3S } from '@shared/countryIso3';
 
 export const whereMostRouter = Router();
 
@@ -42,6 +43,20 @@ whereMostRouter.post('/grade', async (req, res) => {
 const resultSchema = z.object({
   score: z.number().int().min(0).max(100),
   guesses: z.number().int().min(1).max(5),
+  exactMatches: z.number().int().min(0).max(5),
+  guessCountries: z.array(z.string().length(3).toUpperCase()).min(1).max(5),
+}).refine((result) => result.exactMatches <= result.guesses, {
+  message: 'exactMatches cannot exceed guesses',
+  path: ['exactMatches'],
+}).refine((result) => result.guessCountries.length === result.guesses, {
+  message: 'guessCountries length must match guesses',
+  path: ['guessCountries'],
+}).refine((result) => new Set(result.guessCountries).size === result.guessCountries.length, {
+  message: 'guessCountries must not contain duplicates',
+  path: ['guessCountries'],
+}).refine((result) => result.guessCountries.every((iso3) => VALID_COUNTRY_ISO3S.has(iso3)), {
+  message: 'guessCountries must contain valid countries',
+  path: ['guessCountries'],
 });
 
 whereMostRouter.post('/result', async (req, res) => {
@@ -55,10 +70,23 @@ whereMostRouter.post('/result', async (req, res) => {
     (req.cookies['geogames_device_id'] as string | undefined) ??
     `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-  const { score, guesses } = parsed.data;
-  const { date } = await getTodayQuestion();
+  const { score: submittedScore, guesses, exactMatches: submittedExactMatches, guessCountries } = parsed.data;
+  const { question, date } = await getTodayQuestion();
+  const guessResults = guessCountries.map((iso3) => scoreGuess(question, iso3));
+  const exactMatches = guessResults.filter((result) => result.isTopFive).length;
+  const rawScore = guessResults.reduce(
+    (sum, result) => sum + (result.value != null ? result.value : 0),
+    0,
+  );
+  const maxScoreVal = maxScore(question);
+  const score = Math.round(Math.min(100, maxScoreVal > 0 ? (rawScore / maxScoreVal) * 100 : 0));
 
-  await recordWhereMostPlay({ deviceId, date, guesses, score });
+  if (score !== submittedScore || exactMatches !== submittedExactMatches) {
+    res.status(400).json({ error: 'Submitted result does not match guessed countries' });
+    return;
+  }
+
+  await recordWhereMostPlay({ deviceId, date, guesses, score, exactMatches, guessCountries });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,

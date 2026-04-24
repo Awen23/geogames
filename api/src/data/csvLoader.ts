@@ -5,7 +5,7 @@ import type { RankedCountry } from '@shared/types';
 const CSV_DIR =
   process.env.NODE_ENV === 'production'
     ? path.join(process.cwd(), 'data', 'csv')
-    : path.join(process.cwd(), 'src', 'data', 'csv');
+    : path.resolve(__dirname, 'csv');
 
 /**
  * Parses an OWID-format CSV (Entity, Code, Year, Value) and returns all

@@ -1,14 +1,41 @@
 import { test, expect } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
 
 /**
  * Integration tests for the game result endpoints.
  * These exercise the full write path: result submission → daily_stats roll-up → stats read-back.
  */
 
+interface WhereMostToday {
+  maxScore: number;
+}
+
+interface WhereMostGrade {
+  value: number | null;
+  isTopFive: boolean;
+}
+
+async function whereMostPayload(request: APIRequestContext, guessCountries: string[]) {
+  const today = (await (await request.get('/api/games/where-most/today')).json()) as WhereMostToday;
+  const grades = await Promise.all(
+    guessCountries.map(async (iso3) => {
+      const res = await request.post('/api/games/where-most/grade', { data: { iso3 } });
+      return (await res.json()) as WhereMostGrade;
+    }),
+  );
+  const rawScore = grades.reduce((sum, grade) => sum + (grade.value != null ? grade.value : 0), 0);
+  return {
+    score: Math.round(Math.min(100, today.maxScore > 0 ? (rawScore / today.maxScore) * 100 : 0)),
+    guesses: guessCountries.length,
+    exactMatches: grades.filter((grade) => grade.isTopFive).length,
+    guessCountries,
+  };
+}
+
 test.describe('Where Most result endpoint', () => {
   test('accepts valid score and guesses', async ({ request }) => {
     const res = await request.post('/api/games/where-most/result', {
-      data: { score: 67, guesses: 4 },
+      data: await whereMostPayload(request, ['AND', 'DEU', 'FRA', 'ITA']),
     });
     expect(res.status()).toBe(200);
     const body = await res.json();
@@ -16,15 +43,48 @@ test.describe('Where Most result endpoint', () => {
   });
 
   test('rejects score out of range', async ({ request }) => {
+    const payload = await whereMostPayload(request, ['DEU', 'FRA', 'ITA']);
     const res = await request.post('/api/games/where-most/result', {
-      data: { score: 101, guesses: 3 },
+      data: { ...payload, score: 101 },
     });
     expect(res.status()).toBe(400);
   });
 
   test('rejects guesses out of range', async ({ request }) => {
+    const payload = await whereMostPayload(request, ['DEU']);
     const res = await request.post('/api/games/where-most/result', {
-      data: { score: 50, guesses: 0 },
+      data: { ...payload, guesses: 0 },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test('rejects exact matches greater than guesses', async ({ request }) => {
+    const payload = await whereMostPayload(request, ['DEU', 'FRA']);
+    const res = await request.post('/api/games/where-most/result', {
+      data: { ...payload, exactMatches: 3 },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test('rejects guess country count mismatch', async ({ request }) => {
+    const payload = await whereMostPayload(request, ['DEU']);
+    const res = await request.post('/api/games/where-most/result', {
+      data: { ...payload, guesses: 2 },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test('rejects duplicate guess countries', async ({ request }) => {
+    const payload = await whereMostPayload(request, ['DEU']);
+    const res = await request.post('/api/games/where-most/result', {
+      data: { ...payload, guesses: 2, guessCountries: ['DEU', 'DEU'] },
+    });
+    expect(res.status()).toBe(400);
+  });
+
+  test('rejects unknown ISO3 guess countries', async ({ request }) => {
+    const res = await request.post('/api/games/where-most/result', {
+      data: { score: 0, guesses: 1, exactMatches: 0, guessCountries: ['XXX'] },
     });
     expect(res.status()).toBe(400);
   });
@@ -35,9 +95,10 @@ test.describe('Where Most result endpoint', () => {
     const beforeBody = await before.json();
     const playsBefore = (beforeBody as { plays: number }).plays;
 
-    await request.post('/api/games/where-most/result', {
-      data: { score: 80, guesses: 2 },
+    const submit = await request.post('/api/games/where-most/result', {
+      data: await whereMostPayload(request, ['DEU', 'FRA']),
     });
+    expect(submit.status()).toBe(200);
 
     const after = await request.get('/api/games/where-most/stats/today');
     const afterBody = await after.json();
@@ -55,13 +116,16 @@ test.describe('Where Most result endpoint', () => {
     const playsBefore = ((await before.json()) as { plays: number }).plays;
 
     // First submission
-    await request.post('/api/games/where-most/result', {
-      data: { score: 55, guesses: 5 },
+    const payload = await whereMostPayload(request, ['DEU', 'FRA', 'ITA', 'ESP', 'PRT']);
+    const firstSubmit = await request.post('/api/games/where-most/result', {
+      data: payload,
     });
+    expect(firstSubmit.status()).toBe(200);
     // Second submission from same device (same cookie jar)
-    await request.post('/api/games/where-most/result', {
-      data: { score: 55, guesses: 5 },
+    const secondSubmit = await request.post('/api/games/where-most/result', {
+      data: payload,
     });
+    expect(secondSubmit.status()).toBe(200);
 
     const after = await request.get('/api/games/where-most/stats/today');
     const playsAfter = ((await after.json()) as { plays: number }).plays;

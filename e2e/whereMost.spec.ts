@@ -116,12 +116,17 @@ test.describe('WhereMost game', () => {
   test('replay guard: already played today shows end screen without country input', async ({ page }) => {
     const today = new Date().toISOString().slice(0, 10);
     await page.addInitScript((date) => {
-      const state = { history: [{ date, won: true, guesses: 3, score: 72 }] };
+      const state = { history: [{ date, won: true, guesses: 3, score: 72, exactMatches: 2, guessCountries: ['DEU', 'FRA', 'ITA'] }] };
       localStorage.setItem('geogames:where-most:state', JSON.stringify(state));
     }, today);
 
     await page.goto('/games/where-most');
     await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('end-screen')).toContainText('You found 2 of the top 5 countries.');
+    await expect(page.getByTestId('guess-list')).toContainText('Germany');
+    await expect(page.getByTestId('guess-list')).toContainText('France');
+    await expect(page.getByTestId('guess-list')).toContainText('Italy');
+    await expect(page.getByTestId('guess-list')).toContainText(/#|Not in dataset/);
     await expect(page.getByTestId('country-input')).not.toBeVisible();
   });
 });

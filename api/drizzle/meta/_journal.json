@@ -12,8 +12,22 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1747490400000,
+      "when": 1778842790706,
       "tag": "0001_schema_v2",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779040200000,
+      "tag": "0002_where_most_exact_matches",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779040440000,
+      "tag": "0003_where_most_guess_countries",
       "breakpoints": true
     }
   ]

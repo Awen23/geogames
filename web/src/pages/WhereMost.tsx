@@ -48,10 +48,12 @@ function ProgressBar({
   score,
   maxScoreVal,
   unit,
+  topN,
 }: {
   score: number;
   maxScoreVal: number;
   unit: string;
+  topN: number;
 }) {
   const pct = maxScoreVal > 0 ? Math.min(100, (score / maxScoreVal) * 100) : 0;
   const pctRounded = Math.round(pct * 10) / 10;
@@ -63,12 +65,15 @@ function ProgressBar({
         aria-valuenow={pctRounded}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="Your score vs top-5 total"
+        aria-label={`Your coverage of the top-${topN} total`}
       >
         <div className={styles.progressFill} style={{ width: `${pct}%` }} />
       </div>
       <p className={styles.progressLabel}>
-        {score.toFixed(1)} / {maxScoreVal.toFixed(1)} {unit} — {pctRounded}%
+        Coverage: {pctRounded}% of the top-{topN} total
+        <span className={styles.progressDetail}>
+          {score.toFixed(1)} / {maxScoreVal.toFixed(1)} {unit}
+        </span>
       </p>
     </div>
   );
@@ -77,18 +82,21 @@ function ProgressBar({
 export function WhereMost() {
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [guesses, setGuesses] = useState<Guess[]>([]);
+  const [replayGuesses, setReplayGuesses] = useState<Guess[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
-  const foundCount = guesses.filter((g) => g.result.isTopFive).length;
-  const isGameOver = foundCount === TOP_N || guesses.length >= MAX_GUESSES;
+  const liveFoundCount = guesses.filter((g) => g.result.isTopFive).length;
+  const displayGuesses = guesses.length > 0 ? guesses : replayGuesses;
+  const displayFoundFromGuesses = displayGuesses.filter((g) => g.result.isTopFive).length;
+  const isGameOver = liveFoundCount === TOP_N || guesses.length >= MAX_GUESSES;
   const showEndScreen = isGameOver || !!todayResult;
 
   const guessedIso3s = guesses.map((g) => g.iso3);
-  const scoreVal = progressScore(guesses);
+  const scoreVal = progressScore(displayGuesses);
   const maxScoreVal = today?.maxScore ?? 0;
 
   useEffect(() => {
@@ -103,18 +111,55 @@ export function WhereMost() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!todayResult || guesses.length > 0) {
+      setReplayGuesses([]);
+      return;
+    }
+
+    const savedCountries = todayResult.guessCountries ?? [];
+    if (savedCountries.length === 0) {
+      setReplayGuesses([]);
+      return;
+    }
+
+    const savedResults = todayResult.guessResults ?? [];
+    if (savedResults.length === savedCountries.length) {
+      setReplayGuesses(savedCountries.map((iso3, i) => ({ iso3, result: savedResults[i] })));
+      return;
+    }
+
+    let cancelled = false;
+    Promise.all(savedCountries.map((iso3) => gradeGuess(iso3)))
+      .then((results) => {
+        if (!cancelled) {
+          setReplayGuesses(savedCountries.map((iso3, i) => ({ iso3, result: results[i] })));
+        }
+      })
+      .catch((err: Error) => {
+        console.error('Failed to load saved guess details:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [todayResult, guesses.length]);
+
   const handleEndGame = useCallback(
     async (finalGuesses: Guess[]) => {
       const guessCount = finalGuesses.length;
+      const exactMatches = finalGuesses.filter((g) => g.result.isTopFive).length;
+      const guessCountries = finalGuesses.map((g) => g.iso3);
+      const guessResults = finalGuesses.map((g) => g.result);
       const rawScore = progressScore(finalGuesses);
       const scorePct = Math.round(Math.min(100, maxScoreVal > 0 ? (rawScore / maxScoreVal) * 100 : 0));
       try {
-        await submitWhereMostResult(scorePct, guessCount);
+        await submitWhereMostResult(scorePct, guessCount, exactMatches, guessCountries);
+        // won=true always for score-only game (means "played")
+        recordResult(true, guessCount, scorePct, { exactMatches, guessCountries, guessResults });
       } catch (err) {
         console.error('Failed to submit result:', err);
       }
-      // won=true always for score-only game (means "played")
-      recordResult(true, guessCount, scorePct);
     },
     [recordResult, maxScoreVal],
   );
@@ -130,8 +175,8 @@ export function WhereMost() {
         const nextGuesses: Guess[] = [...guesses, { iso3, result }];
         setGuesses(nextGuesses);
 
-        const nextFoundCount = nextGuesses.filter((g) => g.result.isTopFive).length;
-        if (nextFoundCount === TOP_N || nextGuesses.length >= MAX_GUESSES) {
+        const nextLiveFoundCount = nextGuesses.filter((g) => g.result.isTopFive).length;
+        if (nextLiveFoundCount === TOP_N || nextGuesses.length >= MAX_GUESSES) {
           await handleEndGame(nextGuesses);
         }
       } catch (err) {
@@ -167,7 +212,7 @@ export function WhereMost() {
 
   // score from localStorage if replaying, otherwise compute from live guesses
   const displayScore = todayResult?.score ?? Math.round(Math.min(100, maxScoreVal > 0 ? (scoreVal / maxScoreVal) * 100 : 0));
-  const displayFoundCount = foundCount;
+  const displayFoundCount = todayResult?.exactMatches ?? (displayGuesses.length > 0 ? displayFoundFromGuesses : null);
 
   return (
     <div className={styles.page}>
@@ -179,6 +224,7 @@ export function WhereMost() {
             onClick={() => {
               resetForDev();
               setGuesses([]);
+              setReplayGuesses([]);
             }}
             title="Dev only — reset today's play"
           >
@@ -198,14 +244,14 @@ export function WhereMost() {
       </div>
 
       {/* Progress bar — only shown when there are actual guesses this session */}
-      {guesses.length > 0 && (
-        <ProgressBar score={scoreVal} maxScoreVal={maxScoreVal} unit={today.unit} />
+      {displayGuesses.length > 0 && (
+        <ProgressBar score={scoreVal} maxScoreVal={maxScoreVal} unit={today.unit} topN={TOP_N} />
       )}
 
       {/* Guess list */}
-      {guesses.length > 0 && (
+      {displayGuesses.length > 0 && (
         <ul className={styles.guessList} data-testid="guess-list">
-          {guesses.map((g, i) => (
+          {displayGuesses.map((g, i) => (
             <GuessRow key={i} guess={g} unit={today.unit} />
           ))}
         </ul>
@@ -224,20 +270,26 @@ export function WhereMost() {
       {showEndScreen && (
         <div className={styles.endScreen} data-testid="end-screen">
           <div className={styles.endResult}>
-            <h2 className={styles.endScore}>
-              {guesses.length > 0
-                ? `${displayFoundCount}/5 found — score: ${displayScore}%`
-                : `You played today — score: ${displayScore}%`}
-            </h2>
+            <p className={styles.endLabel}>Score</p>
+            <h2 className={styles.endScore}>{displayScore}%</h2>
+            <p className={styles.endSummary}>
+              {displayFoundCount != null
+                ? `You found ${displayFoundCount} of the top ${TOP_N} countries.`
+                : 'You played today.'}
+            </p>
+            <p className={styles.endDetail}>
+              Your guesses covered {displayScore}% of the combined top-{TOP_N} value.
+            </p>
           </div>
 
-          {guesses.length > 0 && (
+          {displayGuesses.length > 0 && (
             <ShareCard
               gameTitle="Mostle"
               date={today.date}
-              guesses={guesses.map((g) => g.result)}
+              guesses={displayGuesses.map((g) => g.result)}
               maxGuesses={MAX_GUESSES}
-              foundCount={foundCount}
+              foundCount={displayFoundFromGuesses}
+              topCount={TOP_N}
               scorePct={displayScore}
             />
           )}

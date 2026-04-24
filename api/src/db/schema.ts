@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { pgTable, text, integer, boolean, timestamp, real, primaryKey, date } from 'drizzle-orm/pg-core';
 
 export const dailyStats = pgTable(
@@ -23,6 +24,8 @@ export const whereMostPlays = pgTable(
     date: date('date').notNull(),
     guesses: integer('guesses').notNull(),
     score: integer('score').notNull(), // 0–100: % of total top-5 metric value achieved
+    exactMatches: integer('exact_matches').notNull().default(0), // Count of exact top-5 countries found
+    guessCountries: text('guess_countries').array().notNull().default(sql`ARRAY[]::text[]`),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.deviceId, t.date] })],

@@ -7,6 +7,8 @@ interface WhereMostRecord {
   date: string;
   guesses: number;
   score: number; // 0–100
+  exactMatches: number;
+  guessCountries: string[];
 }
 
 interface CityRevealRecord {
@@ -24,11 +26,11 @@ interface GeoplaceRecord {
 }
 
 export async function recordWhereMostPlay(record: WhereMostRecord): Promise<void> {
-  const { deviceId, date, guesses, score } = record;
+  const { deviceId, date, guesses, score, exactMatches, guessCountries } = record;
 
   const inserted = await db
     .insert(whereMostPlays)
-    .values({ deviceId, date, guesses, score })
+    .values({ deviceId, date, guesses, score, exactMatches, guessCountries })
     .onConflictDoNothing()
     .returning();
 

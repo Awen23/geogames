@@ -161,7 +161,7 @@ export function GeoPlace() {
   const handleCopyShare = useCallback(() => {
     const date = new Date().toISOString().slice(0, 10);
     const roundLines = scores.map(
-      (s, i) => `Round ${i + 1} (${countryName(puzzle.rounds[i].targetIso3)}): ${s}%`,
+      (s, i) => `Round ${i + 1}: ${s}%`,
     );
     const avg = averageScore(scores);
     const text = [`Placle — ${date}`, ...roundLines, `Average: ${avg}%`].join('\n');
@@ -170,7 +170,7 @@ export function GeoPlace() {
     navigator.clipboard.writeText(text).catch((err: Error) =>
       console.error('Clipboard write failed:', err),
     );
-  }, [scores, puzzle]);
+  }, [scores]);
 
   // Auto-advance after placement: brief pause so the player can see their score and arrow
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import type { GuessResult } from '@shared/types';
 
 interface DayResult {
   date: string;
@@ -8,10 +9,22 @@ interface DayResult {
   guesses: number;
   /** Game-specific score (0–100 for Where Most and GeoPlace). */
   score?: number;
+  /** Mostle: exact top-N answers found. */
+  exactMatches?: number;
+  /** Mostle: ISO3 countries guessed, in order. */
+  guessCountries?: string[];
+  /** Mostle: graded guess details, in the same order as guessCountries. */
+  guessResults?: GuessResult[];
 }
 
 interface PersistedState {
   history: DayResult[];
+}
+
+interface ResultDetails {
+  exactMatches?: number;
+  guessCountries?: string[];
+  guessResults?: GuessResult[];
 }
 
 function storageKey(gameId: string) {
@@ -26,8 +39,8 @@ function loadState(gameId: string): PersistedState {
   try {
     const raw = localStorage.getItem(storageKey(gameId));
     if (raw) { return JSON.parse(raw) as PersistedState; }
-  } catch {
-    // corrupt storage — reset
+  } catch (err) {
+    console.error('Failed to load game state:', err);
   }
   return { history: [] };
 }
@@ -85,12 +98,12 @@ export function useGameState(gameId: string) {
   );
 
   const recordResult = useCallback(
-    (won: boolean, guesses: number, score?: number) => {
+    (won: boolean, guesses: number, score?: number, details?: ResultDetails) => {
       setPersisted((prev) => {
         const alreadyRecorded = prev.history.some((r) => r.date === today);
         if (alreadyRecorded) { return prev; }
         const next: PersistedState = {
-          history: [{ date: today, won, guesses, score }, ...prev.history].slice(0, 90),
+          history: [{ date: today, won, guesses, score, ...details }, ...prev.history].slice(0, 90),
         };
         localStorage.setItem(storageKey(gameId), JSON.stringify(next));
         return next;

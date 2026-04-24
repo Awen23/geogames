@@ -105,6 +105,16 @@
 .progressLabel {
   font-size: 0.8rem;
   color: var(--colour-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.progressDetail {
+  font-size: 0.75rem;
+  color: var(--colour-text-muted);
+  opacity: 0.8;
 }
 
 /* Guess list */
@@ -175,22 +185,39 @@
 
 .endResult {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
 }
 
-.endWon {
-  font-size: 1.3rem;
-  color: var(--colour-bullseye);
-}
-
-.endLost {
-  font-size: 1.1rem;
+.endLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--colour-text-muted);
 }
 
 .endScore {
-  font-size: 1.1rem;
+  font-size: 3rem;
+  line-height: 1;
+  color: var(--colour-text);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.endSummary {
+  font-size: 1rem;
   color: var(--colour-text);
   font-weight: 600;
+}
+
+.endDetail {
+  font-size: 0.85rem;
+  color: var(--colour-text-muted);
+  max-width: 360px;
+  line-height: 1.45;
 }
 
 /* Post-game OWID choropleth embed */
