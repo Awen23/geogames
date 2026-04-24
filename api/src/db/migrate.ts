@@ -4,7 +4,7 @@ import postgres from 'postgres';
 import path from 'path';
 import { config } from 'dotenv';
 
-config({ path: path.resolve(__dirname, '../../../.env') });
+config({ path: path.resolve(process.cwd(), '../.env') });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
@@ -17,7 +17,7 @@ const db = drizzle(migrationClient);
 async function runMigrations() {
   console.log('Running migrations...');
   await migrate(db, {
-    migrationsFolder: path.resolve(__dirname, '../../drizzle'),
+    migrationsFolder: path.resolve(process.cwd(), 'drizzle'),
   });
   console.log('Migrations complete.');
   await migrationClient.end();

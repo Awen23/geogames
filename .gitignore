@@ -4,5 +4,6 @@ dist/
 *.js.map
 web/dist/
 api/dist/
+shared/**/*.js
 playwright-report/
 test-results/

@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "npm run build:server && npm run build:migrate",
+    "build:server": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/index.cjs --packages=external --alias:@shared=../shared",
+    "build:migrate": "esbuild src/db/migrate.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/migrate.cjs --packages=external --alias:@shared=../shared",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -28,6 +30,7 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.8.0",
     "drizzle-kit": "^0.31.10",
+    "esbuild": "^0.28.0",
     "tsx": "^4.22.0",
     "typescript": "^6.0.3",
     "vitest": "^2.1.9"
