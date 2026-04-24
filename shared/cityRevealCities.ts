@@ -423,9 +423,9 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     lon: -87.205,
     zoom: 13,
     landmarks: [
-      { label: 'Basilica of Suyapa', lat: 14.0644, lon: -87.1928, wikiTitle: 'Basilica of Suyapa' },
-      { label: 'Estadio Tiburcio Carías Andino', lat: 14.0984, lon: -87.2040, wikiTitle: 'Estadio Tiburcio Carías Andino' },
-      { label: 'Plaza Morazán', lat: 14.1002, lon: -87.2037, wikiTitle: 'Plaza Morazán' },
+      { label: 'Cristo del Picacho', lat: 14.0786, lon: -87.1874, wikiTitle: 'El Cristo del Picacho (Honduras)' },
+      { label: 'Basílica de Nuestra Señora de Suyapa', lat: 14.0644, lon: -87.1928, wikiTitle: 'Basílica de Suyapa' },
+      { label: 'Campo Marte', lat: 14.0983, lon: -87.2058, wikiTitle: 'Campo Marte' },
     ],
   },
   {
@@ -439,8 +439,15 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     zoom: 11,
     landmarks: [
       { label: 'Mercado de las Brujas', lat: -16.4986, lon: -68.1372, wikiTitle: 'Mercado de las Brujas' },
-      { label: 'Valle de la Luna', lat: -16.5559, lon: -68.0725, wikiTitle: 'Valle de la Luna (La Paz)' },
-      { label: 'Plaza Murillo', lat: -16.4966, lon: -68.1335, wikiTitle: 'Plaza Murillo' },
+      { label: 'Valle de la Luna', lat: -16.5559, lon: -68.0725, wikiTitle: 'Valle de la Luna (Bolivia)' },
+      {
+        label: 'Mi Teleférico',
+        lat: -16.5000193,
+        lon: -68.17255,
+        wikiTitle: 'Mi Teleférico',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f7/Teleferico_de_La_Paz.jpg/500px-Teleferico_de_La_Paz.jpg',
+      },
     ],
   },
   {
@@ -580,9 +587,9 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     lon: 15.3222,
     zoom: 12,
     landmarks: [
-      { label: 'Stade Tata Raphaël', lat: -4.3060, lon: 15.3007, wikiTitle: 'Stade Tata Raphaël' },
-      { label: 'Stade des Martyrs', lat: -4.3261, lon: 15.3268, wikiTitle: 'Stade des Martyrs' },
-      { label: '______ River', lat: -4.3088, lon: 15.305, wikiTitle: 'Congo River' },
+      { label: '______ National Museum', lat: -4.3351, lon: 15.2994, wikiTitle: 'National Museum of the Democratic Republic of the Congo' },
+      { label: '______ Botanical Garden', lat: -4.31, lon: 15.31, wikiTitle: 'Kinshasa Botanical Garden' },
+      { label: 'Stade des Martyrs', lat: -4.33028, lon: 15.31, wikiTitle: 'Stade des Martyrs' },
     ],
   },
   {
@@ -696,7 +703,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     landmarks: [
       { label: 'Kings Park', lat: -31.9618, lon: 115.8327, wikiTitle: 'Kings Park, Western Australia' },
       { label: 'Elizabeth Quay', lat: -31.9598, lon: 115.8591, wikiTitle: 'Elizabeth Quay' },
-      { label: 'WACA Ground', lat: -31.9606, lon: 115.8642, wikiTitle: 'WACA Ground' },
+      { label: '______ Australian Museum', lat: -31.949629, lon: 115.862402, wikiTitle: 'Western Australian Museum' },
     ],
   },
   {

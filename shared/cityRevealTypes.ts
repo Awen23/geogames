@@ -3,8 +3,16 @@ export interface CityRevealLandmark {
   label: string;
   lat: number;
   lon: number;
-  /** English Wikipedia article title for thumbnail fetch */
+  /**
+   * Wikipedia article title for `/page/summary` (English tried first, then Spanish).
+   * Ignored for the marker image when `thumbnailUrl` is set.
+   */
   wikiTitle: string;
+  /**
+   * Optional fixed image URL (e.g. Wikimedia Commons thumbnail). Use when the article
+   * summary thumbnail is not the desired photo.
+   */
+  thumbnailUrl?: string;
 }
 
 export interface CityRevealCity {

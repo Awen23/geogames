@@ -221,8 +221,9 @@ export function CityReveal() {
 
       markersRef.current.push(marker);
 
-      // Fetch thumbnail asynchronously and update marker
-      fetchWikiThumb(lm.wikiTitle).then((url) => {
+      // Fetch thumbnail asynchronously and update marker (optional fixed Commons/Wikipedia image URL)
+      const thumbPromise = lm.thumbnailUrl ? Promise.resolve(lm.thumbnailUrl) : fetchWikiThumb(lm.wikiTitle);
+      thumbPromise.then((url) => {
         if (!url) { return; }
         const updatedEl = createPhotoMarkerEl(url, () => {
           setSelectedLandmark({ label: lm.label, imageUrl: url });
@@ -393,7 +394,7 @@ export function CityReveal() {
         </div>
 
         <header className={styles.header}>
-          <h1 className={styles.title}>City Reveal</h1>
+          <h1 className={styles.title}>Maple</h1>
           <p className={styles.date}>{today}</p>
         </header>
 

@@ -68,6 +68,7 @@ export interface CityRevealStatsResponse {
 export interface GameInfo {
   id: string;
   title: string;
+  icon: string;
   tagline: string;
   enabled: boolean;
 }

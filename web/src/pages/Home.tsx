@@ -11,6 +11,14 @@ const GAME_ROUTE: Record<string, string> = {
   'city-reveal': '/games/city-reveal',
 };
 
+function playedHint(game: GameInfo, guesses: number, score?: number) {
+  if (game.id === 'where-most' || game.id === 'geoplace') {
+    return `Score: ${score ?? 0}%`;
+  }
+
+  return `Won in ${guesses} guess${guesses > 1 ? 'es' : ''}`;
+}
+
 function GameCard({ game }: { game: GameInfo }) {
   const { todayResult } = useGameState(game.id);
   const route = GAME_ROUTE[game.id];
@@ -23,7 +31,7 @@ function GameCard({ game }: { game: GameInfo }) {
       aria-label={`${game.title}${played ? ', played today' : ''}`}
     >
       <div className={styles.cardTop}>
-        <span className={styles.cardIcon}>🌍</span>
+        <span className={styles.cardIcon}>{game.icon}</span>
         {played && (
           <span className={styles.playedBadge} aria-hidden="true">
             {todayResult.won ? '✓' : '✗'}
@@ -33,14 +41,12 @@ function GameCard({ game }: { game: GameInfo }) {
       <h2 className={styles.cardTitle}>{game.title}</h2>
       <p className={styles.cardTagline}>{game.tagline}</p>
       {played && (
-          <p className={styles.playedHint}>
-            {game.id === 'geoplace'
-              ? `Score: ${todayResult.score ?? todayResult.guesses}%`
-              : todayResult.won
-                ? `Won in ${todayResult.guesses} guess${todayResult.guesses > 1 ? 'es' : ''}`
-                : `Played — come back tomorrow`}
-          </p>
-        )}
+        <p className={styles.playedHint}>
+          {todayResult.won
+            ? playedHint(game, todayResult.guesses, todayResult.score)
+            : `Played — come back tomorrow`}
+        </p>
+      )}
     </Link>
   );
 }

@@ -51,7 +51,8 @@ function loadSession(): GeoplaceSession | null {
     const parsed = JSON.parse(raw) as GeoplaceSession;
     if (parsed.date !== utcToday()) { return null; }
     return parsed;
-  } catch {
+  } catch (err) {
+    console.error('Failed to load GeoPlace session:', err);
     return null;
   }
 }
@@ -59,9 +60,22 @@ function loadSession(): GeoplaceSession | null {
 function saveSession(session: GeoplaceSession) {
   try {
     localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch {
-    console.error('Failed to save GeoPlace session');
+  } catch (err) {
+    console.error('Failed to save GeoPlace session:', err);
   }
+}
+
+function ResetButton({ onReset }: { onReset: () => void }) {
+  return (
+    <button
+      className={`${styles.devResetBtn} ${import.meta.env.PROD ? styles.hiddenResetBtn : ''}`}
+      onClick={onReset}
+      title={import.meta.env.PROD ? 'Reset today' : 'Dev only — reset today'}
+      aria-label="Reset today's Placle play"
+    >
+      {import.meta.env.PROD ? 'reset' : 'dev reset'}
+    </button>
+  );
 }
 
 export function GeoPlace() {
@@ -150,7 +164,7 @@ export function GeoPlace() {
       (s, i) => `Round ${i + 1} (${countryName(puzzle.rounds[i].targetIso3)}): ${s}%`,
     );
     const avg = averageScore(scores);
-    const text = [`GeoPlace — ${date}`, ...roundLines, `Average: ${avg}%`].join('\n');
+    const text = [`Placle — ${date}`, ...roundLines, `Average: ${avg}%`].join('\n');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     navigator.clipboard.writeText(text).catch((err: Error) =>
@@ -182,9 +196,7 @@ export function GeoPlace() {
           <p className={styles.alreadyPlayedTitle}>Already played today</p>
           <p className={styles.alreadyPlayedScore}>Your score: {todayResult.score ?? 0}%</p>
           <p className={styles.alreadyPlayedSub}>Come back tomorrow for a new puzzle</p>
-          <button className={styles.devResetBtn} onClick={resetForDev}>
-            dev reset
-          </button>
+          <ResetButton onReset={resetForDev} />
         </div>
       </div>
     );
@@ -197,7 +209,7 @@ export function GeoPlace() {
     <div className={styles.page}>
       <div className={styles.topBar}>
         <Link to="/" className={styles.backLink}>← Games</Link>
-        <button className={styles.devResetBtn} onClick={resetForDev}>dev reset</button>
+        <ResetButton onReset={resetForDev} />
       </div>
 
       {/* Game header */}
