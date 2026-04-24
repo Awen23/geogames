@@ -6,19 +6,22 @@ gamesRouter.get('/', (_req, res) => {
   res.json([
     {
       id: 'where-most',
-      title: 'Where Most',
-      tagline: 'Which country consumes the most?',
+      title: 'Mostle',
+      icon: '📊',
+      tagline: 'Which country _______s the most?',
       enabled: true,
     },
     {
       id: 'geoplace',
-      title: 'GeoPlace',
+      title: 'Placle',
+      icon: '📍',
       tagline: 'Place the country on the globe',
       enabled: true,
     },
     {
       id: 'city-reveal',
-      title: 'City Reveal',
+      title: 'Maple',
+      icon: '🗺️',
       tagline: 'Guess the city from its map',
       enabled: true,
     },

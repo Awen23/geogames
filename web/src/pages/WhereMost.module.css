@@ -193,30 +193,6 @@
   font-weight: 600;
 }
 
-.statsRow {
-  display: flex;
-  gap: var(--space-8);
-  justify-content: center;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.statValue {
-  font-size: 1.6rem;
-  font-weight: 700;
-}
-
-.statLabel {
-  font-size: 0.75rem;
-  color: var(--colour-text-muted);
-  text-align: center;
-}
-
 /* Post-game OWID choropleth embed */
 .mapSection {
   width: 100%;

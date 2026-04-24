@@ -79,6 +79,10 @@ export function LayerLab() {
   useEffect(() => {
     for (const lm of activeCity.landmarks) {
       if (landmarkImages[lm.wikiTitle]) { continue; }
+      if (lm.thumbnailUrl) {
+        setLandmarkImages((prev) => ({ ...prev, [lm.wikiTitle]: lm.thumbnailUrl! }));
+        continue;
+      }
       fetchWikiThumb(lm.wikiTitle)
         .then((url) => {
           if (url) { setLandmarkImages((prev) => ({ ...prev, [lm.wikiTitle]: url })); }
@@ -154,7 +158,7 @@ export function LayerLab() {
     if (!stageVisibility.landmarks) { return; }
 
     for (const lm of activeCity.landmarks) {
-      const imageUrl = landmarkImages[lm.wikiTitle] ?? null;
+      const imageUrl = lm.thumbnailUrl ?? landmarkImages[lm.wikiTitle] ?? null;
       const onClick = imageUrl
         ? () => setSelectedLandmark({ label: lm.label, imageUrl })
         : undefined;
@@ -195,7 +199,7 @@ export function LayerLab() {
     <div className={styles.layout}>
       <aside className={styles.sidebar}>
         <header className={styles.header}>
-          <h1 className={styles.title}>City Reveal Lab</h1>
+          <h1 className={styles.title}>Maple Lab</h1>
           <p className={styles.subtitle}>Verify zoom & landmarks before enabling</p>
         </header>
 

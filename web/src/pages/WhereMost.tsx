@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import type { TodayResponse, GuessResult, WhereMostStatsResponse, Tier } from '@shared/types';
+import type { TodayResponse, GuessResult, Tier } from '@shared/types';
 import { CountryInput } from '../components/CountryInput/CountryInput';
 import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
-import { fetchToday, gradeGuess, submitWhereMostResult, fetchTodayStats } from '../lib/api';
+import { fetchToday, gradeGuess, submitWhereMostResult } from '../lib/api';
 import { useGameState } from '../lib/useGameState';
 import { progressScore } from '../lib/progressScore';
 import { displayName } from '../data/countryNames';
@@ -77,7 +77,6 @@ function ProgressBar({
 export function WhereMost() {
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [guesses, setGuesses] = useState<Guess[]>([]);
-  const [stats, setStats] = useState<WhereMostStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -114,12 +113,6 @@ export function WhereMost() {
       } catch (err) {
         console.error('Failed to submit result:', err);
       }
-      try {
-        const s = await fetchTodayStats();
-        setStats(s);
-      } catch (err) {
-        console.error('Failed to fetch stats:', err);
-      }
       // won=true always for score-only game (means "played")
       recordResult(true, guessCount, scorePct);
     },
@@ -149,15 +142,6 @@ export function WhereMost() {
     },
     [guesses, isGameOver, submitting, today, handleEndGame],
   );
-
-  // Replay guard — already played today; load stats for end screen
-  useEffect(() => {
-    if (todayResult && !isGameOver) {
-      fetchTodayStats()
-        .then(setStats)
-        .catch((err: Error) => console.error('Failed to fetch stats:', err));
-    }
-  }, [todayResult, isGameOver]);
 
   if (loading) {
     return (
@@ -195,7 +179,6 @@ export function WhereMost() {
             onClick={() => {
               resetForDev();
               setGuesses([]);
-              setStats(null);
             }}
             title="Dev only — reset today's play"
           >
@@ -250,34 +233,13 @@ export function WhereMost() {
 
           {guesses.length > 0 && (
             <ShareCard
-              gameTitle="Where Most"
+              gameTitle="Mostle"
               date={today.date}
               guesses={guesses.map((g) => g.result)}
               maxGuesses={MAX_GUESSES}
               foundCount={foundCount}
               scorePct={displayScore}
             />
-          )}
-
-          {stats && (
-            <div className={styles.statsRow} data-testid="stats">
-              <div className={styles.stat}>
-                <span className={styles.statValue}>{stats.plays}</span>
-                <span className={styles.statLabel}>plays today</span>
-              </div>
-              <div className={styles.stat}>
-                <span className={styles.statValue}>
-                  {stats.avgScore > 0 ? `${stats.avgScore}%` : '—'}
-                </span>
-                <span className={styles.statLabel}>avg score</span>
-              </div>
-              <div className={styles.stat}>
-                <span className={styles.statValue}>
-                  {stats.avgGuesses > 0 ? stats.avgGuesses.toFixed(1) : '—'}
-                </span>
-                <span className={styles.statLabel}>avg guesses</span>
-              </div>
-            </div>
           )}
 
           {/* Post-game choropleth map from OWID */}
