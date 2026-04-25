@@ -33,7 +33,7 @@ export function gradeGuess(iso3: string): Promise<GuessResult> {
   });
 }
 
-/** Submit Where Most result. score is 0–100 (% of total top-5 value achieved). */
+/** Submit Where Most result. score is 0–100 (% of total top-5 value achieved). guesses is slot-consuming count (0–5). */
 export function submitWhereMostResult(
   score: number,
   guesses: number,

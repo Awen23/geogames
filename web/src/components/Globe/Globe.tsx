@@ -59,6 +59,7 @@ const TIER_COLOUR: Record<Tier, string> = {
   found: 'var(--colour-bullseye)',
   warm: 'var(--colour-top15)',
   cold: 'var(--colour-cold)',
+  'no-data': 'var(--colour-border)',
 };
 
 const TO_RAD = Math.PI / 180;

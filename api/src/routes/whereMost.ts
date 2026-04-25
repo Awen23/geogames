@@ -40,24 +40,29 @@ whereMostRouter.post('/grade', async (req, res) => {
   res.json(result);
 });
 
-const resultSchema = z.object({
-  score: z.number().int().min(0).max(100),
-  guesses: z.number().int().min(1).max(5),
-  exactMatches: z.number().int().min(0).max(5),
-  guessCountries: z.array(z.string().length(3).toUpperCase()).min(1).max(5),
-}).refine((result) => result.exactMatches <= result.guesses, {
-  message: 'exactMatches cannot exceed guesses',
-  path: ['exactMatches'],
-}).refine((result) => result.guessCountries.length === result.guesses, {
-  message: 'guessCountries length must match guesses',
-  path: ['guessCountries'],
-}).refine((result) => new Set(result.guessCountries).size === result.guessCountries.length, {
-  message: 'guessCountries must not contain duplicates',
-  path: ['guessCountries'],
-}).refine((result) => result.guessCountries.every((iso3) => VALID_COUNTRY_ISO3S.has(iso3)), {
-  message: 'guessCountries must contain valid countries',
-  path: ['guessCountries'],
-});
+const resultSchema = z
+  .object({
+    score: z.number().int().min(0).max(100),
+    guesses: z.number().int().min(0).max(5),
+    exactMatches: z.number().int().min(0).max(5),
+    guessCountries: z.array(z.string().length(3).toUpperCase()).max(5),
+  })
+  .refine((result) => result.exactMatches <= result.guesses, {
+    message: 'exactMatches cannot exceed guesses',
+    path: ['exactMatches'],
+  })
+  .refine((result) => result.guessCountries.length === result.guesses, {
+    message: 'guessCountries length must match guesses',
+    path: ['guessCountries'],
+  })
+  .refine((result) => new Set(result.guessCountries).size === result.guessCountries.length, {
+    message: 'guessCountries must not contain duplicates',
+    path: ['guessCountries'],
+  })
+  .refine((result) => result.guessCountries.every((iso3) => VALID_COUNTRY_ISO3S.has(iso3)), {
+    message: 'guessCountries must contain valid countries',
+    path: ['guessCountries'],
+  });
 
 whereMostRouter.post('/result', async (req, res) => {
   const parsed = resultSchema.safeParse(req.body);
@@ -72,6 +77,24 @@ whereMostRouter.post('/result', async (req, res) => {
 
   const { score: submittedScore, guesses, exactMatches: submittedExactMatches, guessCountries } = parsed.data;
   const { question, date } = await getTodayQuestion();
+
+  if (guessCountries.length === 0) {
+    if (guesses !== 0 || submittedExactMatches !== 0 || submittedScore !== 0) {
+      res.status(400).json({ error: 'Empty submission must have score 0, guesses 0, exactMatches 0' });
+      return;
+    }
+    await recordWhereMostPlay({ deviceId, date, guesses: 0, score: 0, exactMatches: 0, guessCountries: [] });
+
+    res.cookie('geogames_device_id', deviceId, {
+      maxAge: 365 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: 'strict',
+    });
+
+    res.json({ ok: true });
+    return;
+  }
+
   const guessResults = guessCountries.map((iso3) => scoreGuess(question, iso3));
   const exactMatches = guessResults.filter((result) => result.isTopFive).length;
   const rawScore = guessResults.reduce(

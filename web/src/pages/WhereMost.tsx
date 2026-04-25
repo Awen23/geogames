@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { TodayResponse, GuessResult, Tier } from '@shared/types';
 import { CountryInput } from '../components/CountryInput/CountryInput';
@@ -13,6 +13,8 @@ import styles from './WhereMost.module.css';
 const MAX_GUESSES = 5;
 const TOP_N = 5;
 const GAME_ID = 'where-most';
+/** Safety cap: no-data guesses do not consume the five slots, so bound total picks to avoid endless play / API abuse. */
+const MAX_TOTAL_SELECTIONS = 20;
 
 interface Guess {
   iso3: string;
@@ -23,23 +25,27 @@ const TIER_BADGE: Record<Tier, string> = {
   found: '🟩',
   warm: '🟨',
   cold: '⬛',
+  'no-data': '⬜',
 };
 
 function GuessRow({ guess, unit }: { guess: Guess; unit: string }) {
   const { iso3, result } = guess;
+  const stats =
+    result.tier === 'no-data' ? (
+      <span className={styles.guessUnranked}>No data for this metric</span>
+    ) : result.rank !== null ? (
+      <span className={styles.guessRank}>
+        #{result.rank}{result.value != null ? ` · ${result.value.toFixed(2)} ${unit}` : ''}
+      </span>
+    ) : (
+      <span className={styles.guessUnranked}>Not in today&apos;s top five</span>
+    );
+
   return (
     <li className={`${styles.guessItem} ${styles[`tier-${result.tier}`]}`}>
       <span className={styles.guessBadge}>{TIER_BADGE[result.tier]}</span>
       <span className={styles.guessName}>{displayName(iso3)}</span>
-      <span className={styles.guessStats}>
-        {result.rank !== null ? (
-          <span className={styles.guessRank}>
-            #{result.rank}{result.value != null ? ` · ${result.value.toFixed(2)} ${unit}` : ''}
-          </span>
-        ) : (
-          <span className={styles.guessUnranked}>Not in dataset</span>
-        )}
-      </span>
+      <span className={styles.guessStats}>{stats}</span>
     </li>
   );
 }
@@ -83,6 +89,11 @@ export function WhereMost() {
   const [today, setToday] = useState<TodayResponse | null>(null);
   const [guesses, setGuesses] = useState<Guess[]>([]);
   const [replayGuesses, setReplayGuesses] = useState<Guess[]>([]);
+  /** ISO3 picks that returned `no-data` this session — excluded from input but not listed as guesses. */
+  const [noDataExcludedIso3s, setNoDataExcludedIso3s] = useState<string[]>([]);
+  /** Counts every successful /grade call (including no-data) so MAX_TOTAL_SELECTIONS still applies. */
+  const [totalGradedRounds, setTotalGradedRounds] = useState(0);
+  const [noDataNoticeIso3, setNoDataNoticeIso3] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -90,12 +101,38 @@ export function WhereMost() {
   const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
   const liveFoundCount = guesses.filter((g) => g.result.isTopFive).length;
+  const slotGuessCount = guesses.filter((g) => g.result.tier !== 'no-data').length;
   const displayGuesses = guesses.length > 0 ? guesses : replayGuesses;
+  const displaySlotCount = displayGuesses.filter((g) => g.result.tier !== 'no-data').length;
   const displayFoundFromGuesses = displayGuesses.filter((g) => g.result.isTopFive).length;
-  const isGameOver = liveFoundCount === TOP_N || guesses.length >= MAX_GUESSES;
+  const isGameOver =
+    liveFoundCount === TOP_N ||
+    slotGuessCount >= MAX_GUESSES ||
+    totalGradedRounds >= MAX_TOTAL_SELECTIONS;
   const showEndScreen = isGameOver || !!todayResult;
 
-  const guessedIso3s = guesses.map((g) => g.iso3);
+  const excludedIso3s = useMemo(() => {
+    const s = new Set<string>();
+    for (const g of guesses) {
+      s.add(g.iso3);
+    }
+    for (const iso of noDataExcludedIso3s) {
+      s.add(iso);
+    }
+    return Array.from(s);
+  }, [guesses, noDataExcludedIso3s]);
+
+  useEffect(() => {
+    if (noDataNoticeIso3 === null) {
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setNoDataNoticeIso3(null);
+    }, 4200);
+    return () => {
+      window.clearTimeout(t);
+    };
+  }, [noDataNoticeIso3]);
   const scoreVal = progressScore(displayGuesses);
   const maxScoreVal = today?.maxScore ?? 0;
 
@@ -114,6 +151,11 @@ export function WhereMost() {
   useEffect(() => {
     if (!todayResult || guesses.length > 0) {
       setReplayGuesses([]);
+      return;
+    }
+
+    if (todayResult.allGuesses && todayResult.allGuesses.length > 0) {
+      setReplayGuesses(todayResult.allGuesses);
       return;
     }
 
@@ -147,16 +189,39 @@ export function WhereMost() {
 
   const handleEndGame = useCallback(
     async (finalGuesses: Guess[]) => {
-      const guessCount = finalGuesses.length;
-      const exactMatches = finalGuesses.filter((g) => g.result.isTopFive).length;
-      const guessCountries = finalGuesses.map((g) => g.iso3);
-      const guessResults = finalGuesses.map((g) => g.result);
-      const rawScore = progressScore(finalGuesses);
+      const slotGuesses = finalGuesses.filter((g) => g.result.tier !== 'no-data');
+      const guessCount = slotGuesses.length;
+      const allGuesses = finalGuesses.map((g) => ({ iso3: g.iso3, result: g.result }));
+
+      if (guessCount === 0) {
+        try {
+          await submitWhereMostResult(0, 0, 0, []);
+          recordResult(true, 0, 0, {
+            exactMatches: 0,
+            guessCountries: [],
+            guessResults: [],
+            allGuesses,
+          });
+        } catch (err) {
+          console.error('Failed to submit result:', err);
+        }
+        return;
+      }
+
+      const exactMatches = slotGuesses.filter((g) => g.result.isTopFive).length;
+      const guessCountries = slotGuesses.map((g) => g.iso3);
+      const guessResults = slotGuesses.map((g) => g.result);
+      const rawScore = progressScore(slotGuesses);
       const scorePct = Math.round(Math.min(100, maxScoreVal > 0 ? (rawScore / maxScoreVal) * 100 : 0));
       try {
         await submitWhereMostResult(scorePct, guessCount, exactMatches, guessCountries);
         // won=true always for score-only game (means "played")
-        recordResult(true, guessCount, scorePct, { exactMatches, guessCountries, guessResults });
+        recordResult(true, guessCount, scorePct, {
+          exactMatches,
+          guessCountries,
+          guessResults,
+          allGuesses,
+        });
       } catch (err) {
         console.error('Failed to submit result:', err);
       }
@@ -167,16 +232,30 @@ export function WhereMost() {
   const handleCountrySelect = useCallback(
     async (iso3: string) => {
       if (isGameOver || submitting || !today) { return; }
-      if (guesses.some((g) => g.iso3 === iso3)) { return; }
+      if (excludedIso3s.includes(iso3)) { return; }
 
       setSubmitting(true);
       try {
         const result = await gradeGuess(iso3);
-        const nextGuesses: Guess[] = [...guesses, { iso3, result }];
-        setGuesses(nextGuesses);
+        const nextTotalRounds = totalGradedRounds + 1;
+        setTotalGradedRounds(nextTotalRounds);
 
+        let nextGuesses: Guess[] = guesses;
+        if (result.tier === 'no-data') {
+          setNoDataNoticeIso3(iso3);
+          setNoDataExcludedIso3s((prev) => (prev.includes(iso3) ? prev : [...prev, iso3]));
+        } else {
+          nextGuesses = [...guesses, { iso3, result }];
+          setGuesses(nextGuesses);
+        }
+
+        const nextSlotCount = nextGuesses.filter((g) => g.result.tier !== 'no-data').length;
         const nextLiveFoundCount = nextGuesses.filter((g) => g.result.isTopFive).length;
-        if (nextLiveFoundCount === TOP_N || nextGuesses.length >= MAX_GUESSES) {
+        if (
+          nextLiveFoundCount === TOP_N ||
+          nextSlotCount >= MAX_GUESSES ||
+          nextTotalRounds >= MAX_TOTAL_SELECTIONS
+        ) {
           await handleEndGame(nextGuesses);
         }
       } catch (err) {
@@ -185,7 +264,7 @@ export function WhereMost() {
         setSubmitting(false);
       }
     },
-    [guesses, isGameOver, submitting, today, handleEndGame],
+    [guesses, excludedIso3s, isGameOver, submitting, today, handleEndGame, totalGradedRounds],
   );
 
   if (loading) {
@@ -225,6 +304,9 @@ export function WhereMost() {
               resetForDev();
               setGuesses([]);
               setReplayGuesses([]);
+              setNoDataExcludedIso3s([]);
+              setTotalGradedRounds(0);
+              setNoDataNoticeIso3(null);
             }}
             title="Dev only — reset today's play"
           >
@@ -237,7 +319,7 @@ export function WhereMost() {
         <span className={styles.questionIcon} data-testid="question-icon">{today.icon}</span>
         <DailyHeader
           today={today}
-          guessesUsed={guesses.length}
+          guessesUsed={displaySlotCount}
           maxGuesses={MAX_GUESSES}
         />
         <p className={styles.questionDescription}>{today.description}</p>
@@ -246,6 +328,17 @@ export function WhereMost() {
       {/* Progress bar — only shown when there are actual guesses this session */}
       {displayGuesses.length > 0 && (
         <ProgressBar score={scoreVal} maxScoreVal={maxScoreVal} unit={today.unit} topN={TOP_N} />
+      )}
+
+      {noDataNoticeIso3 !== null && (
+        <p
+          className={styles.noDataNotice}
+          role="status"
+          aria-live="polite"
+          data-testid="no-data-notice"
+        >
+          No data for {displayName(noDataNoticeIso3)} in this dataset — try another country (does not use a guess).
+        </p>
       )}
 
       {/* Guess list */}
@@ -261,7 +354,7 @@ export function WhereMost() {
       {!showEndScreen && (
         <CountryInput
           onSelect={handleCountrySelect}
-          excludeIso3s={guessedIso3s}
+          excludeIso3s={excludedIso3s}
           disabled={isGameOver || submitting}
         />
       )}
@@ -286,7 +379,7 @@ export function WhereMost() {
             <ShareCard
               gameTitle="Mostle"
               date={today.date}
-              guesses={displayGuesses.map((g) => g.result)}
+              guesses={displayGuesses.map((g) => g.result).filter((r) => r.tier !== 'no-data')}
               maxGuesses={MAX_GUESSES}
               foundCount={displayFoundFromGuesses}
               topCount={TOP_N}

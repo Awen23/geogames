@@ -16,6 +16,7 @@ const GAME_ID = 'geoplace';
 const MAX_SCORE_KM = 2500;
 const ROUNDS_TOTAL = 3;
 const SESSION_KEY = 'geogames:geoplace:session';
+const SHARE_URL = 'https://geogames.today';
 
 function scoreFromDistance(distKm: number): number {
   return Math.max(0, Math.round((1 - distKm / MAX_SCORE_KM) * 100));
@@ -164,7 +165,7 @@ export function GeoPlace() {
       (s, i) => `Round ${i + 1}: ${s}%`,
     );
     const avg = averageScore(scores);
-    const text = [`Placle — ${date}`, ...roundLines, `Average: ${avg}%`].join('\n');
+    const text = [`Placle — ${date}`, ...roundLines, `Average: ${avg}%`, '', SHARE_URL].join('\n');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     navigator.clipboard.writeText(text).catch((err: Error) =>

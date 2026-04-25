@@ -8,15 +8,32 @@ function rankToTier(rank: number): Tier {
 }
 
 export function scoreGuess(q: Question, iso3: string): GuessResult {
+  const covered = new Set(q.coveredIsoCodes);
   const rank = q.ranking.findIndex((r) => r.iso3 === iso3);
-  const isTopFive = rank !== -1 && rank < TOP_N;
-  const tier: Tier = rank === -1 ? 'cold' : rankToTier(rank);
+  if (rank !== -1) {
+    const isTopFive = rank < TOP_N;
+    return {
+      tier: rankToTier(rank),
+      rank: rank + 1,
+      value: q.ranking[rank].value,
+      isTopFive,
+    };
+  }
+
+  if (covered.has(iso3)) {
+    return {
+      tier: 'cold',
+      rank: null,
+      value: null,
+      isTopFive: false,
+    };
+  }
 
   return {
-    tier,
-    rank: rank === -1 ? null : rank + 1,
-    value: rank === -1 ? null : q.ranking[rank].value,
-    isTopFive,
+    tier: 'no-data',
+    rank: null,
+    value: null,
+    isTopFive: false,
   };
 }
 

@@ -5,16 +5,18 @@ interface DayResult {
   date: string;
   /** For City Reveal: actually won. For score-only games (Where Most, GeoPlace): always true (means played). */
   won: boolean;
-  /** For guess-count games (Where Most, City Reveal). Not meaningful for GeoPlace. */
+  /** For guess-count games (Where Most, City Reveal). Not meaningful for GeoPlace. Counts only guesses that consumed a slot (excludes no-data on Mostle). */
   guesses: number;
   /** Game-specific score (0–100 for Where Most and GeoPlace). */
   score?: number;
   /** Mostle: exact top-N answers found. */
   exactMatches?: number;
-  /** Mostle: ISO3 countries guessed, in order. */
+  /** Mostle: ISO3 countries guessed (slot-consuming only), in order — matches API /result payload. */
   guessCountries?: string[];
-  /** Mostle: graded guess details, in the same order as guessCountries. */
+  /** Mostle: graded guess details, same order as guessCountries. */
   guessResults?: GuessResult[];
+  /** Mostle: full session order including no-data tiers (local replay only). */
+  allGuesses?: Array<{ iso3: string; result: GuessResult }>;
 }
 
 interface PersistedState {
@@ -25,6 +27,7 @@ interface ResultDetails {
   exactMatches?: number;
   guessCountries?: string[];
   guessResults?: GuessResult[];
+  allGuesses?: Array<{ iso3: string; result: GuessResult }>;
 }
 
 function storageKey(gameId: string) {

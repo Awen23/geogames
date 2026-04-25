@@ -23,6 +23,7 @@ const BEER_QUESTION: Question = {
     { iso3: 'AUS', value: 75.1 },
     { iso3: 'JPN', value: 38.4 },
   ],
+  coveredIsoCodes: ['AUS', 'AUT', 'BRA', 'CZE', 'DEU', 'GBR', 'JPN', 'POL', 'ROU'],
 };
 
 describe('scoreGuess', () => {
@@ -49,9 +50,17 @@ describe('scoreGuess', () => {
     expect(result.value).toBe(70.3);
   });
 
-  it('country not in ranking → rank null, tier cold, isTopFive false', () => {
+  it('in covered list but not in ranking → cold', () => {
     const result = scoreGuess(BEER_QUESTION, 'BRA');
     expect(result.tier).toBe('cold');
+    expect(result.isTopFive).toBe(false);
+    expect(result.rank).toBeNull();
+    expect(result.value).toBeNull();
+  });
+
+  it('not in covered list → no-data', () => {
+    const result = scoreGuess(BEER_QUESTION, 'TWN');
+    expect(result.tier).toBe('no-data');
     expect(result.isTopFive).toBe(false);
     expect(result.rank).toBeNull();
     expect(result.value).toBeNull();

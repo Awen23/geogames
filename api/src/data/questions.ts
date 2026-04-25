@@ -1,5 +1,13 @@
 import type { Question } from '@shared/types';
-import { loadRanking } from './csvLoader';
+import { loadQuestionData } from './csvLoader';
+
+function loadQuestion(csvFile: string, year: number): Pick<Question, 'ranking' | 'coveredIsoCodes'> {
+  return loadQuestionData(csvFile, year);
+}
+
+const beerData = loadQuestion('beer-consumption-per-person.csv', 2020);
+const milkData = loadQuestion('per-capita-milk-consumption.csv', 2020);
+const meatData = loadQuestion('meat-supply-per-person.csv', 2020);
 
 export const questions: Question[] = [
   {
@@ -12,7 +20,8 @@ export const questions: Question[] = [
     source: 'WHO Global Health Observatory via Our World in Data',
     sourceUrl: 'https://ourworldindata.org/grapher/beer-consumption-per-person?time=2020',
     mapEmbedUrl: 'https://ourworldindata.org/grapher/beer-consumption-per-person?tab=map&time=2020',
-    ranking: loadRanking('beer-consumption-per-person.csv', 2020),
+    ranking: beerData.ranking,
+    coveredIsoCodes: beerData.coveredIsoCodes,
   },
   {
     id: 'milk-per-capita-2020',
@@ -24,7 +33,8 @@ export const questions: Question[] = [
     source: 'FAO via Our World in Data',
     sourceUrl: 'https://ourworldindata.org/grapher/per-capita-milk-consumption?time=2020',
     mapEmbedUrl: 'https://ourworldindata.org/grapher/per-capita-milk-consumption?tab=map&time=2020',
-    ranking: loadRanking('per-capita-milk-consumption.csv', 2020),
+    ranking: milkData.ranking,
+    coveredIsoCodes: milkData.coveredIsoCodes,
   },
   {
     id: 'meat-per-capita-2020',
@@ -36,6 +46,7 @@ export const questions: Question[] = [
     source: 'FAO via Our World in Data',
     sourceUrl: 'https://ourworldindata.org/grapher/meat-supply-per-person?time=2020',
     mapEmbedUrl: 'https://ourworldindata.org/grapher/meat-supply-per-person?tab=map&time=2020',
-    ranking: loadRanking('meat-supply-per-person.csv', 2020),
+    ranking: meatData.ranking,
+    coveredIsoCodes: meatData.coveredIsoCodes,
   },
 ];

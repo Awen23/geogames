@@ -1,5 +1,5 @@
-/** `found` = one of the top 5; `warm` = in the broader ranking; `cold` = not ranked */
-export type Tier = 'found' | 'warm' | 'cold';
+/** `found` = one of the top 5; `warm` = in the broader ranking; `cold` = in dataset but not top 5; `no-data` = no row for this question/year */
+export type Tier = 'found' | 'warm' | 'cold' | 'no-data';
 
 export interface RankedCountry {
   iso3: string;
@@ -21,6 +21,11 @@ export interface Question {
   mapEmbedUrl: string;
   /** index 0 = #1 in the world; top 5 are the collective "correct answers" */
   ranking: RankedCountry[];
+  /**
+   * ISO3 codes that appear in the source CSV for this question's year (any finite value, including zero).
+   * Server-only: used to distinguish cold (in source) from no-data (not in source). Not exposed in TodayResponse.
+   */
+  coveredIsoCodes: string[];
 }
 
 export interface GuessResult {

@@ -6,7 +6,10 @@ const TIER_EMOJI: Record<Tier, string> = {
   found: '🟩',
   warm: '🟨',
   cold: '⬛',
+  'no-data': '▫️',
 };
+
+const SHARE_URL = 'https://geogames.today';
 
 interface ShareCardProps {
   gameTitle: string;
@@ -27,7 +30,7 @@ export function ShareCard({ gameTitle, date, guesses, maxGuesses, foundCount, to
   const emojiGrid = grid + padding;
 
   const scoreStr = `${scorePct}% score · ${foundCount}/${topCount} exact`;
-  const shareText = `${gameTitle} ${date}\n${scoreStr}\n\n${emojiGrid}`;
+  const shareText = `${gameTitle} ${date}\n${scoreStr}\n\n${emojiGrid}\n\n${SHARE_URL}`;
 
   async function handleCopy() {
     await navigator.clipboard.writeText(shareText);

@@ -81,7 +81,7 @@ test.describe('WhereMost game', () => {
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body).toMatchObject({
-      tier: expect.stringMatching(/^(found|warm|cold)$/),
+      tier: expect.stringMatching(/^(found|warm|cold|no-data)$/),
       isTopFive: expect.any(Boolean),
     });
     expect(body.rank === null || typeof body.rank === 'number').toBe(true);
@@ -126,7 +126,7 @@ test.describe('WhereMost game', () => {
     await expect(page.getByTestId('guess-list')).toContainText('Germany');
     await expect(page.getByTestId('guess-list')).toContainText('France');
     await expect(page.getByTestId('guess-list')).toContainText('Italy');
-    await expect(page.getByTestId('guess-list')).toContainText(/#|Not in dataset/);
+    await expect(page.getByTestId('guess-list')).toContainText(/#|Not in today/);
     await expect(page.getByTestId('country-input')).not.toBeVisible();
   });
 });
