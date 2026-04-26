@@ -1,9 +1,9 @@
 -- Drop old generic plays table (replaced by per-game tables below)
-DROP TABLE "plays";
+DROP TABLE IF EXISTS "plays";
 --> statement-breakpoint
 
 -- Where Most: score-only game, no win/lose
-CREATE TABLE "where_most_plays" (
+CREATE TABLE IF NOT EXISTS "where_most_plays" (
 	"device_id" text NOT NULL,
 	"date" date NOT NULL,
 	"guesses" integer NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE "where_most_plays" (
 --> statement-breakpoint
 
 -- City Reveal: binary win/lose
-CREATE TABLE "city_reveal_plays" (
+CREATE TABLE IF NOT EXISTS "city_reveal_plays" (
 	"device_id" text NOT NULL,
 	"date" date NOT NULL,
 	"won" boolean NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE "city_reveal_plays" (
 --> statement-breakpoint
 
 -- GeoPlace: score-only game (0–100 average), no win/lose
-CREATE TABLE "geoplace_plays" (
+CREATE TABLE IF NOT EXISTS "geoplace_plays" (
 	"device_id" text NOT NULL,
 	"date" date NOT NULL,
 	"score" integer NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE "geoplace_plays" (
 --> statement-breakpoint
 
 -- GeoPlace per-round placement history
-CREATE TABLE "geoplace_placements" (
+CREATE TABLE IF NOT EXISTS "geoplace_placements" (
 	"device_id" text NOT NULL,
 	"date" date NOT NULL,
 	"target_iso3" text NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE "geoplace_placements" (
 --> statement-breakpoint
 
 -- Puzzle schedule: no-repeat ordering, filled by tools/schedule-puzzles.ts
-CREATE TABLE "puzzle_schedule" (
+CREATE TABLE IF NOT EXISTS "puzzle_schedule" (
 	"game_id" text NOT NULL,
 	"date" date NOT NULL,
 	"puzzle_index" integer NOT NULL,
@@ -56,6 +56,6 @@ CREATE TABLE "puzzle_schedule" (
 --> statement-breakpoint
 
 -- Update daily_stats: replace bullseye_first_count (was broken) with total_score
-ALTER TABLE "daily_stats" ADD COLUMN "total_score" integer DEFAULT 0 NOT NULL;
+ALTER TABLE "daily_stats" ADD COLUMN IF NOT EXISTS "total_score" integer DEFAULT 0 NOT NULL;
 --> statement-breakpoint
-ALTER TABLE "daily_stats" DROP COLUMN "bullseye_first_count";
+ALTER TABLE "daily_stats" DROP COLUMN IF EXISTS "bullseye_first_count";
