@@ -19,7 +19,7 @@ export function DailyHeader({ today, guessesUsed, maxGuesses }: DailyHeaderProps
     <div className={styles.header}>
       <h1 className={styles.prompt}>{today.prompt}</h1>
       <p className={styles.meta}>
-        {today.metric} · {today.unit} ·{' '}
+        {today.metric} · {today.year} · {today.unit} ·{' '}
         <a href={today.sourceUrl} target="_blank" rel="noopener noreferrer">
           {today.source}
         </a>

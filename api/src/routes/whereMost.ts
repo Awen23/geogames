@@ -19,8 +19,8 @@ async function getTodayQuestion() {
 
 whereMostRouter.get('/today', async (_req, res) => {
   const { question, date } = await getTodayQuestion();
-  const { id, prompt, description, metric, unit, source, sourceUrl, icon, mapEmbedUrl } = question;
-  res.json({ id, date, prompt, description, metric, unit, source, sourceUrl, icon, mapEmbedUrl, maxScore: maxScore(question) });
+  const { id, prompt, description, metric, unit, year, source, sourceUrl, icon, mapEmbedUrl } = question;
+  res.json({ id, date, prompt, description, metric, unit, year, source, sourceUrl, icon, mapEmbedUrl, maxScore: maxScore(question) });
 });
 
 const gradeSchema = z.object({

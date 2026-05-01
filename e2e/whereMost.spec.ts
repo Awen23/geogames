@@ -64,6 +64,7 @@ test.describe('WhereMost game', () => {
       prompt: expect.any(String),
       metric: expect.any(String),
       unit: expect.any(String),
+      year: expect.any(Number),
       source: expect.any(String),
       sourceUrl: expect.any(String),
       icon: expect.any(String),

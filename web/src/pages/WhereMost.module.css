@@ -235,6 +235,89 @@
   line-height: 1.45;
 }
 
+.answersSection {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionIntro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.sectionKicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--colour-text-muted);
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--colour-text);
+}
+
+.answersList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.answerItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 8px;
+  background: var(--colour-surface);
+  border: 1px solid var(--colour-border);
+}
+
+.answerRank {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--colour-bullseye);
+  font-variant-numeric: tabular-nums;
+}
+
+.answerName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--colour-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.answerValue {
+  font-size: 0.8rem;
+  color: var(--colour-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.answersMessage {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: 8px;
+  background: var(--colour-surface);
+  border: 1px dashed var(--colour-border);
+  color: var(--colour-text-muted);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
 /* Post-game OWID choropleth embed */
 .mapSection {
   width: 100%;

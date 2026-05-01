@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useId } from 'react';
-import { type CountryEntry, iso2ToFlag, searchCountries } from '../../data/countryNames';
+import { type CountryEntry, iso2ToFlag, searchCountries } from '@shared/guessCountries';
 import styles from './CountryInput.module.css';
 
 interface CountryInputProps {

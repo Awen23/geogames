@@ -1,5 +1,5 @@
 /**
- * Canonical country entries used for autocomplete and display.
+ * Canonical 197-country list used for Mostle guessing, autocomplete, display, and API validation.
  * iso2 drives the flag emoji; aliases expand search coverage.
  */
 export interface CountryEntry {
@@ -57,6 +57,7 @@ export const COUNTRIES: CountryEntry[] = [
   { iso3: 'CZE', iso2: 'CZ', name: 'Czechia', aliases: ['Czech Republic'] },
   { iso3: 'DNK', iso2: 'DK', name: 'Denmark' },
   { iso3: 'DJI', iso2: 'DJ', name: 'Djibouti' },
+  { iso3: 'DMA', iso2: 'DM', name: 'Dominica' },
   { iso3: 'DOM', iso2: 'DO', name: 'Dominican Republic' },
   { iso3: 'ECU', iso2: 'EC', name: 'Ecuador' },
   { iso3: 'EGY', iso2: 'EG', name: 'Egypt' },
@@ -98,6 +99,7 @@ export const COUNTRIES: CountryEntry[] = [
   { iso3: 'KAZ', iso2: 'KZ', name: 'Kazakhstan' },
   { iso3: 'KEN', iso2: 'KE', name: 'Kenya' },
   { iso3: 'KIR', iso2: 'KI', name: 'Kiribati' },
+  { iso3: 'XKX', iso2: 'XK', name: 'Kosovo' },
   { iso3: 'PRK', iso2: 'KP', name: 'North Korea' },
   { iso3: 'KOR', iso2: 'KR', name: 'South Korea' },
   { iso3: 'KWT', iso2: 'KW', name: 'Kuwait' },
@@ -142,6 +144,7 @@ export const COUNTRIES: CountryEntry[] = [
   { iso3: 'OMN', iso2: 'OM', name: 'Oman' },
   { iso3: 'PAK', iso2: 'PK', name: 'Pakistan' },
   { iso3: 'PLW', iso2: 'PW', name: 'Palau' },
+  { iso3: 'PSE', iso2: 'PS', name: 'Palestine', aliases: ['State of Palestine'] },
   { iso3: 'PAN', iso2: 'PA', name: 'Panama' },
   { iso3: 'PNG', iso2: 'PG', name: 'Papua New Guinea' },
   { iso3: 'PRY', iso2: 'PY', name: 'Paraguay' },
@@ -162,6 +165,7 @@ export const COUNTRIES: CountryEntry[] = [
   { iso3: 'SAU', iso2: 'SA', name: 'Saudi Arabia' },
   { iso3: 'SEN', iso2: 'SN', name: 'Senegal' },
   { iso3: 'SRB', iso2: 'RS', name: 'Serbia' },
+  { iso3: 'SYC', iso2: 'SC', name: 'Seychelles' },
   { iso3: 'SLE', iso2: 'SL', name: 'Sierra Leone' },
   { iso3: 'SGP', iso2: 'SG', name: 'Singapore' },
   { iso3: 'SVK', iso2: 'SK', name: 'Slovakia' },
@@ -197,6 +201,7 @@ export const COUNTRIES: CountryEntry[] = [
   { iso3: 'URY', iso2: 'UY', name: 'Uruguay' },
   { iso3: 'UZB', iso2: 'UZ', name: 'Uzbekistan' },
   { iso3: 'VUT', iso2: 'VU', name: 'Vanuatu' },
+  { iso3: 'VAT', iso2: 'VA', name: 'Vatican City', aliases: ['Holy See', 'Vatican'] },
   { iso3: 'VEN', iso2: 'VE', name: 'Venezuela' },
   { iso3: 'VNM', iso2: 'VN', name: 'Vietnam' },
   { iso3: 'YEM', iso2: 'YE', name: 'Yemen' },
@@ -212,7 +217,7 @@ export function iso2ToFlag(iso2: string): string {
     .join('');
 }
 
-/** Lookup map: ISO3 → CountryEntry */
+/** Lookup map: ISO3 -> CountryEntry */
 const byIso3 = new Map(COUNTRIES.map((c) => [c.iso3, c]));
 
 export function countryByIso3(iso3: string): CountryEntry | undefined {
@@ -222,30 +227,86 @@ export function countryByIso3(iso3: string): CountryEntry | undefined {
 /** Country name (with flag) for display; falls back to the raw ISO3 code */
 export function displayName(iso3: string): string {
   const entry = byIso3.get(iso3);
-  if (!entry) { return iso3; }
+  if (!entry) {
+    return iso3;
+  }
   return `${iso2ToFlag(entry.iso2)} ${entry.name}`;
 }
 
+function normaliseSearchTerm(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function editDistanceWithin(a: string, b: string, maxDistance: number): boolean {
+  if (Math.abs(a.length - b.length) > maxDistance) {
+    return false;
+  }
+
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    let rowMinimum = current[0];
+
+    for (let j = 1; j <= b.length; j += 1) {
+      const substitutionCost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const cost = Math.min(
+        previous[j] + 1,
+        current[j - 1] + 1,
+        previous[j - 1] + substitutionCost,
+      );
+      current[j] = cost;
+      rowMinimum = Math.min(rowMinimum, cost);
+    }
+
+    if (rowMinimum > maxDistance) {
+      return false;
+    }
+
+    previous = current;
+  }
+
+  return previous[b.length] <= maxDistance;
+}
+
+function fuzzyThreshold(query: string): number {
+  if (query.length < 5) {
+    return 0;
+  }
+  if (query.length < 9) {
+    return 1;
+  }
+  return 3;
+}
+
 /** Search COUNTRIES by query string, returning up to `limit` matches.
- *  Prioritises prefix matches over substring matches. */
+ * Prioritises prefix matches over substring matches, then fuzzy long-name matches. */
 export function searchCountries(query: string, limit = 8): CountryEntry[] {
-  if (!query) { return []; }
-  const q = query.toLowerCase();
+  const q = normaliseSearchTerm(query);
+  if (!q) {
+    return [];
+  }
 
   const prefixMatches: CountryEntry[] = [];
   const substringMatches: CountryEntry[] = [];
+  const fuzzyMatches: CountryEntry[] = [];
+  const maxDistance = fuzzyThreshold(q);
 
   for (const entry of COUNTRIES) {
-    const searchTerms = [entry.name, ...(entry.aliases ?? [])].map((s) => s.toLowerCase());
+    const searchTerms = [entry.name, ...(entry.aliases ?? [])].map(normaliseSearchTerm);
     const isPrefix = searchTerms.some((t) => t.startsWith(q));
     const isSub = !isPrefix && searchTerms.some((t) => t.includes(q));
     if (isPrefix) {
       prefixMatches.push(entry);
     } else if (isSub) {
       substringMatches.push(entry);
+    } else if (maxDistance > 0 && searchTerms.some((t) => editDistanceWithin(q, t, maxDistance))) {
+      fuzzyMatches.push(entry);
     }
-    if (prefixMatches.length + substringMatches.length >= limit * 2) { break; }
   }
 
-  return [...prefixMatches, ...substringMatches].slice(0, limit);
+  return [...prefixMatches, ...substringMatches, ...fuzzyMatches].slice(0, limit);
 }

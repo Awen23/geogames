@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import type { TodayResponse, GuessResult, Tier } from '@shared/types';
+import type { TodayResponse, GuessResult, Tier, WhereMostStatsResponse } from '@shared/types';
 import { CountryInput } from '../components/CountryInput/CountryInput';
 import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
-import { fetchToday, gradeGuess, submitWhereMostResult } from '../lib/api';
+import { fetchToday, fetchTodayStats, gradeGuess, submitWhereMostResult } from '../lib/api';
 import { useGameState } from '../lib/useGameState';
 import { progressScore } from '../lib/progressScore';
-import { displayName } from '../data/countryNames';
+import { displayName } from '@shared/guessCountries';
+import { TopAnswersSection } from './WhereMostTopAnswers';
 import styles from './WhereMost.module.css';
 
 const MAX_GUESSES = 5;
@@ -87,6 +88,8 @@ function ProgressBar({
 
 export function WhereMost() {
   const [today, setToday] = useState<TodayResponse | null>(null);
+  const [todayStats, setTodayStats] = useState<WhereMostStatsResponse | null>(null);
+  const [statsLoadState, setStatsLoadState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [guesses, setGuesses] = useState<Guess[]>([]);
   const [replayGuesses, setReplayGuesses] = useState<Guess[]>([]);
   /** ISO3 picks that returned `no-data` this session — excluded from input but not listed as guesses. */
@@ -147,6 +150,32 @@ export function WhereMost() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    if (!showEndScreen || todayStats !== null) {
+      return;
+    }
+
+    let cancelled = false;
+    setStatsLoadState('loading');
+    fetchTodayStats()
+      .then((stats) => {
+        if (!cancelled) {
+          setTodayStats(stats);
+          setStatsLoadState('idle');
+        }
+      })
+      .catch((err: Error) => {
+        console.error('Failed to load Where Most stats:', err);
+        if (!cancelled) {
+          setStatsLoadState('error');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showEndScreen, todayStats]);
 
   useEffect(() => {
     if (!todayResult || guesses.length > 0) {
@@ -231,8 +260,12 @@ export function WhereMost() {
 
   const handleCountrySelect = useCallback(
     async (iso3: string) => {
-      if (isGameOver || submitting || !today) { return; }
-      if (excludedIso3s.includes(iso3)) { return; }
+      if (isGameOver || submitting || !today) {
+        return;
+      }
+      if (excludedIso3s.includes(iso3)) {
+        return;
+      }
 
       setSubmitting(true);
       try {
@@ -287,7 +320,9 @@ export function WhereMost() {
     );
   }
 
-  if (!today) { return null; }
+  if (!today) {
+    return null;
+  }
 
   // score from localStorage if replaying, otherwise compute from live guesses
   const displayScore = todayResult?.score ?? Math.round(Math.min(100, maxScoreVal > 0 ? (scoreVal / maxScoreVal) * 100 : 0));
@@ -307,6 +342,8 @@ export function WhereMost() {
               setNoDataExcludedIso3s([]);
               setTotalGradedRounds(0);
               setNoDataNoticeIso3(null);
+              setTodayStats(null);
+              setStatsLoadState('idle');
             }}
             title="Dev only — reset today's play"
           >
@@ -387,9 +424,19 @@ export function WhereMost() {
             />
           )}
 
+          <TopAnswersSection
+            answers={todayStats?.ranking.slice(0, TOP_N) ?? null}
+            loadState={statsLoadState}
+            unit={today.unit}
+          />
+
           {/* Post-game choropleth map from OWID */}
           <div className={styles.mapSection}>
-            <p className={styles.mapLabel}>{today.metric} — world map</p>
+            <div className={styles.sectionIntro}>
+              <p className={styles.sectionKicker}>Full data</p>
+              <h3 className={styles.sectionTitle}>{today.metric}</h3>
+            </div>
+            <p className={styles.mapLabel}>Explore the complete OWID world map for this metric.</p>
             <iframe
               className={styles.mapEmbed}
               src={today.mapEmbedUrl}

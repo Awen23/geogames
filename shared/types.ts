@@ -13,6 +13,8 @@ export interface Question {
   description: string;
   metric: string;
   unit: string;
+  /** Data year used for this question's ranking */
+  year: number;
   source: string;
   sourceUrl: string;
   /** Emoji representing the question theme */
@@ -45,6 +47,8 @@ export interface TodayResponse {
   description: string;
   metric: string;
   unit: string;
+  /** Data year used for this question's ranking */
+  year: number;
   source: string;
   sourceUrl: string;
   icon: string;
