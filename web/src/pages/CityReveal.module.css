@@ -135,6 +135,24 @@
   color: #e8eaf6;
 }
 
+.hiddenResetBtn {
+  min-width: 28px;
+  color: transparent;
+  border-color: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.topBar:hover .hiddenResetBtn,
+.topBar:focus-within .hiddenResetBtn,
+.hiddenResetBtn:hover,
+.hiddenResetBtn:focus-visible {
+  color: #5a5e7a;
+  border-color: #2a2d47;
+  opacity: 0.75;
+  pointer-events: auto;
+}
+
 /* ── Header ───────────────────────────────────────────────────────────────── */
 
 .header {

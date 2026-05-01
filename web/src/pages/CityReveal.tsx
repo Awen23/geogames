@@ -321,6 +321,9 @@ export function CityReveal() {
 
   const resetForDev = useCallback(() => {
     if (!gameState) { return; }
+    if (import.meta.env.PROD && !window.confirm("Reset today's Maple play on this device?")) {
+      return;
+    }
     localStorage.removeItem(storageKey(gameState.date));
     resetGameStateBadge();
     setGameState({ date: gameState.date, guesses: [], won: false, gameOver: false });
@@ -388,9 +391,14 @@ export function CityReveal() {
       <div className={styles.gamePanel}>
         <div className={styles.topBar}>
           <Link to="/" className={styles.backLink}>← Games</Link>
-          {import.meta.env.DEV && (
-            <button className={styles.devResetBtn} onClick={resetForDev}>dev reset</button>
-          )}
+          <button
+            className={`${styles.devResetBtn} ${import.meta.env.PROD ? styles.hiddenResetBtn : ''}`}
+            onClick={resetForDev}
+            title={import.meta.env.PROD ? 'Reset your local Maple play' : 'Dev only — reset today'}
+            aria-label="Reset today's Maple play on this device"
+          >
+            {import.meta.env.PROD ? 'reset' : 'dev reset'}
+          </button>
         </div>
 
         <header className={styles.header}>

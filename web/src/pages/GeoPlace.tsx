@@ -71,8 +71,8 @@ function ResetButton({ onReset }: { onReset: () => void }) {
     <button
       className={`${styles.devResetBtn} ${import.meta.env.PROD ? styles.hiddenResetBtn : ''}`}
       onClick={onReset}
-      title={import.meta.env.PROD ? 'Reset today' : 'Dev only — reset today'}
-      aria-label="Reset today's Placle play"
+      title={import.meta.env.PROD ? 'Reset your local GeoPlace play' : 'Dev only — reset today'}
+      aria-label="Reset today's GeoPlace play on this device"
     >
       {import.meta.env.PROD ? 'reset' : 'dev reset'}
     </button>
@@ -151,6 +151,9 @@ export function GeoPlace() {
   }, [scores, placedCountries, recordResult]);
 
   const resetForDev = useCallback(() => {
+    if (import.meta.env.PROD && !window.confirm("Reset today's GeoPlace play on this device?")) {
+      return;
+    }
     localStorage.removeItem(SESSION_KEY);
     resetGameState();
     setRoundIndex(0);

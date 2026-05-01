@@ -45,13 +45,19 @@
   color: transparent;
   border-color: transparent;
   opacity: 0;
+  pointer-events: none;
 }
 
+.topBar:hover .hiddenResetBtn,
+.topBar:focus-within .hiddenResetBtn,
+.alreadyPlayed:hover .hiddenResetBtn,
+.alreadyPlayed:focus-within .hiddenResetBtn,
 .hiddenResetBtn:hover,
 .hiddenResetBtn:focus-visible {
   color: var(--colour-text-muted);
   border-color: var(--colour-border);
   opacity: 0.75;
+  pointer-events: auto;
 }
 
 /* Header */
