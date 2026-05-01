@@ -20,9 +20,10 @@ import {
   WIN_GROUPS,
   STAGE_REVEAL_LABELS,
   setupMapLayers,
-  fetchWikiThumb,
   createPhotoMarkerEl,
 } from '../lib/cityRevealMap';
+import { fetchFixedCommonsImage, fetchWikiImage } from '../lib/cityRevealImages';
+import type { WikiImageAttribution } from '../lib/cityRevealImages';
 import styles from './CityReveal.module.css';
 
 // ── Local game state ──────────────────────────────────────────────────────────
@@ -42,6 +43,12 @@ interface LocalGameState {
   won: boolean;
   gameOver: boolean;
   wonCity?: CityRevealCity;
+}
+
+interface SelectedLandmark {
+  label: string;
+  imageUrl: string;
+  attribution: WikiImageAttribution;
 }
 
 function storageKey(date: string) {
@@ -117,7 +124,7 @@ export function CityReveal() {
   const [gameState, setGameState] = useState<LocalGameState | null>(null);
   const [loadingGuess, setLoadingGuess] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [selectedLandmark, setSelectedLandmark] = useState<{ label: string; imageUrl: string } | null>(null);
+  const [selectedLandmark, setSelectedLandmark] = useState<SelectedLandmark | null>(null);
 
   // For the home screen "played today" badge
   const { recordResult, resetForDev: resetGameStateBadge } = useGameState('city-reveal');
@@ -207,7 +214,6 @@ export function CityReveal() {
 
   useEffect(() => {
     if (!mapReady || !mapRef.current || !todayCity) { return; }
-    const map = mapRef.current;
 
     // Clear any existing markers
     markersRef.current.forEach((m) => { m.remove(); });
@@ -222,11 +228,11 @@ export function CityReveal() {
       markersRef.current.push(marker);
 
       // Fetch thumbnail asynchronously and update marker (optional fixed Commons/Wikipedia image URL)
-      const thumbPromise = lm.thumbnailUrl ? Promise.resolve(lm.thumbnailUrl) : fetchWikiThumb(lm.wikiTitle);
-      thumbPromise.then((url) => {
-        if (!url) { return; }
-        const updatedEl = createPhotoMarkerEl(url, () => {
-          setSelectedLandmark({ label: lm.label, imageUrl: url });
+      const imagePromise = lm.thumbnailUrl ? fetchFixedCommonsImage(lm.thumbnailUrl) : fetchWikiImage(lm.wikiTitle);
+      imagePromise.then((image) => {
+        if (!image) { return; }
+        const updatedEl = createPhotoMarkerEl(image.imageUrl, () => {
+          setSelectedLandmark({ label: lm.label, imageUrl: image.imageUrl, attribution: image.attribution });
         });
         // Replace marker with updated element
         marker.remove();
@@ -239,6 +245,8 @@ export function CityReveal() {
           // Use refs to avoid stale closures: showLandmarksRef for stage, mapRef for map lifetime
           if (showLandmarksRef.current && mapRef.current) { updatedMarker.addTo(mapRef.current); }
         }
+      }).catch((err: Error) => {
+        console.warn(`CityReveal: failed to load landmark image for "${lm.wikiTitle}"`, err);
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -497,6 +505,29 @@ export function CityReveal() {
               className={styles.modalImg}
             />
             <p className={styles.modalLabel}>{selectedLandmark.label}</p>
+            <p className={styles.modalAttribution}>
+              Image:{' '}
+              {selectedLandmark.attribution.author && (
+                <>
+                  {selectedLandmark.attribution.author}{' '}
+                </>
+              )}
+              <a href={selectedLandmark.attribution.sourceUrl} target="_blank" rel="noopener noreferrer">
+                Source
+              </a>
+              {selectedLandmark.attribution.licence && (
+                <>
+                  {' '}·{' '}
+                  {selectedLandmark.attribution.licenceUrl ? (
+                    <a href={selectedLandmark.attribution.licenceUrl} target="_blank" rel="noopener noreferrer">
+                      {selectedLandmark.attribution.licence}
+                    </a>
+                  ) : (
+                    selectedLandmark.attribution.licence
+                  )}
+                </>
+              )}
+            </p>
             <button
               className={styles.modalClose}
               onClick={() => { setSelectedLandmark(null); }}

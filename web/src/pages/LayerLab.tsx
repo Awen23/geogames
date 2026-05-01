@@ -8,9 +8,9 @@ import { flagEmoji } from '@shared/cityRevealTypes';
 import {
   STYLE_URL,
   setupMapLayers,
-  fetchWikiThumb,
   createPhotoMarkerEl,
 } from '../lib/cityRevealMap';
+import { fetchWikiThumb } from '../lib/cityRevealImages';
 import styles from './LayerLab.module.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────

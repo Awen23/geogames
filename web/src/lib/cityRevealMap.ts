@@ -146,35 +146,7 @@ export function setupMapLayers(map: MapGL): Partial<Record<LayerGroupId, string[
   return grouped;
 }
 
-// ── Landmark / photo-marker utilities ─────────────────────────────────────────
-
-/** Try English first, then Spanish — several landmarks only have articles on es.wikipedia.org. */
-const WIKI_THUMB_LANGS = ['en', 'es'] as const;
-
-/** Fetches a Wikipedia article thumbnail URL. Returns null if no thumbnail is found after trying all languages. */
-export async function fetchWikiThumb(title: string): Promise<string | null> {
-  let lastProblem: string | unknown = 'no thumbnail on page';
-  for (const lang of WIKI_THUMB_LANGS) {
-    try {
-      const url = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        lastProblem = `HTTP ${res.status} (${lang})`;
-        continue;
-      }
-      const data = await res.json() as { thumbnail?: { source: string } };
-      const thumb = data.thumbnail?.source;
-      if (thumb) {
-        return thumb;
-      }
-      lastProblem = `no thumbnail (${lang})`;
-    } catch (err) {
-      lastProblem = err;
-    }
-  }
-  console.warn(`[cityRevealMap] Wikipedia thumbnail not available for "${title}":`, lastProblem);
-  return null;
-}
+// ── Landmark marker utilities ─────────────────────────────────────────────────
 
 /**
  * Creates the HTML element used for a landmark photo marker.
