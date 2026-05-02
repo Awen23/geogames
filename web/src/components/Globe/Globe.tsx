@@ -10,7 +10,6 @@ import {
 import type { Tier } from '@shared/types';
 import type { GeoPermissibleObjects } from 'd3-geo';
 import centroids from '@shared/centroids.json';
-import { bearingDeg } from '@shared/distance';
 import styles from './Globe.module.css';
 import { numericToIso3 } from '../../lib/iso3Lookup';
 
@@ -65,7 +64,6 @@ const TIER_COLOUR: Record<Tier, string> = {
 const TO_RAD = Math.PI / 180;
 const TO_DEG = 180 / Math.PI;
 const ARROW_ARC_DEG = 22;
-const PLACED_ARROW_ARC_DEG = 12;
 
 function destPoint(lon0: number, lat0: number, bearing: number, arcDeg: number): [number, number] {
   const d = arcDeg * TO_RAD;
@@ -187,11 +185,7 @@ function PlacedCountry({
   const [cx, cy] = centroidPt;
   const [px, py] = placedPt;
 
-  // Direction arrow from placed centroid toward actual centroid
-  const bearing = bearingDeg({ lat, lon }, { lat: centroidData.lat, lon: centroidData.lon });
-  const [arrowLon, arrowLat] = destPoint(lon, lat, bearing, PLACED_ARROW_ARC_DEG);
-  const arrowPt = projection([arrowLon, arrowLat]);
-  const showArrow = parseInt(label) < 98 && arrowPt != null && !isNaN(arrowPt[0]);
+  const showArrow = parseInt(label) < 98;
 
   return (
     <>
@@ -244,8 +238,8 @@ function PlacedCountry({
           <line
             x1={px}
             y1={py}
-            x2={arrowPt[0]}
-            y2={arrowPt[1]}
+            x2={cx}
+            y2={cy}
             stroke="rgba(255,255,255,0.9)"
             strokeWidth={2}
             strokeDasharray="6 3"

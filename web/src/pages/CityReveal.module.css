@@ -304,6 +304,25 @@
   color: #8b8fa8;
 }
 
+.shareBtn {
+  flex-shrink: 0;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.55rem 1rem;
+  background: #6b7cff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.shareBtn:hover {
+  background: #8896ff;
+}
+
 /* ── Loading / error states ───────────────────────────────────────────────── */
 
 .loadingState,

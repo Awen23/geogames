@@ -26,6 +26,8 @@ import { fetchFixedCommonsImage, fetchWikiImage } from '../lib/cityRevealImages'
 import type { WikiImageAttribution } from '../lib/cityRevealImages';
 import styles from './CityReveal.module.css';
 
+const SHARE_URL = 'https://geogames.today';
+
 // ── Local game state ──────────────────────────────────────────────────────────
 
 interface GuessEntry {
@@ -125,6 +127,7 @@ export function CityReveal() {
   const [loadingGuess, setLoadingGuess] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<SelectedLandmark | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
 
   // For the home screen "played today" badge
   const { recordResult, resetForDev: resetGameStateBadge } = useGameState('city-reveal');
@@ -337,6 +340,25 @@ export function CityReveal() {
     setGameState({ date: gameState.date, guesses: [], won: false, gameOver: false });
   }, [gameState, resetGameStateBadge]);
 
+  const handleCopyShare = useCallback(() => {
+    if (!gameState || !finished) { return; }
+    const date = gameState.date;
+    const emojiRow = guesses.map((g) => (g.correct ? '🟩' : '⬛')).join('');
+    const summaryLine = won
+      ? `Solved in ${guesses.length} guess${guesses.length !== 1 ? 'es' : ''}`
+      : `Did not solve · ${MAX_GUESSES} guesses`;
+    const text = ['Maple', date, summaryLine, '', emojiRow, '', SHARE_URL].join('\n');
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        setShareCopied(true);
+        setTimeout(() => { setShareCopied(false); }, 2000);
+      },
+      (err: Error) => {
+        console.error('Clipboard write failed:', err);
+      },
+    );
+  }, [finished, gameState, guesses, won]);
+
   // ── Stage indicator data ───────────────────────────────────────────────────
 
   const stageSteps = [
@@ -480,6 +502,16 @@ export function CityReveal() {
               <span>{revealedCity.country}</span>
             </div>
           </div>
+        )}
+
+        {finished && guesses.length > 0 && (
+          <button
+            type="button"
+            className={styles.shareBtn}
+            onClick={handleCopyShare}
+          >
+            {shareCopied ? '✓ Copied!' : 'Copy result'}
+          </button>
         )}
       </div>
 
