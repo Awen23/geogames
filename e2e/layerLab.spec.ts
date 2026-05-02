@@ -1,6 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LAYER_GROUPS } from '../web/src/components/CityRevealMap/layers';
 
+const STAGE_LABELS = ['Terrain', 'Water', 'Roads & Railways', 'Landmarks', 'Road Names'];
+
 /** Wait for the MapLibre map to finish its initial load and layer classification */
 async function waitForMapReady(page: Page) {
   await page.waitForFunction(
@@ -17,6 +19,8 @@ async function getLayerGroups(page: Page): Promise<Record<string, string[]>> {
 }
 
 test.describe('Layer Lab', () => {
+  test.describe.configure({ mode: 'serial' });
+
   test.beforeEach(async ({ page }) => {
     await page.goto('/layer-lab');
     await waitForMapReady(page);
@@ -25,20 +29,21 @@ test.describe('Layer Lab', () => {
   // ── Page structure ────────────────────────────────────────────────────────
 
   test('page loads with map and sidebar', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Layer Lab' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Maple Lab' })).toBeVisible();
     await expect(page.locator('[data-testid="layer-lab-map"]')).toBeVisible();
   });
 
-  test('all expected city buttons are present', async ({ page }) => {
+  test('all expected city options are present', async ({ page }) => {
+    const citySelect = page.getByRole('combobox');
     for (const city of ['Bern', 'Osaka', 'Tegucigalpa', 'Kinshasa', 'Bishkek', 'La Paz', 'Perth']) {
-      await expect(page.getByRole('button', { name: city })).toBeVisible();
+      await expect(citySelect).toContainText(city);
     }
   });
 
   test('all layer toggle buttons are present', async ({ page }) => {
-    for (const group of LAYER_GROUPS) {
+    for (const label of STAGE_LABELS) {
       await expect(
-        page.getByRole('switch', { name: `Toggle ${group.label}` }),
+        page.getByRole('switch', { name: `Toggle ${label}` }),
       ).toBeVisible();
     }
   });
@@ -124,11 +129,9 @@ test.describe('Layer Lab', () => {
 
   // ── City switching ────────────────────────────────────────────────────────
 
-  test('switching city updates the active city button', async ({ page }) => {
-    await page.getByRole('button', { name: 'Osaka' }).click();
-    const osakaBtn = page.getByRole('button', { name: 'Osaka' });
-    // Active city button has an active/selected style — check aria or class changes
-    await expect(osakaBtn).toHaveAttribute('aria-pressed', 'true');
+  test('switching city updates the active city card', async ({ page }) => {
+    await page.getByRole('combobox').selectOption('osaka');
+    await expect(page.locator('[class*="cityCardName"]')).toHaveText('Osaka');
   });
 
   // ── No critical console errors ────────────────────────────────────────────

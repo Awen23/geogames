@@ -67,14 +67,18 @@ function saveSession(session: GeoplaceSession) {
 }
 
 function ResetButton({ onReset }: { onReset: () => void }) {
+  if (import.meta.env.PROD) {
+    return null;
+  }
+
   return (
     <button
-      className={`${styles.devResetBtn} ${import.meta.env.PROD ? styles.hiddenResetBtn : ''}`}
+      className={styles.devResetBtn}
       onClick={onReset}
-      title={import.meta.env.PROD ? 'Reset your local GeoPlace play' : 'Dev only — reset today'}
+      title="Dev only — reset today"
       aria-label="Reset today's GeoPlace play on this device"
     >
-      {import.meta.env.PROD ? 'reset' : 'dev reset'}
+      dev reset
     </button>
   );
 }
@@ -151,9 +155,6 @@ export function GeoPlace() {
   }, [scores, placedCountries, recordResult]);
 
   const resetForDev = useCallback(() => {
-    if (import.meta.env.PROD && !window.confirm("Reset today's GeoPlace play on this device?")) {
-      return;
-    }
     localStorage.removeItem(SESSION_KEY);
     resetGameState();
     setRoundIndex(0);

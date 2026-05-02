@@ -332,26 +332,25 @@ export function WhereMost() {
     <div className={styles.page}>
       <div className={styles.topBar}>
         <Link to="/" className={styles.backLink}>← Geogames</Link>
-        <button
-          className={`${styles.devResetBtn} ${import.meta.env.PROD ? styles.hiddenResetBtn : ''}`}
-          onClick={() => {
-            if (import.meta.env.PROD && !window.confirm("Reset today's Mostle play on this device?")) {
-              return;
-            }
-            resetForDev();
-            setGuesses([]);
-            setReplayGuesses([]);
-            setNoDataExcludedIso3s([]);
-            setTotalGradedRounds(0);
-            setNoDataNoticeIso3(null);
-            setTodayStats(null);
-            setStatsLoadState('idle');
-          }}
-          title={import.meta.env.PROD ? 'Reset your local Mostle play' : 'Dev only — reset today'}
-          aria-label="Reset today's Mostle play on this device"
-        >
-          {import.meta.env.PROD ? 'reset' : '↺ reset'}
-        </button>
+        {!import.meta.env.PROD && (
+          <button
+            className={styles.devResetBtn}
+            onClick={() => {
+              resetForDev();
+              setGuesses([]);
+              setReplayGuesses([]);
+              setNoDataExcludedIso3s([]);
+              setTotalGradedRounds(0);
+              setNoDataNoticeIso3(null);
+              setTodayStats(null);
+              setStatsLoadState('idle');
+            }}
+            title="Dev only — reset today"
+            aria-label="Reset today's Mostle play on this device"
+          >
+            ↺ reset
+          </button>
+        )}
       </div>
 
       <div className={styles.questionHeader}>

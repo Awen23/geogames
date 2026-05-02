@@ -1,3 +1,5 @@
+import { findBestTextMatch, normaliseSearchTerm, TEXT_MATCH_RANK } from './textMatcher';
+
 /**
  * Canonical 197-country list used for Mostle guessing, autocomplete, display, and API validation.
  * iso2 drives the flag emoji; aliases expand search coverage.
@@ -7,6 +9,11 @@ export interface CountryEntry {
   iso2: string;
   name: string;
   aliases?: string[];
+}
+
+export interface CountrySearchResult {
+  country: CountryEntry;
+  nameMatchIndices: Set<number>;
 }
 
 export const COUNTRIES: CountryEntry[] = [
@@ -233,14 +240,6 @@ export function displayName(iso3: string): string {
   return `${iso2ToFlag(entry.iso2)} ${entry.name}`;
 }
 
-function normaliseSearchTerm(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '');
-}
-
 function editDistanceWithin(a: string, b: string, maxDistance: number): boolean {
   if (Math.abs(a.length - b.length) > maxDistance) {
     return false;
@@ -282,31 +281,53 @@ function fuzzyThreshold(query: string): number {
   return 3;
 }
 
-/** Search COUNTRIES by query string, returning up to `limit` matches.
- * Prioritises prefix matches over substring matches, then fuzzy long-name matches. */
-export function searchCountries(query: string, limit = 8): CountryEntry[] {
+const TYPO_MATCH_RANK = TEXT_MATCH_RANK.sequential + 1;
+
+/** Search COUNTRIES by query string, returning up to `limit` matches with display-name highlight indices. */
+export function searchCountryMatches(query: string, limit = 8): CountrySearchResult[] {
   const q = normaliseSearchTerm(query);
   if (!q) {
     return [];
   }
 
-  const prefixMatches: CountryEntry[] = [];
-  const substringMatches: CountryEntry[] = [];
-  const fuzzyMatches: CountryEntry[] = [];
+  const matches: Array<CountrySearchResult & { rank: number; order: number }> = [];
   const maxDistance = fuzzyThreshold(q);
 
-  for (const entry of COUNTRIES) {
-    const searchTerms = [entry.name, ...(entry.aliases ?? [])].map(normaliseSearchTerm);
-    const isPrefix = searchTerms.some((t) => t.startsWith(q));
-    const isSub = !isPrefix && searchTerms.some((t) => t.includes(q));
-    if (isPrefix) {
-      prefixMatches.push(entry);
-    } else if (isSub) {
-      substringMatches.push(entry);
-    } else if (maxDistance > 0 && searchTerms.some((t) => editDistanceWithin(q, t, maxDistance))) {
-      fuzzyMatches.push(entry);
-    }
-  }
+  COUNTRIES.forEach((country, order) => {
+    const searchableValues = [country.name, ...(country.aliases ?? [])];
+    const textMatch = findBestTextMatch(searchableValues, q);
 
-  return [...prefixMatches, ...substringMatches, ...fuzzyMatches].slice(0, limit);
+    if (textMatch) {
+      matches.push({
+        country,
+        rank: textMatch.rank,
+        order,
+        nameMatchIndices: new Set(textMatch.valueIndex === 0 ? textMatch.sourceIndices : []),
+      });
+      return;
+    }
+
+    const normalisedSearchTerms = searchableValues.map(normaliseSearchTerm);
+    if (maxDistance > 0 && normalisedSearchTerms.some((term) => editDistanceWithin(q, term, maxDistance))) {
+      matches.push({
+        country,
+        rank: TYPO_MATCH_RANK,
+        order,
+        nameMatchIndices: new Set(),
+      });
+    }
+  });
+
+  return matches
+    .sort((a, b) => a.rank - b.rank || a.order - b.order)
+    .slice(0, limit)
+    .map(({ country, nameMatchIndices }) => ({
+      country,
+      nameMatchIndices,
+    }));
+}
+
+/** Search COUNTRIES by query string, returning up to `limit` matches. */
+export function searchCountries(query: string, limit = 8): CountryEntry[] {
+  return searchCountryMatches(query, limit).map((result) => result.country);
 }

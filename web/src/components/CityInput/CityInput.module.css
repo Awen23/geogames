@@ -67,6 +67,15 @@
   overflow: hidden;
 }
 
+@media (max-width: 699px), (pointer: coarse) and (max-height: 720px) {
+  .dropdown {
+    top: auto;
+    bottom: calc(100% + 4px);
+    max-height: min(18rem, 45dvh);
+    overflow-y: auto;
+  }
+}
+
 .option {
   display: flex;
   align-items: center;
@@ -100,4 +109,8 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.match {
+  font-weight: 800;
 }

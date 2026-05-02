@@ -27,6 +27,9 @@ import type { WikiImageAttribution } from '../lib/cityRevealImages';
 import styles from './CityReveal.module.css';
 
 const SHARE_URL = 'https://geogames.today';
+const SMALL_SCREEN_QUERY = '(max-width: 699px), (max-height: 720px)';
+const TINY_SCREEN_QUERY = '(max-width: 430px), (max-height: 620px)';
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 // ── Local game state ──────────────────────────────────────────────────────────
 
@@ -57,6 +60,10 @@ function storageKey(date: string) {
   return `geogames:city-reveal:game:${date}`;
 }
 
+function introDismissalStorageKey(date: string) {
+  return `geogames:city-reveal:intro-dismissed:${date}`;
+}
+
 function loadState(date: string): LocalGameState | null {
   try {
     const raw = localStorage.getItem(storageKey(date));
@@ -65,12 +72,41 @@ function loadState(date: string): LocalGameState | null {
   return null;
 }
 
+function isIntroDismissed(date: string) {
+  try {
+    return localStorage.getItem(introDismissalStorageKey(date)) === 'true';
+  } catch (e) {
+    console.error('CityReveal: failed to read intro dismissal state', e);
+    return false;
+  }
+}
+
+function saveIntroDismissal(date: string) {
+  try {
+    localStorage.setItem(introDismissalStorageKey(date), 'true');
+  } catch (e) {
+    console.error('CityReveal: failed to save intro dismissal state', e);
+  }
+}
+
 function saveState(state: LocalGameState) {
   localStorage.setItem(storageKey(state.date), JSON.stringify(state));
 }
 
 function utcToday() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function responsiveMapZoom(baseZoom: number) {
+  if (window.matchMedia(TINY_SCREEN_QUERY).matches) {
+    return Math.max(baseZoom - 1.4, 8);
+  }
+
+  if (window.matchMedia(SMALL_SCREEN_QUERY).matches) {
+    return Math.max(baseZoom - 1, 8);
+  }
+
+  return baseZoom;
 }
 
 
@@ -119,6 +155,7 @@ export function CityReveal() {
   const markersRef = useRef<Marker[]>([]);
   // Ref so async thumbnail callbacks can read the current visibility without stale closures
   const showLandmarksRef = useRef(false);
+  const introStartButtonRef = useRef<HTMLButtonElement>(null);
 
   const [todayData, setTodayData] = useState<CityRevealTodayResponse | null>(null);
   const [todayCity, setTodayCity] = useState<CityRevealCity | null>(null);
@@ -127,7 +164,11 @@ export function CityReveal() {
   const [loadingGuess, setLoadingGuess] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedLandmark, setSelectedLandmark] = useState<SelectedLandmark | null>(null);
+  const [showIntroModal, setShowIntroModal] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () => window.matchMedia(REDUCED_MOTION_QUERY).matches,
+  );
 
   // For the home screen "played today" badge
   const { recordResult, resetForDev: resetGameStateBadge } = useGameState('city-reveal');
@@ -153,11 +194,30 @@ export function CityReveal() {
         setTodayCity(city);
 
         const saved = loadState(data.date);
-        setGameState(
-          saved ?? { date: data.date, guesses: [], won: false, gameOver: false },
-        );
+        const nextState = saved ?? { date: data.date, guesses: [], won: false, gameOver: false };
+        setGameState(nextState);
+        setShowIntroModal(!isIntroDismissed(data.date));
       })
       .catch((err: Error) => { setFetchError(err.message); });
+  }, []);
+
+  useEffect(() => {
+    if (showIntroModal) {
+      introStartButtonRef.current?.focus();
+    }
+  }, [showIntroModal]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+
+    function syncReducedMotionPreference() {
+      setPrefersReducedMotion(mediaQuery.matches);
+    }
+
+    mediaQuery.addEventListener('change', syncReducedMotionPreference);
+    return () => {
+      mediaQuery.removeEventListener('change', syncReducedMotionPreference);
+    };
   }, []);
 
   // ── Map initialisation ─────────────────────────────────────────────────────
@@ -169,7 +229,7 @@ export function CityReveal() {
       container: mapContainerRef.current,
       style: STYLE_URL,
       center: [todayData.lon, todayData.lat],
-      zoom: todayData.zoom,
+      zoom: responsiveMapZoom(todayData.zoom),
       interactive: false, // disables all mouse/touch interaction
     });
 
@@ -192,8 +252,24 @@ export function CityReveal() {
       mapRef.current = null;
       setMapReady(false);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [todayData]);
+
+  // ── Keep the locked map framed for the available viewport ──────────────────
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !todayData) { return; }
+    const currentTodayData = todayData;
+
+    function syncResponsiveViewport() {
+      const map = mapRef.current;
+      if (!map) { return; }
+      map.resize();
+      map.easeTo({ zoom: responsiveMapZoom(currentTodayData.zoom), duration: 250 });
+    }
+
+    window.addEventListener('resize', syncResponsiveViewport);
+    return () => { window.removeEventListener('resize', syncResponsiveViewport); };
+  }, [mapReady, todayData]);
 
   // ── Update layer visibility when stage changes ─────────────────────────────
 
@@ -252,7 +328,6 @@ export function CityReveal() {
         console.warn(`CityReveal: failed to load landmark image for "${lm.wikiTitle}"`, err);
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady, todayCity]);
 
   // ── Show/hide landmark markers when stage crosses threshold ───────────────
@@ -331,14 +406,31 @@ export function CityReveal() {
   // ── Dev reset ─────────────────────────────────────────────────────────────
 
   const resetForDev = useCallback(() => {
-    if (!gameState) { return; }
-    if (import.meta.env.PROD && !window.confirm("Reset today's Maple play on this device?")) {
+    if (!gameState) {
       return;
     }
     localStorage.removeItem(storageKey(gameState.date));
+    localStorage.removeItem(introDismissalStorageKey(gameState.date));
     resetGameStateBadge();
     setGameState({ date: gameState.date, guesses: [], won: false, gameOver: false });
+    setShowIntroModal(true);
   }, [gameState, resetGameStateBadge]);
+
+  const handleStartMaple = useCallback(() => {
+    if (gameState) {
+      saveIntroDismissal(gameState.date);
+    }
+    setShowIntroModal(false);
+  }, [gameState]);
+
+  function handleIntroKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      introStartButtonRef.current?.focus();
+    } else if (e.key === 'Escape') {
+      handleStartMaple();
+    }
+  }
 
   const handleCopyShare = useCallback(() => {
     if (!gameState || !finished) { return; }
@@ -402,18 +494,36 @@ export function CityReveal() {
           data-testid="city-reveal-map"
         />
 
-        {/* Stage progress overlay */}
-        <div className={styles.stageOverlay} aria-label="Revealed layers">
-          {stageSteps.map((step, i) => (
-            <div
-              key={step.label}
-              className={`${styles.stageStep} ${(won || i <= stage) ? styles.stageStepActive : ''}`}
-              title={step.label}
-            >
-              <span>{step.icon}</span>
-              <span className={styles.stageLabel}>{step.label}</span>
+        {/* Mobile map controls / desktop stage progress overlay */}
+        <div className={styles.mapTopBar}>
+          <Link to="/" className={`${styles.backLink} ${styles.mapBackLink}`}>← Games</Link>
+          <div className={styles.mapStatus}>
+            <div className={styles.mobileMapTitle}>Maple</div>
+            <div className={styles.stageOverlay} aria-label="Revealed layers">
+              {stageSteps.map((step, i) => (
+                <div
+                  key={step.label}
+                  className={`${styles.stageStep} ${(won || i <= stage) ? styles.stageStepActive : ''}`}
+                  title={step.label}
+                >
+                  <span>{step.icon}</span>
+                  <span className={styles.stageLabel}>{step.label}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+          {!import.meta.env.PROD ? (
+            <button
+              className={`${styles.devResetBtn} ${styles.mapDevResetBtn}`}
+              onClick={resetForDev}
+              title="Dev only — reset today"
+              aria-label="Reset today's Maple play on this device"
+            >
+              reset
+            </button>
+          ) : (
+            <span className={styles.mapTopSpacer} aria-hidden="true" />
+          )}
         </div>
       </div>
 
@@ -421,14 +531,16 @@ export function CityReveal() {
       <div className={styles.gamePanel}>
         <div className={styles.topBar}>
           <Link to="/" className={styles.backLink}>← Games</Link>
-          <button
-            className={`${styles.devResetBtn} ${import.meta.env.PROD ? styles.hiddenResetBtn : ''}`}
-            onClick={resetForDev}
-            title={import.meta.env.PROD ? 'Reset your local Maple play' : 'Dev only — reset today'}
-            aria-label="Reset today's Maple play on this device"
-          >
-            {import.meta.env.PROD ? 'reset' : 'dev reset'}
-          </button>
+          {!import.meta.env.PROD && (
+            <button
+              className={styles.devResetBtn}
+              onClick={resetForDev}
+              title="Dev only — reset today"
+              aria-label="Reset today's Maple play on this device"
+            >
+              dev reset
+            </button>
+          )}
         </div>
 
         <header className={styles.header}>
@@ -517,6 +629,50 @@ export function CityReveal() {
 
       {/* ── Celebration confetti ── */}
       {won && <Confetti />}
+
+      {/* ── Start explainer modal ── */}
+      {showIntroModal && (
+        <div
+          className={styles.introOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="maple-intro-title"
+          onKeyDown={handleIntroKeyDown}
+          onClick={handleStartMaple}
+        >
+          <div
+            className={styles.introCard}
+            onClick={(e) => { e.stopPropagation(); }}
+          >
+            <p className={styles.introEyebrow}>Daily map puzzle</p>
+            <h2 id="maple-intro-title" className={styles.introTitle}>How to play Maple</h2>
+            {prefersReducedMotion ? (
+              <p className={styles.introDemoFallback}>
+                Demo summary: wrong city guesses reveal map detail while distance clues point towards the answer.
+              </p>
+            ) : (
+              <img
+                className={styles.introDemo}
+                src="/assets/reveal-demo.gif"
+                alt="Animated demo showing a Maple city guess revealing more map detail and distance clues."
+              />
+            )}
+            <ul className={styles.introList}>
+              <li>Guess the hidden city from the map.</li>
+              <li>Each wrong guess reveals another map layer.</li>
+              <li>Distances and arrows point from your guess towards the answer.</li>
+            </ul>
+            <button
+              ref={introStartButtonRef}
+              type="button"
+              className={styles.introStartBtn}
+              onClick={handleStartMaple}
+            >
+              Start playing
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Landmark modal ── */}
       {selectedLandmark && (

@@ -73,3 +73,8 @@
 .optionName {
   font-size: 0.9rem;
 }
+
+.match {
+  font-weight: 800;
+  color: inherit;
+}

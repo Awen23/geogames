@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
 
+test.describe.configure({ mode: 'serial' });
+
 /**
  * Integration tests for the game result endpoints.
  * These exercise the full write path: result submission → daily_stats roll-up → stats read-back.

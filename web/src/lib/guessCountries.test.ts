@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COUNTRIES, searchCountries } from '@shared/guessCountries';
+import { COUNTRIES, searchCountries, searchCountryMatches } from '@shared/guessCountries';
 import { VALID_COUNTRY_ISO3S } from '@shared/countryIso3';
 
 describe('guess countries', () => {
@@ -23,5 +23,19 @@ describe('guess countries', () => {
 
   it('normalises accents when searching', () => {
     expect(searchCountries('sao tome')[0]?.iso3).toBe('STP');
+  });
+
+  it('matches country names with arbitrary characters between typed characters', () => {
+    const result = searchCountryMatches('sya').find((match) => match.country.iso3 === 'SYR');
+
+    expect(result?.country.name).toBe('Syria');
+    expect(result ? [...result.nameMatchIndices] : []).toEqual([0, 1, 4]);
+  });
+
+  it('keeps typo matches after ranked text matches', () => {
+    const results = searchCountries('lichsteinstein');
+
+    expect(results[0]?.iso3).toBe('LIE');
+    expect(results.findIndex((country) => country.iso3 === 'LIE')).toBeGreaterThanOrEqual(0);
   });
 });

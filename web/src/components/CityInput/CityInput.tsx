@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { CityRevealCity } from '@shared/cityRevealTypes';
 import { flagEmoji } from '@shared/cityRevealTypes';
+import { searchCityRevealCities } from '../../lib/cityRevealSearch';
+import type { CityRevealSearchResult } from '../../lib/cityRevealSearch';
 import styles from './CityInput.module.css';
 
 interface CityInputProps {
@@ -11,6 +13,18 @@ interface CityInputProps {
   loading: boolean;
 }
 
+function renderHighlightedText(value: string, matchIndices: Set<number>) {
+  return Array.from(value).map((char, index) => (
+    matchIndices.has(index) ? (
+      <strong key={`${char}-${index}`} className={styles.match}>
+        {char}
+      </strong>
+    ) : (
+      <span key={`${char}-${index}`}>{char}</span>
+    )
+  ));
+}
+
 export function CityInput({ cities, guessedIds, onGuess, disabled, loading }: CityInputProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -18,23 +32,8 @@ export function CityInput({ cities, guessedIds, onGuess, disabled, loading }: Ci
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filtered = useMemo<CityRevealCity[]>(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) { return []; }
-    return cities
-      .filter((c) => !guessedIds.has(c.id))
-      .filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.country.toLowerCase().includes(q),
-      )
-      .sort((a, b) => {
-        // Exact city-name prefix sorts first
-        const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1;
-        const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1;
-        return aStarts - bStarts || a.name.localeCompare(b.name);
-      })
-      .slice(0, 8);
+  const filtered = useMemo<CityRevealSearchResult[]>(() => {
+    return searchCityRevealCities(cities, query, guessedIds);
   }, [query, cities, guessedIds]);
 
   // Close dropdown on click outside
@@ -45,7 +44,9 @@ export function CityInput({ cities, guessedIds, onGuess, disabled, loading }: Ci
       }
     }
     document.addEventListener('pointerdown', onPointerDown);
-    return () => { document.removeEventListener('pointerdown', onPointerDown); };
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, []);
 
   const handleSelect = useCallback(
@@ -59,7 +60,9 @@ export function CityInput({ cities, guessedIds, onGuess, disabled, loading }: Ci
   );
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || filtered.length === 0) { return; }
+    if (!open || filtered.length === 0) {
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setHighlightIdx((i) => Math.min(i + 1, filtered.length - 1));
@@ -68,7 +71,9 @@ export function CityInput({ cities, guessedIds, onGuess, disabled, loading }: Ci
       setHighlightIdx((i) => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filtered[highlightIdx]) { handleSelect(filtered[highlightIdx]); }
+      if (filtered[highlightIdx]) {
+        handleSelect(filtered[highlightIdx].city);
+      }
     } else if (e.key === 'Escape') {
       setOpen(false);
     }
@@ -92,7 +97,11 @@ export function CityInput({ cities, guessedIds, onGuess, disabled, loading }: Ci
             setOpen(true);
             setHighlightIdx(0);
           }}
-          onFocus={() => { if (query) { setOpen(true); } }}
+          onFocus={() => {
+            if (query) {
+              setOpen(true);
+            }
+          }}
           onKeyDown={handleKeyDown}
           placeholder="Enter a city or country…"
           disabled={isDisabled}
@@ -105,22 +114,29 @@ export function CityInput({ cities, guessedIds, onGuess, disabled, loading }: Ci
 
       {open && filtered.length > 0 && (
         <ul className={styles.dropdown} role="listbox" aria-label="City suggestions">
-          {filtered.map((city, i) => (
+          {filtered.map((result, i) => (
             <li
-              key={city.id}
+              key={result.city.id}
               role="option"
               aria-selected={i === highlightIdx}
+              aria-label={`${result.city.name} ${result.city.country}`}
               className={`${styles.option} ${i === highlightIdx ? styles.optionHighlighted : ''}`}
               onPointerDown={(e) => {
                 // Use pointerdown so the input blur doesn't close the list first
                 e.preventDefault();
-                handleSelect(city);
+                handleSelect(result.city);
               }}
-              onMouseEnter={() => { setHighlightIdx(i); }}
+              onMouseEnter={() => {
+                setHighlightIdx(i);
+              }}
             >
-              <span className={styles.flag}>{flagEmoji(city.countryCode)}</span>
-              <span className={styles.cityName}>{city.name},</span>
-              <span className={styles.countryName}>{city.country}</span>
+              <span className={styles.flag}>{flagEmoji(result.city.countryCode)}</span>
+              <span className={styles.cityName}>
+                {renderHighlightedText(result.city.name, result.cityMatchIndices)}
+              </span>
+              <span className={styles.countryName}>
+                {renderHighlightedText(result.city.country, result.countryMatchIndices)}
+              </span>
             </li>
           ))}
         </ul>

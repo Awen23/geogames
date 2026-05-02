@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useId } from 'react';
-import { type CountryEntry, iso2ToFlag, searchCountries } from '@shared/guessCountries';
+import { type CountryEntry, type CountrySearchResult, iso2ToFlag, searchCountryMatches } from '@shared/guessCountries';
 import styles from './CountryInput.module.css';
 
 interface CountryInputProps {
@@ -10,6 +10,18 @@ interface CountryInputProps {
   clearOnSelect?: boolean;
 }
 
+function renderHighlightedText(value: string, matchIndices: Set<number>) {
+  return Array.from(value).map((char, index) => (
+    matchIndices.has(index) ? (
+      <strong key={`${char}-${index}`} className={styles.match}>
+        {char}
+      </strong>
+    ) : (
+      <span key={`${char}-${index}`}>{char}</span>
+    )
+  ));
+}
+
 export function CountryInput({
   onSelect,
   excludeIso3s = [],
@@ -17,7 +29,7 @@ export function CountryInput({
   clearOnSelect = true,
 }: CountryInputProps) {
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<CountryEntry[]>([]);
+  const [suggestions, setSuggestions] = useState<CountrySearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -31,7 +43,7 @@ export function CountryInput({
         setOpen(false);
         return;
       }
-      const results = searchCountries(q, 8).filter((c) => !excludeIso3s.includes(c.iso3));
+      const results = searchCountryMatches(q, 8).filter((result) => !excludeIso3s.includes(result.country.iso3));
       setSuggestions(results);
       setOpen(results.length > 0);
       setActiveIndex(-1);
@@ -60,7 +72,9 @@ export function CountryInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open) { return; }
+    if (!open) {
+      return;
+    }
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -73,9 +87,9 @@ export function CountryInput({
       case 'Enter':
         e.preventDefault();
         if (activeIndex >= 0 && suggestions[activeIndex]) {
-          commit(suggestions[activeIndex]);
+          commit(suggestions[activeIndex].country);
         } else if (suggestions.length === 1) {
-          commit(suggestions[0]);
+          commit(suggestions[0].country);
         }
         break;
       case 'Escape':
@@ -87,7 +101,9 @@ export function CountryInput({
 
   // Scroll active item into view
   useEffect(() => {
-    if (activeIndex < 0 || !listRef.current) { return; }
+    if (activeIndex < 0 || !listRef.current) {
+      return;
+    }
     const item = listRef.current.children[activeIndex] as HTMLElement | undefined;
     item?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex]);
@@ -108,7 +124,9 @@ export function CountryInput({
 
   // Refresh suggestions when excluded countries change (after a guess)
   useEffect(() => {
-    if (query) { updateSuggestions(query); }
+    if (query) {
+      updateSuggestions(query);
+    }
   }, [excludeIso3s, query, updateSuggestions]);
 
   return (
@@ -123,7 +141,11 @@ export function CountryInput({
         value={query}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onFocus={() => { if (query) { updateSuggestions(query); } }}
+        onFocus={() => {
+          if (query) {
+            updateSuggestions(query);
+          }
+        }}
         placeholder="Type a country name…"
         disabled={disabled}
         autoComplete="off"
@@ -142,21 +164,25 @@ export function CountryInput({
           role="listbox"
           aria-label="Country suggestions"
         >
-          {suggestions.map((entry, i) => (
+          {suggestions.map((suggestion, i) => (
             <li
-              key={entry.iso3}
+              key={suggestion.country.iso3}
               id={`${listboxId}-option-${i}`}
               role="option"
               aria-selected={i === activeIndex}
               className={`${styles.option} ${i === activeIndex ? styles.optionActive : ''}`}
               onMouseDown={(e) => {
                 e.preventDefault(); // keep focus on input
-                commit(entry);
+                commit(suggestion.country);
               }}
-              onMouseEnter={() => setActiveIndex(i)}
+              onMouseEnter={() => {
+                setActiveIndex(i);
+              }}
             >
-              <span className={styles.flag}>{iso2ToFlag(entry.iso2)}</span>
-              <span className={styles.optionName}>{entry.name}</span>
+              <span className={styles.flag}>{iso2ToFlag(suggestion.country.iso2)}</span>
+              <span className={styles.optionName}>
+                {renderHighlightedText(suggestion.country.name, suggestion.nameMatchIndices)}
+              </span>
             </li>
           ))}
         </ul>
