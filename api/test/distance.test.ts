@@ -1,10 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { bearingDeg, haversineKm } from '@shared/distance';
-import { bearingToArrow } from '@shared/cityRevealTypes';
 
 describe('bearingDeg (flat-map equirectangular)', () => {
-  const TOLERANCE = 1; // degrees
-
   it('due north', () => {
     expect(bearingDeg({ lat: 0, lon: 0 }, { lat: 10, lon: 0 })).toBeCloseTo(0, 0);
   });
@@ -44,7 +41,6 @@ describe('bearingDeg (flat-map equirectangular)', () => {
     }
   });
 
-
 });
 
 describe('haversineKm', () => {
@@ -65,34 +61,3 @@ describe('haversineKm', () => {
   });
 });
 
-describe('bearingToArrow', () => {
-  it('maps all 8 cardinal/diagonal centres correctly', () => {
-    expect(bearingToArrow(0)).toBe('⬆️');
-    expect(bearingToArrow(45)).toBe('↗️');
-    expect(bearingToArrow(90)).toBe('➡️');
-    expect(bearingToArrow(135)).toBe('↘️');
-    expect(bearingToArrow(180)).toBe('⬇️');
-    expect(bearingToArrow(225)).toBe('↙️');
-    expect(bearingToArrow(270)).toBe('⬅️');
-    expect(bearingToArrow(315)).toBe('↖️');
-  });
-
-  it('sector boundaries: 22° → north, 23° → northeast', () => {
-    expect(bearingToArrow(22)).toBe('⬆️');
-    expect(bearingToArrow(23)).toBe('↗️');
-  });
-
-  it('360° wraps to north', () => {
-    expect(bearingToArrow(360)).toBe('⬆️');
-  });
-
-  it('N/NW boundary: 337° → northwest, 338° → north', () => {
-    expect(bearingToArrow(337)).toBe('↖️');
-    expect(bearingToArrow(338)).toBe('⬆️');
-  });
-
-  it('handles negative bearings gracefully', () => {
-    expect(bearingToArrow(-45)).toBe('↖️');
-    expect(bearingToArrow(-90)).toBe('⬅️');
-  });
-});

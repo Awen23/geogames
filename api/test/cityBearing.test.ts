@@ -109,7 +109,41 @@ describe('flat-map bearing values (city pairs)', () => {
       const fwd = bearingDeg(city(a), city(b));
       const rev = bearingDeg(city(b), city(a));
       const diff = Math.abs(((rev - fwd + 360) % 360) - 180);
-      expect(diff).toBeLessThan(5); // near-antipodal pairs may deviate slightly
+      // midLat is identical for both directions, so the formula is exactly
+      // symmetric up to floating-point rounding
+      expect(diff).toBeLessThan(0.001);
     }
+  });
+});
+
+describe('bearingToArrow', () => {
+  it('maps all 8 cardinal/diagonal centres correctly', () => {
+    expect(bearingToArrow(0)).toBe('⬆️');
+    expect(bearingToArrow(45)).toBe('↗️');
+    expect(bearingToArrow(90)).toBe('➡️');
+    expect(bearingToArrow(135)).toBe('↘️');
+    expect(bearingToArrow(180)).toBe('⬇️');
+    expect(bearingToArrow(225)).toBe('↙️');
+    expect(bearingToArrow(270)).toBe('⬅️');
+    expect(bearingToArrow(315)).toBe('↖️');
+  });
+
+  it('sector boundaries: 22° → north, 23° → northeast', () => {
+    expect(bearingToArrow(22)).toBe('⬆️');
+    expect(bearingToArrow(23)).toBe('↗️');
+  });
+
+  it('N/NW boundary: 337° → northwest, 338° → north', () => {
+    expect(bearingToArrow(337)).toBe('↖️');
+    expect(bearingToArrow(338)).toBe('⬆️');
+  });
+
+  it('360° wraps to north', () => {
+    expect(bearingToArrow(360)).toBe('⬆️');
+  });
+
+  it('handles negative bearings gracefully', () => {
+    expect(bearingToArrow(-45)).toBe('↖️');
+    expect(bearingToArrow(-90)).toBe('⬅️');
   });
 });
