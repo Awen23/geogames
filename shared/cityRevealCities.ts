@@ -425,7 +425,14 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     landmarks: [
       { label: 'Cristo del Picacho', lat: 14.0786, lon: -87.1874, wikiTitle: 'El Cristo del Picacho (Honduras)' },
       { label: 'Basílica de Nuestra Señora de Suyapa', lat: 14.0644, lon: -87.1928, wikiTitle: 'Basílica de Suyapa' },
-      { label: 'Campo Marte', lat: 14.0983, lon: -87.2058, wikiTitle: 'Campo Marte' },
+      {
+        label: 'Monumento a la Paz',
+        lat: 14.0943,
+        lon: -87.2013,
+        wikiTitle: 'Tegucigalpa',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Monumento_a_la_paz_Tegucigalpa.jpg/500px-Monumento_a_la_paz_Tegucigalpa.jpg',
+      },
     ],
   },
   {
