@@ -13,7 +13,9 @@ import { cityRevealRouter } from './routes/cityReveal';
 
 const MAP_NETWORK_ORIGINS = [
   'https://api.maptiler.com',
-  'https://en.wikipedia.org',
+  // City Reveal landmark thumbnails: en first, then es (many LATAM articles are es-only).
+  'https://*.wikipedia.org',
+  'https://commons.wikimedia.org',
 ];
 const MAP_IMAGE_ORIGINS = ['https://api.maptiler.com', 'https://upload.wikimedia.org'];
 
