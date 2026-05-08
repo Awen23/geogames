@@ -71,6 +71,17 @@ describe('flat-map bearing arrows (city pairs)', () => {
     expect(arrow('paris', 'moscow')).toBe('➡️');
   });
 
+  // Antimeridian cases: the shorter flat-map path crosses the date line.
+  // Without dLon normalisation the formula takes the long way east and gives
+  // a completely wrong arrow.
+  it('Chicago → Perth: southwest (↙️) — shorter path goes west across the Pacific', () => {
+    expect(arrow('chicago', 'perth')).toBe('↙️');
+  });
+
+  it('Perth → Chicago: northeast (↗️)', () => {
+    expect(arrow('perth', 'chicago')).toBe('↗️');
+  });
+
   it('Tokyo → Beijing: west (⬅️) — cities are nearly the same latitude so it is mostly a horizontal shift', () => {
     expect(arrow('tokyo', 'beijing')).toBe('⬅️');
   });

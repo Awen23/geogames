@@ -28,7 +28,11 @@ export function haversineKm(a: LatLon, b: LatLon): number {
  */
 export function bearingDeg(from: LatLon, to: LatLon): number {
   const midLat = toRad((from.lat + to.lat) / 2);
-  const dx = (to.lon - from.lon) * Math.cos(midLat);
+  // Normalise longitude difference to [-180, 180] so we always take the
+  // shorter path on the flat map rather than wrapping around the antimeridian.
+  const rawDLon = to.lon - from.lon;
+  const dLon = ((rawDLon + 180) % 360 + 360) % 360 - 180;
+  const dx = dLon * Math.cos(midLat);
   const dy = to.lat - from.lat;
   return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360;
 }
