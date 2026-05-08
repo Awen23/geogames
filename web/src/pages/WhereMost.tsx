@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { TodayResponse, GuessResult, Tier, WhereMostStatsResponse } from '@shared/types';
 import { CountryInput } from '../components/CountryInput/CountryInput';
@@ -22,31 +22,34 @@ interface Guess {
   result: GuessResult;
 }
 
-const TIER_BADGE: Record<Tier, string> = {
+interface RankedGuess extends Guess {
+  result: GuessResult & {
+    rank: number;
+    value: number;
+    tier: Exclude<Tier, 'no-data'>;
+  };
+}
+
+const TIER_BADGE: Record<Exclude<Tier, 'no-data'>, string> = {
   found: '🟩',
   warm: '🟨',
   cold: '⬛',
-  'no-data': '⬜',
 };
 
-function GuessRow({ guess, unit }: { guess: Guess; unit: string }) {
+function isRankedGuess(guess: Guess): guess is RankedGuess {
+  return guess.result.tier !== 'no-data' && guess.result.rank !== null && guess.result.value !== null;
+}
+
+function GuessRow({ guess, unit }: { guess: RankedGuess; unit: string }) {
   const { iso3, result } = guess;
-  const stats =
-    result.tier === 'no-data' ? (
-      <span className={styles.guessUnranked}>No data for this metric</span>
-    ) : result.rank !== null ? (
-      <span className={styles.guessRank}>
-        #{result.rank}{result.value != null ? ` · ${result.value.toFixed(2)} ${unit}` : ''}
-      </span>
-    ) : (
-      <span className={styles.guessUnranked}>Not in today&apos;s top five</span>
-    );
 
   return (
     <li className={`${styles.guessItem} ${styles[`tier-${result.tier}`]}`}>
       <span className={styles.guessBadge}>{TIER_BADGE[result.tier]}</span>
       <span className={styles.guessName}>{displayName(iso3)}</span>
-      <span className={styles.guessStats}>{stats}</span>
+      <span className={styles.guessStats}>
+        <span className={styles.guessRank}>#{result.rank} · {result.value.toFixed(2)} {unit}</span>
+      </span>
     </li>
   );
 }
@@ -97,15 +100,20 @@ export function WhereMost() {
   /** Counts every successful /grade call (including no-data) so MAX_TOTAL_SELECTIONS still applies. */
   const [totalGradedRounds, setTotalGradedRounds] = useState(0);
   const [noDataNoticeIso3, setNoDataNoticeIso3] = useState<string | null>(null);
+  const [isMapExpanded, setMapExpanded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const expandMapButtonRef = useRef<HTMLButtonElement>(null);
+  const gradingInFlightRef = useRef(false);
+  const closeMapButtonRef = useRef<HTMLButtonElement>(null);
+  const mapDialogRef = useRef<HTMLDivElement>(null);
 
   const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
   const liveFoundCount = guesses.filter((g) => g.result.isTopFive).length;
   const slotGuessCount = guesses.filter((g) => g.result.tier !== 'no-data').length;
   const displayGuesses = guesses.length > 0 ? guesses : replayGuesses;
+  const rankedDisplayGuesses = displayGuesses.filter(isRankedGuess);
   const displaySlotCount = displayGuesses.filter((g) => g.result.tier !== 'no-data').length;
   const displayFoundFromGuesses = displayGuesses.filter((g) => g.result.isTopFive).length;
   const isGameOver =
@@ -136,6 +144,63 @@ export function WhereMost() {
       window.clearTimeout(t);
     };
   }, [noDataNoticeIso3]);
+
+  useEffect(() => {
+    if (!isMapExpanded) {
+      return;
+    }
+
+    closeMapButtonRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMapExpanded(false);
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusableElements = Array.from(
+        mapDialogRef.current?.querySelectorAll<HTMLElement>(
+          'button, iframe, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((element) => !element.hasAttribute('disabled'));
+
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (!mapDialogRef.current?.contains(document.activeElement)) {
+        event.preventDefault();
+        firstElement.focus();
+        return;
+      }
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+        return;
+      }
+
+      if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      expandMapButtonRef.current?.focus();
+    };
+  }, [isMapExpanded]);
+
   const scoreVal = progressScore(displayGuesses);
   const maxScoreVal = today?.maxScore ?? 0;
 
@@ -260,14 +325,14 @@ export function WhereMost() {
 
   const handleCountrySelect = useCallback(
     async (iso3: string) => {
-      if (isGameOver || submitting || !today) {
+      if (isGameOver || gradingInFlightRef.current || !today) {
         return;
       }
       if (excludedIso3s.includes(iso3)) {
         return;
       }
 
-      setSubmitting(true);
+      gradingInFlightRef.current = true;
       try {
         const result = await gradeGuess(iso3);
         const nextTotalRounds = totalGradedRounds + 1;
@@ -294,10 +359,10 @@ export function WhereMost() {
       } catch (err) {
         console.error('Failed to grade guess:', err);
       } finally {
-        setSubmitting(false);
+        gradingInFlightRef.current = false;
       }
     },
-    [guesses, excludedIso3s, isGameOver, submitting, today, handleEndGame, totalGradedRounds],
+    [guesses, excludedIso3s, isGameOver, today, handleEndGame, totalGradedRounds],
   );
 
   if (loading) {
@@ -380,9 +445,9 @@ export function WhereMost() {
       )}
 
       {/* Guess list */}
-      {displayGuesses.length > 0 && (
+      {rankedDisplayGuesses.length > 0 && (
         <ul className={styles.guessList} data-testid="guess-list">
-          {displayGuesses.map((g, i) => (
+          {rankedDisplayGuesses.map((g, i) => (
             <GuessRow key={i} guess={g} unit={today.unit} />
           ))}
         </ul>
@@ -393,7 +458,7 @@ export function WhereMost() {
         <CountryInput
           onSelect={handleCountrySelect}
           excludeIso3s={excludedIso3s}
-          disabled={isGameOver || submitting}
+          disabled={isGameOver}
         />
       )}
 
@@ -413,11 +478,11 @@ export function WhereMost() {
             </p>
           </div>
 
-          {displayGuesses.length > 0 && (
+          {rankedDisplayGuesses.length > 0 && (
             <ShareCard
               gameTitle="Mostle"
               date={today.date}
-              guesses={displayGuesses.map((g) => g.result).filter((r) => r.tier !== 'no-data')}
+              guesses={rankedDisplayGuesses.map((g) => g.result)}
               maxGuesses={MAX_GUESSES}
               foundCount={displayFoundFromGuesses}
               topCount={TOP_N}
@@ -438,13 +503,31 @@ export function WhereMost() {
               <h3 className={styles.sectionTitle}>{today.metric}</h3>
             </div>
             <p className={styles.mapLabel}>Explore the complete OWID world map for this metric.</p>
-            <iframe
-              className={styles.mapEmbed}
-              src={today.mapEmbedUrl}
-              title={`${today.metric} choropleth map`}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
+            <div className={styles.mapFrame}>
+              <button
+                ref={expandMapButtonRef}
+                type="button"
+                className={styles.expandMapButton}
+                onClick={() => {
+                  setMapExpanded(true);
+                }}
+                aria-label="Expand map"
+                title="Expand map"
+              >
+                <svg className={styles.expandMapIcon} viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M8 3H3v5M3 3l7 7M16 21h5v-5M21 21l-7-7" />
+                </svg>
+              </button>
+              {!isMapExpanded && (
+                <iframe
+                  className={styles.mapEmbed}
+                  src={today.mapEmbedUrl}
+                  title={`${today.metric} choropleth map`}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              )}
+            </div>
           </div>
 
           <div className={styles.streakRow}>
@@ -453,6 +536,51 @@ export function WhereMost() {
           </div>
 
           <Link to="/" className={styles.hubLink}>More games →</Link>
+        </div>
+      )}
+
+      {isMapExpanded && (
+        <div
+          className={styles.mapOverlay}
+          role="presentation"
+          onClick={() => {
+            setMapExpanded(false);
+          }}
+        >
+          <div
+            ref={mapDialogRef}
+            className={styles.mapDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="expanded-map-title"
+            onClick={(event) => {
+              event.stopPropagation();
+            }}
+          >
+            <div className={styles.mapDialogHeader}>
+              <div className={styles.mapDialogTitleGroup}>
+                <p className={styles.sectionKicker}>Full data</p>
+                <h3 id="expanded-map-title" className={styles.sectionTitle}>{today.metric}</h3>
+              </div>
+              <button
+                ref={closeMapButtonRef}
+                type="button"
+                className={styles.mapDialogClose}
+                onClick={() => {
+                  setMapExpanded(false);
+                }}
+                aria-label="Close expanded map"
+              >
+                Close
+              </button>
+            </div>
+            <iframe
+              className={styles.expandedMapEmbed}
+              src={today.mapEmbedUrl}
+              title={`${today.metric} expanded choropleth map`}
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
         </div>
       )}
     </div>

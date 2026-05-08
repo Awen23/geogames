@@ -54,7 +54,7 @@ function parseCsvLine(line: string): string[] {
 
 /**
  * Parses an OWID-format CSV (Entity, Code, Year, value column, optional metadata columns) for one year.
- * Ranking: recognised countries only, value > 0, sorted descending.
+ * Ranking: recognised countries only, finite values, sorted descending.
  * coveredIsoCodes: every 3-letter code with a finite value for that year (used for cold vs no-data).
  */
 export function loadQuestionData(
@@ -91,7 +91,7 @@ export function loadQuestionData(
 
     covered.add(iso3);
 
-    if (value > 0 && VALID_COUNTRY_ISO3S.has(iso3)) {
+    if (VALID_COUNTRY_ISO3S.has(iso3)) {
       rows.push({ iso3, value: Math.round(value * 1000) / 1000 });
     }
   }

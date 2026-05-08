@@ -12,4 +12,11 @@ describe('loadQuestionData', () => {
     expect(rankedIso3s.has('OWID_WRL')).toBe(false);
     expect(data.coveredIsoCodes).toContain('HKG');
   });
+
+  it('keeps zero-valued recognised countries rankable', () => {
+    const data = loadQuestionData('share-electricity-wind.csv', 2025);
+    const paraguay = data.ranking.find((country) => country.iso3 === 'PRY');
+
+    expect(paraguay).toEqual({ iso3: 'PRY', value: 0 });
+  });
 });

@@ -25,6 +25,11 @@ describe('guess countries', () => {
     expect(searchCountries('sao tome')[0]?.iso3).toBe('STP');
   });
 
+  it('prioritises exact alias matches', () => {
+    expect(searchCountries('USA')[0]?.iso3).toBe('USA');
+    expect(searchCountries('UAE')[0]?.iso3).toBe('ARE');
+  });
+
   it('matches country names with arbitrary characters between typed characters', () => {
     const result = searchCountryMatches('sya').find((match) => match.country.iso3 === 'SYR');
 

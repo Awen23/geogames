@@ -46,7 +46,7 @@ export function CountryInput({
       const results = searchCountryMatches(q, 8).filter((result) => !excludeIso3s.includes(result.country.iso3));
       setSuggestions(results);
       setOpen(results.length > 0);
-      setActiveIndex(-1);
+      setActiveIndex(results.length > 0 ? 0 : -1);
     },
     [excludeIso3s],
   );
@@ -86,10 +86,8 @@ export function CountryInput({
         break;
       case 'Enter':
         e.preventDefault();
-        if (activeIndex >= 0 && suggestions[activeIndex]) {
-          commit(suggestions[activeIndex].country);
-        } else if (suggestions.length === 1) {
-          commit(suggestions[0].country);
+        if (suggestions.length > 0) {
+          commit(suggestions[Math.max(activeIndex, 0)].country);
         }
         break;
       case 'Escape':

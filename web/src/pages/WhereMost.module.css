@@ -153,7 +153,6 @@
 .guessItem.tier-found { border-left-color: var(--colour-bullseye); }
 .guessItem.tier-warm  { border-left-color: var(--colour-top15); }
 .guessItem.tier-cold  { border-left-color: var(--colour-cold); }
-.guessItem.tier-no-data { border-left-color: var(--colour-border); }
 
 .guessBadge {
   font-size: 0.85rem;
@@ -181,12 +180,6 @@
   color: var(--colour-text);
   font-variant-numeric: tabular-nums;
 }
-
-.guessUnranked {
-  font-size: 0.8rem;
-  color: var(--colour-text-muted);
-}
-
 
 /* End screen */
 .endScreen {
@@ -333,11 +326,110 @@
   text-align: center;
 }
 
-.mapEmbed {
+.mapFrame {
+  position: relative;
   width: 100%;
   height: 400px;
+}
+
+.expandMapButton {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--colour-surface-raised) 92%, transparent);
+  border: 1px solid var(--colour-border);
+  color: var(--colour-text);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--colour-bg) 60%, transparent);
+}
+
+.expandMapButton:hover {
+  border-color: var(--colour-accent-hover);
+  color: var(--colour-accent-hover);
+}
+
+.expandMapIcon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mapEmbed {
+  width: 100%;
+  height: 100%;
   border: none;
   border-radius: 8px;
+  background: var(--colour-surface);
+}
+
+.mapDialogClose {
+  padding: var(--space-2) var(--space-3);
+  border-radius: 999px;
+  background: var(--colour-surface-raised);
+  border: 1px solid var(--colour-border);
+  color: var(--colour-text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.mapDialogClose:hover {
+  border-color: var(--colour-accent-hover);
+  color: var(--colour-accent-hover);
+}
+
+.mapOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--colour-bg) 86%, transparent);
+}
+
+.mapDialog {
+  width: min(1200px, 100%);
+  height: min(820px, 92vh);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: 14px;
+  background: var(--colour-bg);
+  border: 1px solid var(--colour-border);
+  box-shadow: 0 24px 80px color-mix(in srgb, var(--colour-bg) 70%, transparent);
+}
+
+.mapDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.mapDialogTitleGroup {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expandedMapEmbed {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
   background: var(--colour-surface);
 }
 
@@ -375,5 +467,18 @@
 
   .questionIcon {
     font-size: 2.2rem;
+  }
+
+  .mapOverlay {
+    padding: var(--space-2);
+  }
+
+  .mapDialog {
+    height: 94vh;
+    padding: var(--space-3);
+  }
+
+  .mapDialogHeader {
+    align-items: flex-start;
   }
 }
