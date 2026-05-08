@@ -19,13 +19,16 @@ export function haversineKm(a: LatLon, b: LatLon): number {
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 
-/** Returns bearing in degrees [0, 360) from a to b */
+/**
+ * Returns the flat-map bearing in degrees [0, 360) from a to b.
+ * Uses an equirectangular approximation so the arrow matches the visual
+ * direction on a standard (Mercator/euro-centric) map projection rather
+ * than the great-circle initial bearing, which curves toward the poles
+ * and feels wrong for distant cities.
+ */
 export function bearingDeg(from: LatLon, to: LatLon): number {
-  const lat1 = toRad(from.lat);
-  const lat2 = toRad(to.lat);
-  const dLon = toRad(to.lon - from.lon);
-  const y = Math.sin(dLon) * Math.cos(lat2);
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+  const midLat = toRad((from.lat + to.lat) / 2);
+  const dx = (to.lon - from.lon) * Math.cos(midLat);
+  const dy = to.lat - from.lat;
+  return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360;
 }
