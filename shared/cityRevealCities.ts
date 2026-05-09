@@ -19,6 +19,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'paris',
+    implemented: true,
     name: 'Paris',
     country: 'France',
     countryCode: 'FR',
@@ -117,6 +118,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'stockholm',
+    implemented: true,
     name: 'Stockholm',
     country: 'Sweden',
     countryCode: 'SE',
@@ -287,6 +289,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'singapore',
+    implemented: true,
     name: 'Singapore',
     country: 'Singapore',
     countryCode: 'SG',
@@ -294,7 +297,14 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     lon: 103.8198,
     zoom: 12,
     landmarks: [
-      { label: 'Marina Bay Sands', lat: 1.2834, lon: 103.8607, wikiTitle: 'Marina Bay Sands' },
+      {
+        label: 'Botanic Gardens',
+        lat: 1.3151,
+        lon: 103.8162,
+        wikiTitle: 'Singapore Botanic Gardens',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Symphony_Lake%2C_Singapore_Botanic_Gardens_-_20041025.jpg/500px-Symphony_Lake%2C_Singapore_Botanic_Gardens_-_20041025.jpg',
+      },
       { label: 'Gardens by the Bay', lat: 1.2816, lon: 103.8636, wikiTitle: 'Gardens by the Bay' },
       { label: 'Merlion', lat: 1.2868, lon: 103.8545, wikiTitle: 'Merlion' },
     ],
@@ -744,14 +754,22 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   // ── Middle East ───────────────────────────────────────────────────────────
   {
     id: 'dubai',
+    implemented: true,
     name: 'Dubai',
     country: 'UAE',
     countryCode: 'AE',
-    lat: 25.2048,
-    lon: 55.2708,
-    zoom: 12,
+    lat: 25.1896,
+    lon: 55.2393,
+    zoom: 11,
     landmarks: [
-      { label: 'Burj Khalifa', lat: 25.1972, lon: 55.2744, wikiTitle: 'Burj Khalifa' },
+      {
+        label: 'Burj Khalifa',
+        lat: 25.1972,
+        lon: 55.2744,
+        wikiTitle: 'Burj Khalifa',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/en/thumb/9/93/Burj_Khalifa.jpg/500px-Burj_Khalifa.jpg',
+      },
       { label: 'Palm Jumeirah', lat: 25.1124, lon: 55.1390, wikiTitle: 'Palm Jumeirah' },
       { label: '______ Creek', lat: 25.2593, lon: 55.3046, wikiTitle: 'Dubai Creek' },
     ],
@@ -786,6 +804,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'tehran',
+    implemented: true,
     name: 'Tehran',
     country: 'Iran',
     countryCode: 'IR',
@@ -1055,6 +1074,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'chicago',
+    implemented: true,
     name: 'Chicago',
     country: 'United States',
     countryCode: 'US',
@@ -1064,7 +1084,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     landmarks: [
       { label: 'Cloud Gate', lat: 41.8827, lon: -87.6233, wikiTitle: 'Cloud Gate' },
       { label: 'Willis Tower', lat: 41.8789, lon: -87.6359, wikiTitle: 'Willis Tower' },
-      { label: 'Art Institute of ______', lat: 41.8796, lon: -87.6237, wikiTitle: 'Art Institute of Chicago' },
+      { label: 'Navy Pier', lat: 41.8914, lon: -87.5997, wikiTitle: 'Navy Pier' },
     ],
   },
   // ── Oceania (additional) ─────────────────────────────────────────────────
@@ -1241,16 +1261,17 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'reykjavik',
+    implemented: true,
     name: 'Reykjavik',
     country: 'Iceland',
     countryCode: 'IS',
-    lat: 64.1355,
-    lon: -21.8954,
-    zoom: 13,
+    lat: 64.1397,
+    lon: -21.9313,
+    zoom: 12,
     landmarks: [
       { label: 'Hallgrímskirkja', lat: 64.1422, lon: -21.9266, wikiTitle: 'Hallgrímskirkja' },
-      { label: 'Sun Voyager', lat: 64.1502, lon: -21.9393, wikiTitle: 'Sun Voyager' },
-      { label: 'Laugardalur', lat: 64.1283, lon: -21.9043, wikiTitle: 'Laugardalur' },
+      { label: 'Sun Voyager', lat: 64.147517, lon: -21.9235557, wikiTitle: 'Sun Voyager' },
+      { label: 'Perlan', lat: 64.1292, lon: -21.9189, wikiTitle: 'Perlan' },
     ],
   },
   // ── Asia (more) ────────────────────────────────────────────────────────────
@@ -1496,6 +1517,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'abidjan',
+    implemented: true,
     name: 'Abidjan',
     country: 'Côte d\'Ivoire',
     countryCode: 'CI',
@@ -1503,9 +1525,23 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     lon: -4.0083,
     zoom: 12,
     landmarks: [
-      { label: "Saint Paul's Cathedral", lat: 5.3473, lon: -4.0147, wikiTitle: "Saint Paul's Cathedral, Abidjan" },
+      {
+        label: "Saint Paul's Cathedral",
+        lat: 5.3473,
+        lon: -4.0147,
+        wikiTitle: "Saint Paul's Cathedral, Abidjan",
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Cath%C3%A9drale_Saint-Paul_d%27Abidjan_en_vue_panoramique.jpg/500px-Cath%C3%A9drale_Saint-Paul_d%27Abidjan_en_vue_panoramique.jpg',
+      },
       { label: 'Banco National Park', lat: 5.3920, lon: -4.0560, wikiTitle: 'Banco National Park' },
-      { label: 'Hôtel Ivoire', lat: 5.3399, lon: -4.0199, wikiTitle: 'Hôtel Ivoire' },
+      {
+        label: 'Le Plateau',
+        lat: 5.3236,
+        lon: -4.0167,
+        wikiTitle: 'Le Plateau, Abidjan',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c8/Le_Plateau_depuis_le_Pont_ADO_%E2%80%93_Abidjan.jpg/500px-Le_Plateau_depuis_le_Pont_ADO_%E2%80%93_Abidjan.jpg',
+      },
     ],
   },
   {
@@ -1608,16 +1644,38 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'windhoek',
+    implemented: true,
     name: 'Windhoek',
     country: 'Namibia',
     countryCode: 'NA',
-    lat: -22.5609,
-    lon: 17.0658,
-    zoom: 13,
+    lat: -22.5628,
+    lon: 17.0846,
+    zoom: 12,
     landmarks: [
-      { label: 'Christuskirche', lat: -22.5674, lon: 17.0870, wikiTitle: 'Christuskirche, Windhoek' },
-      { label: 'Independence Memorial Museum', lat: -22.5680, lon: 17.0866, wikiTitle: 'Independence Memorial Museum' },
-      { label: 'Tintenpalast', lat: -22.5649, lon: 17.0876, wikiTitle: 'Tintenpalast' },
+      {
+        label: 'Christuskirche',
+        lat: -22.5674,
+        lon: 17.0870,
+        wikiTitle: 'Christuskirche, Windhoek',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Christ_Church_in_Windhoek%2C_Namibia.jpg/500px-Christ_Church_in_Windhoek%2C_Namibia.jpg',
+      },
+      {
+        label: 'TransNamib Museum',
+        lat: -22.5593,
+        lon: 17.0813,
+        wikiTitle: 'Windhoek railway station',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f1/Bahnhof_Windhoek.jpg/500px-Bahnhof_Windhoek.jpg',
+      },
+      {
+        label: 'National Art Gallery',
+        lat: -22.5617,
+        lon: 17.0856,
+        wikiTitle: 'National Art Gallery of Namibia',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/de/thumb/0/0f/NAGN.jpg/500px-NAGN.jpg',
+      },
     ],
   },
   {
@@ -1692,16 +1750,24 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'antananarivo',
+    implemented: true,
     name: 'Antananarivo',
     country: 'Madagascar',
     countryCode: 'MG',
-    lat: -18.8792,
-    lon: 47.5079,
+    lat: -18.9141,
+    lon: 47.5168,
     zoom: 12,
     landmarks: [
       { label: 'Rova of ______', lat: -18.9237, lon: 47.5328, wikiTitle: 'Rova of Antananarivo' },
       { label: 'Lake Anosy', lat: -18.9137, lon: 47.5229, wikiTitle: 'Lake Anosy' },
-      { label: 'Analakely Market', lat: -18.9095, lon: 47.5234, wikiTitle: 'Analakely Market' },
+      {
+        label: 'Tsarasaotra Park',
+        lat: -18.868141,
+        lon: 47.519303,
+        wikiTitle: 'Tsarasaotra',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Parc_Tsarasaotra.jpg/500px-Parc_Tsarasaotra.jpg',
+      },
     ],
   },
   {
@@ -1931,6 +1997,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'sofia',
+    implemented: true,
     name: 'Sofia',
     country: 'Bulgaria',
     countryCode: 'BG',
@@ -1973,6 +2040,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'phnom-penh',
+    implemented: true,
     name: 'Phnom Penh',
     country: 'Cambodia',
     countryCode: 'KH',
@@ -1981,7 +2049,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     zoom: 12,
     landmarks: [
       { label: 'Royal Palace', lat: 11.5630, lon: 104.9310, wikiTitle: 'Royal Palace, Phnom Penh' },
-      { label: 'Hill Temple', lat: 11.5763, lon: 104.9230, wikiTitle: 'Wat Phnom' },
+      { label: 'Wat ______', lat: 11.5763, lon: 104.9230, wikiTitle: 'Wat Phnom' },
       { label: 'Independence Monument', lat: 11.5564, lon: 104.9282, wikiTitle: 'Independence Monument, Phnom Penh' },
     ],
   },
@@ -2141,16 +2209,17 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'asmara',
+    implemented: true,
     name: 'Asmara',
     country: 'Eritrea',
     countryCode: 'ER',
-    lat: 15.3229,
-    lon: 38.9251,
+    lat: 15.3328,
+    lon: 38.9263,
     zoom: 13,
     landmarks: [
-      { label: 'Fiat Tagliero Building', lat: 15.3383, lon: 38.9369, wikiTitle: 'Fiat Tagliero Building' },
-      { label: 'Our Lady of the Rosary Church', lat: 15.3353, lon: 38.9315, wikiTitle: 'Church of Our Lady of the Rosary, Asmara' },
-      { label: 'Cinema Impero', lat: 15.3359, lon: 38.9330, wikiTitle: 'Cinema Impero' },
+      { label: 'Fiat Tagliero Building', lat: 15.3312824, lon: 38.9113859, wikiTitle: 'Fiat Tagliero Building' },
+      { label: 'Church of Our Lady of the Rosary', lat: 15.3367, lon: 38.9378, wikiTitle: 'Church of Our Lady of the Rosary, Asmara' },
+      { label: 'National Museum of Eritrea', lat: 15.3333, lon: 38.9272, wikiTitle: 'National Museum of Eritrea' },
     ],
   },
   {
@@ -2169,15 +2238,23 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'suva',
+    implemented: true,
     name: 'Suva',
     country: 'Fiji',
     countryCode: 'FJ',
-    lat: -18.1248,
-    lon: 178.4501,
+    lat: -18.1441,
+    lon: 178.4247,
     zoom: 13,
     landmarks: [
-      { label: 'Fiji Museum', lat: -18.1462, lon: 178.4234, wikiTitle: 'Fiji Museum' },
-      { label: 'Thurston Gardens', lat: -18.1460, lon: 178.4231, wikiTitle: 'Thurston Gardens' },
+      {
+        label: 'Waterfront',
+        lat: -18.162426,
+        lon: 178.427316,
+        wikiTitle: 'Suva',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Southern_Waterfront%2C_Suva.jpg/500px-Southern_Waterfront%2C_Suva.jpg',
+      },
+      { label: 'Thurston Gardens', lat: -18.1480, lon: 178.4217, wikiTitle: 'Thurston Gardens' },
       { label: 'Government Buildings', lat: -18.1434, lon: 178.4245, wikiTitle: 'Government Buildings, Suva' },
     ],
   },
@@ -2379,6 +2456,7 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'vientiane',
+    implemented: true,
     name: 'Vientiane',
     country: 'Laos',
     countryCode: 'LA',
@@ -2589,15 +2667,23 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'chisinau',
+    implemented: true,
     name: 'Chișinău',
     country: 'Moldova',
     countryCode: 'MD',
-    lat: 47.0105,
-    lon: 28.8638,
+    lat: 47.0144,
+    lon: 28.8467,
     zoom: 13,
     landmarks: [
-      { label: 'Nativity Cathedral', lat: 47.0250, lon: 28.8353, wikiTitle: 'Nativity Cathedral, Chișinău' },
-      { label: 'Stephen the Great Monument', lat: 47.0252, lon: 28.8298, wikiTitle: 'Stephen the Great Monument' },
+      { label: 'Rose Valley Park', lat: 47.0042, lon: 28.8522, wikiTitle: 'Rose Valley, Chișinău' },
+      {
+        label: 'Grigory Kotovsky Statue',
+        lat: 47.0145,
+        lon: 28.8535,
+        wikiTitle: 'Grigory Kotovsky',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/Monumentul_a_lui_Grigore_Kotovski%2C_Chisinau%2C_Republica_Moldova_Grigoriy_Kotovskiy_Monument%2C_Chisinau%2C_Republic_of_Moldova_%2850650169501%29.jpg/500px-Monumentul_a_lui_Grigore_Kotovski%2C_Chisinau%2C_Republica_Moldova_Grigoriy_Kotovskiy_Monument%2C_Chisinau%2C_Republic_of_Moldova_%2850650169501%29.jpg',
+      },
       { label: 'Triumphal Arch', lat: 47.0246, lon: 28.8344, wikiTitle: 'Triumphal arch, Chișinău' },
     ],
   },
@@ -2631,16 +2717,17 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'yangon',
+    implemented: true,
     name: 'Yangon',
     country: 'Myanmar',
     countryCode: 'MM',
-    lat: 16.8409,
-    lon: 96.1735,
+    lat: 16.7905,
+    lon: 96.1581,
     zoom: 12,
     landmarks: [
       { label: 'Shwedagon Pagoda', lat: 16.7984, lon: 96.1496, wikiTitle: 'Shwedagon Pagoda' },
-      { label: 'Sule Pagoda', lat: 16.7749, lon: 96.1588, wikiTitle: 'Sule Pagoda' },
-      { label: 'Bogyoke Aung San Market', lat: 16.7792, lon: 96.1557, wikiTitle: 'Bogyoke Market' },
+      { label: 'City Hall', lat: 16.7745, lon: 96.1589, wikiTitle: 'Yangon City Hall' },
+      { label: 'Karaweik', lat: 16.7986, lon: 96.1657, wikiTitle: 'Karaweik' },
     ],
   },
   {
@@ -2757,16 +2844,31 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'basseterre',
+    implemented: true,
     name: 'Basseterre',
     country: 'Saint Kitts and Nevis',
     countryCode: 'KN',
-    lat: 17.3026,
-    lon: -62.7177,
-    zoom: 14,
+    lat: 17.2959,
+    lon: -62.7287,
+    zoom: 13,
     landmarks: [
-      { label: 'Independence Square', lat: 17.2955, lon: -62.7220, wikiTitle: 'Independence Square, Basseterre' },
       { label: 'Berkeley Memorial', lat: 17.2947, lon: -62.7222, wikiTitle: 'Berkeley Memorial' },
-      { label: 'Co-Cathedral of the Immaculate Conception', lat: 17.2958, lon: -62.7217, wikiTitle: 'Co-Cathedral of the Immaculate Conception, Basseterre' },
+      {
+        label: 'St Kitts Scenic Railway',
+        lat: 17.3114,
+        lon: -62.7130,
+        wikiTitle: 'St. Kitts Scenic Railway',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Steel_Bridge_%2849938448792%29.jpg/500px-Steel_Bridge_%2849938448792%29.jpg',
+      },
+      {
+        label: 'Marina',
+        lat: 17.2908,
+        lon: -62.7285,
+        wikiTitle: 'Basseterre',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/St._Kitts%2C_Karibik_-_Marina_in_Basseterre_-_panoramio.jpg/500px-St._Kitts%2C_Karibik_-_Marina_in_Basseterre_-_panoramio.jpg',
+      },
     ],
   },
   {
@@ -3093,15 +3195,16 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
   },
   {
     id: 'sanaa',
+    implemented: true,
     name: 'Sana\'a',
     country: 'Yemen',
     countryCode: 'YE',
-    lat: 15.3694,
-    lon: 44.1910,
-    zoom: 13,
+    lat: 15.3439,
+    lon: 44.2076,
+    zoom: 12,
     landmarks: [
-      { label: 'Old City', lat: 15.3556, lon: 44.2081, wikiTitle: 'Old City of Sana\'a' },
-      { label: 'Great Mosque', lat: 15.3547, lon: 44.2094, wikiTitle: 'Great Mosque of Sana\'a' },
+      { label: 'Old City', lat: 15.355165, lon: 44.215582, wikiTitle: 'Old City of Sana\'a' },
+      { label: 'Al-Saleh Mosque', lat: 15.3258, lon: 44.2077, wikiTitle: 'Al-Saleh Mosque' },
       { label: 'Bab al-Yemen', lat: 15.3503, lon: 44.2069, wikiTitle: 'Bab al-Yemen' },
     ],
   },
