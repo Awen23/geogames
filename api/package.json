@@ -3,14 +3,16 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "npm run build:server && npm run build:migrate",
+    "build": "npm run build:server && npm run build:migrate && npm run build:schedule",
     "build:server": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/index.cjs --packages=external --alias:@shared=../shared",
     "build:migrate": "esbuild src/db/migrate.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/migrate.cjs --packages=external --alias:@shared=../shared",
+    "build:schedule": "esbuild src/db/schedule.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/schedule.cjs --packages=external --alias:@shared=../shared",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:schedule": "tsx src/db/schedule.ts"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",

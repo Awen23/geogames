@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS "geoplace_placements" (
 );
 --> statement-breakpoint
 
--- Puzzle schedule: no-repeat ordering, filled by tools/schedule-puzzles.ts
+-- Puzzle schedule: no-repeat ordering, filled by api/src/db/schedule.ts (Fly release_command)
 CREATE TABLE IF NOT EXISTS "puzzle_schedule" (
 	"game_id" text NOT NULL,
 	"date" date NOT NULL,

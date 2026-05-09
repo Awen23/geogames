@@ -18,9 +18,9 @@ function clampPuzzleIndex(idx: number, poolSize: number): number {
  * Returns the scheduled puzzle index for a game on a given date.
  *
  * Primary: queries puzzle_schedule for an exact (game_id, date) match.
- * Fallback: if no row exists (schedule gap before new puzzles are added),
- *   picks the puzzle index shown least recently to minimise recency of repeats.
- * Last resort: returns 0 if there are no scheduled rows at all.
+ * Fallback: if no row exists (schedule exhausted before new content was added),
+ *   picks the puzzle index shown least recently — a repeat, only as a stopgap.
+ * Last resort: deterministic seedIndex when there is no schedule history at all.
  *
  * If the database is unavailable, migrations are missing, or any query throws,
  * falls back to deterministic `seedIndex` so daily games still load.

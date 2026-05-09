@@ -10,7 +10,7 @@ primary_region = 'lhr'
   dockerfile = 'Dockerfile'
 
 [deploy]
-  release_command = 'node dist/migrate.cjs'
+  release_command = 'node dist/migrate.cjs && node dist/schedule.cjs'
 
 [env]
   PORT = '3001'
