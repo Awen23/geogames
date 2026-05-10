@@ -1492,13 +1492,20 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     name: 'Accra',
     country: 'Ghana',
     countryCode: 'GH',
-    lat: 5.6037,
-    lon: -0.1870,
+    lat: 5.5560,
+    lon: -0.1960,
     zoom: 12,
     landmarks: [
-      { label: 'Kwame Nkrumah Mausoleum and Memorial Park', lat: 5.5500, lon: -0.2167, wikiTitle: 'Kwame Nkrumah Mausoleum and Memorial Park' },
-      { label: 'Jamestown', lat: 5.5345, lon: -0.1939, wikiTitle: 'Jamestown, Accra' },
-      { label: 'National Museum of ______', lat: 5.5483, lon: -0.2023, wikiTitle: 'National Museum of Ghana' },
+      { label: 'Kwame Nkrumah Mausoleum', lat: 5.54444, lon: -0.20278, wikiTitle: 'Kwame Nkrumah Mausoleum' },
+      { label: 'Independence Arch', lat: 5.5465, lon: -0.1924, wikiTitle: 'Independence Arch' },
+      {
+        label: 'Jamestown',
+        lat: 5.5345,
+        lon: -0.1939,
+        wikiTitle: 'Jamestown, Accra',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Jamestown%2C_Accra_%28P1100253%29.jpg/500px-Jamestown%2C_Accra_%28P1100253%29.jpg',
+      },
     ],
   },
   {
@@ -1779,9 +1786,16 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     lon: -8.0029,
     zoom: 12,
     landmarks: [
-      { label: 'National Museum of Mali', lat: 12.6543, lon: -7.9932, wikiTitle: 'National Museum of Mali' },
-      { label: 'BCEAO Tower', lat: 12.6395, lon: -8.0026, wikiTitle: 'BCEAO Tower' },
-      { label: 'Grand Mosque of ______', lat: 12.6458, lon: -7.9922, wikiTitle: 'Grand Mosque of Bamako' },
+      { label: 'National Museum of Mali', lat: 12.658632, lon: -7.999298, wikiTitle: 'National Museum of Mali' },
+      { label: 'BCEAO Tower', lat: 12.632696, lon: -7.9985, wikiTitle: 'BCEAO Tower (Bamako)' },
+      {
+        label: 'Grand Mosque of ______',
+        lat: 12.646944,
+        lon: -7.993056,
+        wikiTitle: 'Grand Mosque of Bamako',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Dome_of_the_Grande_Mosque%2C_Bamako_%286923661%29.jpg/500px-Dome_of_the_Grande_Mosque%2C_Bamako_%286923661%29.jpg',
+      },
     ],
   },
   {
@@ -1930,13 +1944,20 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     name: 'Belmopan',
     country: 'Belize',
     countryCode: 'BZ',
-    lat: 17.2510,
-    lon: -88.7590,
+    lat: 17.2512,
+    lon: -88.7670,
     zoom: 13,
     landmarks: [
-      { label: 'National Assembly Building', lat: 17.2516, lon: -88.7663, wikiTitle: 'National Assembly Building of Belize' },
-      { label: 'Independence Plaza', lat: 17.2519, lon: -88.7660, wikiTitle: 'Belmopan' },
-      { label: 'Guanacaste National Park', lat: 17.2705, lon: -88.7790, wikiTitle: 'Guanacaste National Park' },
+      { label: 'National Assembly Building', lat: 17.2512, lon: -88.7730, wikiTitle: 'National Assembly Building of Belize' },
+      {
+        label: 'Guanacaste National Park',
+        lat: 17.2644,
+        lon: -88.786,
+        wikiTitle: 'Guanacaste National Park (Belize)',
+        thumbnailUrl:
+          'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Guanacaste_Nationalpark.jpg/500px-Guanacaste_Nationalpark.jpg',
+      },
+      { label: 'St. Herman\'s Blue Hole National Park', lat: 17.156, lon: -88.685, wikiTitle: 'St. Herman\'s Blue Hole National Park' },
     ],
   },
   {
@@ -2908,9 +2929,14 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     lon: -171.7514,
     zoom: 13,
     landmarks: [
-      { label: 'Immaculate Conception Cathedral', lat: -13.8349, lon: -171.7658, wikiTitle: 'Immaculate Conception Cathedral, Apia' },
-      { label: 'Fugalei Market', lat: -13.8358, lon: -171.7667, wikiTitle: 'Fugalei Market' },
-      { label: 'Robert Louis Stevenson Museum', lat: -13.8613, lon: -171.7623, wikiTitle: 'Robert Louis Stevenson Museum' },
+      { label: 'Immaculate Conception Cathedral', lat: -13.832194, lon: -171.766525, wikiTitle: 'Immaculate Conception Cathedral, Apia' },
+      {
+        label: 'Bahá\'í House of Worship',
+        lat: -13.896617,
+        lon: -171.778425,
+        wikiTitle: 'Bahá\'í Faith in the Samoas',
+      },
+      { label: 'Robert Louis Stevenson Museum', lat: -13.866517, lon: -171.765795, wikiTitle: 'Robert Louis Stevenson Museum' },
     ],
   },
   {
