@@ -99,13 +99,25 @@ export function setupMapLayers(map: MapGL): Partial<Record<LayerGroupId, string[
   // Prepend so hillshade is first when iterating terrain group layers
   grouped['terrain']!.unshift(CUSTOM_HILLSHADE_LAYER);
 
-  // 3. Filter 2D-only buildings and lower minzoom so they appear at game zoom levels.
+  // 3. Drop 3D extrusions (never used in-game) and lower minzoom for 2D footprints.
   //    streets-v4 default minzoom for buildings is ~14-15; win-state reveals them at
   //    whatever zoom the city uses (often 11-13), so we force them visible from zoom 13.
   if (grouped['buildings']) {
+    const extrusionIds: string[] = [];
     grouped['buildings'] = grouped['buildings'].filter((id) => {
-      return map.getLayer(id)?.type !== 'fill-extrusion';
+      if (map.getLayer(id)?.type === 'fill-extrusion') {
+        extrusionIds.push(id);
+        return false;
+      }
+      return true;
     });
+    for (const id of extrusionIds) {
+      try {
+        map.setLayoutProperty(id, 'visibility', 'none');
+      } catch (err) {
+        console.warn(`[cityRevealMap] hide fill-extrusion failed for "${id}":`, err);
+      }
+    }
     for (const id of grouped['buildings']) {
       try {
         map.setLayerZoomRange(id, 13, 24);

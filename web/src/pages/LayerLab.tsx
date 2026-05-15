@@ -36,11 +36,13 @@ type StageVisibility = Record<StageId, boolean>;
 
 const INITIAL_VISIBILITY: StageVisibility = {
   terrain: true,
-  water: false,
-  roads: false,
-  landmarks: false,
-  roadNames: false,
+  water: true,
+  roads: true,
+  landmarks: true,
+  roadNames: true,
 };
+
+const LAYER_LAB_CITY_STORAGE_KEY = 'geogames:layer-lab:city-id';
 
 // Sorted: verified cities first (alphabetically), then unverified (alphabetically)
 const SORTED_CITIES = [...CITY_REVEAL_CITIES].sort((a, b) => {
@@ -48,6 +50,21 @@ const SORTED_CITIES = [...CITY_REVEAL_CITIES].sort((a, b) => {
   if (!a.implemented && b.implemented) { return 1; }
   return a.name.localeCompare(b.name);
 });
+
+function loadSavedCity(): CityRevealCity {
+  try {
+    const id = localStorage.getItem(LAYER_LAB_CITY_STORAGE_KEY);
+    if (id) {
+      const city = CITY_REVEAL_CITIES.find((c) => c.id === id);
+      if (city) {
+        return city;
+      }
+    }
+  } catch (e) {
+    console.error('[LayerLab] failed to read saved city', e);
+  }
+  return SORTED_CITIES[0];
+}
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
@@ -57,9 +74,9 @@ export function LayerLab() {
   const markersRef = useRef<Marker[]>([]);
   const layerMapRef = useRef<Partial<Record<LayerGroupId, string[]>>>({});
 
-  const [activeCity, setActiveCity] = useState<CityRevealCity>(SORTED_CITIES[0]);
+  const [activeCity, setActiveCity] = useState<CityRevealCity>(loadSavedCity);
   const [stageVisibility, setStageVisibility] = useState<StageVisibility>(INITIAL_VISIBILITY);
-  const [zoom, setZoom] = useState<number>(SORTED_CITIES[0].zoom);
+  const [zoom, setZoom] = useState<number>(() => loadSavedCity().zoom);
   const [mapReady, setMapReady] = useState(false);
   const [landmarkImages, setLandmarkImages] = useState<Record<string, string>>({});
   const [selectedLandmark, setSelectedLandmark] = useState<{ label: string; imageUrl: string } | null>(null);
@@ -173,7 +190,13 @@ export function LayerLab() {
 
   function handleCityChange(city: CityRevealCity) {
     setActiveCity(city);
+    setZoom(city.zoom);
     setStageVisibility(INITIAL_VISIBILITY);
+    try {
+      localStorage.setItem(LAYER_LAB_CITY_STORAGE_KEY, city.id);
+    } catch (e) {
+      console.error('[LayerLab] failed to save city', e);
+    }
     mapRef.current?.flyTo({ center: [city.lon, city.lat], zoom: city.zoom, duration: 1400 });
   }
 

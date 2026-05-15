@@ -90,9 +90,9 @@ test.describe('Layer Lab', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 
-  test('water toggle starts off', async ({ page }) => {
+  test('water toggle starts on', async ({ page }) => {
     const toggle = page.getByRole('switch', { name: 'Toggle Water' });
-    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 
   test('clicking a toggle flips its checked state', async ({ page }) => {
@@ -104,17 +104,12 @@ test.describe('Layer Lab', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
   });
 
-  test('Road Names toggle can be switched on', async ({ page }) => {
+  test('Road Names toggle starts on', async ({ page }) => {
     const toggle = page.getByRole('switch', { name: 'Toggle Road Names' });
-    await expect(toggle).toHaveAttribute('aria-checked', 'false');
-    await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 
   test('Road Names toggle reflects visibility in map layer state', async ({ page }) => {
-    const toggle = page.getByRole('switch', { name: 'Toggle Road Names' });
-    await toggle.click(); // turn on
-
     const allVisible = await page.evaluate(() => {
       const map = (window as Record<string, unknown>)['__layerLabMap'] as {
         getLayoutProperty: (id: string, prop: string) => string;
