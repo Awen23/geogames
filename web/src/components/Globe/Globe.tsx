@@ -12,6 +12,7 @@ import type { GeoPermissibleObjects } from 'd3-geo';
 import centroids from '@shared/centroids.json';
 import styles from './Globe.module.css';
 import { numericToIso3 } from '../../lib/iso3Lookup';
+import { pointerToLatLon } from '../../lib/globeCoords';
 
 const GEO_URL = '/world-50m.json';
 const WIDTH = 650;
@@ -38,7 +39,17 @@ export interface GlobeProps {
   disabled?: boolean;
   /** GeoPlace: ghost country shape follows cursor */
   ghostIso3?: string;
-  /** GeoPlace: called on click with the lat/lon under the cursor */
+  /**
+   * GeoPlace placement UX.
+   * - immediate: ghost follows pointer; click commits (desktop).
+   * - confirm: tap to position, drag to adjust, parent confirms via tick/cross (mobile).
+   */
+  placementMode?: 'immediate' | 'confirm';
+  /** GeoPlace confirm mode: draft position shown as a draggable ghost */
+  pendingPlace?: { lat: number; lon: number };
+  /** GeoPlace confirm mode: tap or drag updates the draft position */
+  onPendingPlace?: (lat: number, lon: number) => void;
+  /** GeoPlace immediate mode: called on click with the lat/lon under the cursor */
   onPlace?: (lat: number, lon: number) => void;
   /** GeoPlace: frozen placed shapes accumulated across rounds */
   placedCountries?: PlacedCountryData[];
@@ -164,6 +175,114 @@ function GhostCountry({
   );
 }
 
+/** Ghost at a fixed lat/lon — draggable on touch/coarse-pointer layouts */
+function DraggableGhostCountry({
+  geo,
+  iso3,
+  lat,
+  lon,
+  onMove,
+  suppressPlaceClickRef,
+}: {
+  geo: GeoPermissibleObjects;
+  iso3: string;
+  lat: number;
+  lon: number;
+  onMove: (lat: number, lon: number) => void;
+  /** Consumed by the next place click after an outline drag ends */
+  suppressPlaceClickRef: React.RefObject<boolean>;
+}) {
+  const { projection } = useMapContext();
+  const groupRef = useRef<SVGGElement>(null);
+  const outlineDraggedRef = useRef(false);
+  const centroidData = CENTROID_MAP[iso3];
+  if (!centroidData || !projection) { return null; }
+
+  const centroidPt = projection([centroidData.lon, centroidData.lat]);
+  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
+
+  const placedPt = projection([lon, lat]);
+  if (!placedPt || isNaN(placedPt[0])) { return null; }
+
+  const [cx, cy] = centroidPt;
+  const [px, py] = placedPt;
+
+  const moveFromPointer = useCallback(
+    (clientX: number, clientY: number) => {
+      const svg = groupRef.current?.ownerSVGElement;
+      if (!svg) { return; }
+      const pos = pointerToLatLon(svg, clientX, clientY, projection, WIDTH, HEIGHT);
+      if (pos) {
+        onMove(pos.lat, pos.lon);
+      }
+    },
+    [onMove, projection],
+  );
+
+  const releasePointer = useCallback((e: React.PointerEvent<SVGGElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    if (outlineDraggedRef.current) {
+      suppressPlaceClickRef.current = true;
+      outlineDraggedRef.current = false;
+    }
+  }, [suppressPlaceClickRef]);
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<SVGGElement>) => {
+      e.stopPropagation();
+      outlineDraggedRef.current = false;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [],
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<SVGGElement>) => {
+      if (!e.currentTarget.hasPointerCapture(e.pointerId)) { return; }
+      outlineDraggedRef.current = true;
+      moveFromPointer(e.clientX, e.clientY);
+    },
+    [moveFromPointer],
+  );
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<SVGGElement>) => {
+    e.stopPropagation();
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<SVGGElement>) => {
+    e.stopPropagation();
+  }, []);
+
+  return (
+    <g
+      ref={groupRef}
+      data-testid="draggable-ghost-country"
+      transform={`translate(${px - cx}, ${py - cy})`}
+      style={{ cursor: 'grab', touchAction: 'none' }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={releasePointer}
+      onPointerCancel={releasePointer}
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+    >
+      <Geography
+        geography={geo}
+        fill="var(--colour-ghost)"
+        stroke="var(--colour-ghost-stroke)"
+        strokeWidth={1}
+        style={{
+          default: { outline: 'none' },
+          hover: { outline: 'none' },
+          pressed: { outline: 'none' },
+        }}
+      />
+    </g>
+  );
+}
+
 /** Frozen placed country shape rendered at the player's clicked position */
 function PlacedCountry({
   geo,
@@ -257,29 +376,30 @@ function PlacedCountry({
  * them to lat/lon via projection.invert.
  */
 function PlaceClickTarget({
-  onPlace,
+  onPosition,
   didDragRef,
+  suppressPlaceClickRef,
 }: {
-  onPlace: (lat: number, lon: number) => void;
+  onPosition: (lat: number, lon: number) => void;
   didDragRef: React.RefObject<boolean>;
+  suppressPlaceClickRef: React.RefObject<boolean>;
 }) {
   const { projection } = useMapContext();
 
   const handleClick = useCallback(
     (e: React.MouseEvent<SVGRectElement>) => {
       if (didDragRef.current) { return; }
+      if (suppressPlaceClickRef.current) {
+        suppressPlaceClickRef.current = false;
+        return;
+      }
       const svg = e.currentTarget.ownerSVGElement;
-      if (!svg) { return; }
-      const rect = (svg as Element).getBoundingClientRect();
-      const svgX = ((e.clientX - rect.left) / rect.width) * WIDTH;
-      const svgY = ((e.clientY - rect.top) / rect.height) * HEIGHT;
-      // d3-geo projection.invert returns [NaN, NaN] for points outside the disc
-      const coords = (projection as unknown as { invert?: (p: [number, number]) => [number, number] | null }).invert?.([svgX, svgY]);
-      if (!coords || isNaN(coords[0]) || isNaN(coords[1])) { return; }
-      const [lon, lat] = coords;
-      onPlace(lat, lon);
+      if (!svg || !projection) { return; }
+      const pos = pointerToLatLon(svg, e.clientX, e.clientY, projection, WIDTH, HEIGHT);
+      if (!pos) { return; }
+      onPosition(pos.lat, pos.lon);
     },
-    [onPlace, didDragRef, projection],
+    [onPosition, didDragRef, suppressPlaceClickRef, projection],
   );
 
   return (
@@ -301,6 +421,9 @@ export function Globe({
   arrow,
   disabled = false,
   ghostIso3,
+  placementMode = 'immediate',
+  pendingPlace,
+  onPendingPlace,
   onPlace,
   placedCountries,
   revealIso3s,
@@ -315,7 +438,17 @@ export function Globe({
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; rotation: [number, number] } | null>(null);
   const didDragRef = useRef(false);
+  const suppressPlaceClickRef = useRef(false);
   const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
+
+  useEffect(() => {
+    suppressPlaceClickRef.current = false;
+  }, [pendingPlace?.lat, pendingPlace?.lon, ghostIso3]);
+
+  const isConfirmPlacement = placementMode === 'confirm' && Boolean(onPendingPlace);
+  const showCursorGhost = Boolean(ghostIso3) && placementMode === 'immediate';
+  const placeHandler = isConfirmPlacement ? onPendingPlace : onPlace;
+  const showPlaceTarget = Boolean(placeHandler);
 
   // Non-passive wheel listener so we can preventDefault and prevent page scroll
   useEffect(() => {
@@ -370,7 +503,7 @@ export function Globe({
   /** Tracks mouse position in SVG coordinate space for ghost shape rendering */
   const handleContainerMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!ghostIso3) { return; }
+      if (!showCursorGhost) { return; }
       const el = containerRef.current;
       if (!el) { return; }
       const svg = el.querySelector('svg');
@@ -380,13 +513,13 @@ export function Globe({
       const svgY = ((e.clientY - rect.top) / rect.height) * HEIGHT;
       setMouseSvgPos([svgX, svgY]);
     },
-    [ghostIso3],
+    [showCursorGhost],
   );
 
   const handleContainerMouseLeave = useCallback(() => {
-    if (!ghostIso3) { return; }
+    if (!showCursorGhost) { return; }
     setMouseSvgPos(null);
-  }, [ghostIso3]);
+  }, [showCursorGhost]);
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent<HTMLDivElement>) => {
@@ -436,10 +569,10 @@ export function Globe({
   const handleCountryClick = useCallback(
     (iso3: string) => {
       // In placement mode country clicks are handled by PlaceClickTarget
-      if (disabled || didDragRef.current || onPlace) { return; }
+      if (disabled || didDragRef.current || showPlaceTarget) { return; }
       onCountryClick(iso3);
     },
-    [disabled, onCountryClick, onPlace],
+    [disabled, onCountryClick, showPlaceTarget],
   );
 
   const zoomIn = useCallback(() => setScale((s) => Math.min(MAX_SCALE, s * 1.4)), []);
@@ -513,7 +646,7 @@ export function Globe({
                     fill = 'var(--colour-globe-land)';
                   }
 
-                  const hoverFill = onPlace
+                  const hoverFill = showPlaceTarget
                     ? fill
                     : disabled
                       ? fill
@@ -532,7 +665,7 @@ export function Globe({
                         hover: {
                           outline: 'none',
                           fill: hoverFill,
-                          cursor: onPlace ? 'crosshair' : disabled ? 'default' : 'pointer',
+                          cursor: showPlaceTarget ? 'crosshair' : disabled ? 'default' : 'pointer',
                         },
                         pressed: { outline: 'none' },
                       }}
@@ -540,8 +673,8 @@ export function Globe({
                   );
                 })}
 
-                {/* Ghost shape following cursor */}
-                {ghostIso3 && mouseSvgPos && geoByIso3.get(ghostIso3) && (
+                {/* Ghost shape following cursor (desktop immediate mode) */}
+                {showCursorGhost && ghostIso3 && mouseSvgPos && geoByIso3.get(ghostIso3) && (
                   <GhostCountry
                     geo={geoByIso3.get(ghostIso3)!}
                     iso3={ghostIso3}
@@ -557,9 +690,25 @@ export function Globe({
                   ) : null;
                 })}
 
-                {/* Click target for placement mode — rendered last so it sits on top */}
-                {onPlace && (
-                  <PlaceClickTarget onPlace={onPlace} didDragRef={didDragRef} />
+                {/* Tap target for placement — below draggable ghost so ghost receives drags */}
+                {showPlaceTarget && placeHandler && (
+                  <PlaceClickTarget
+                    onPosition={placeHandler}
+                    didDragRef={didDragRef}
+                    suppressPlaceClickRef={suppressPlaceClickRef}
+                  />
+                )}
+
+                {/* Draft ghost for confirm placement (mobile) */}
+                {isConfirmPlacement && ghostIso3 && pendingPlace && geoByIso3.get(ghostIso3) && (
+                  <DraggableGhostCountry
+                    geo={geoByIso3.get(ghostIso3)!}
+                    iso3={ghostIso3}
+                    lat={pendingPlace.lat}
+                    lon={pendingPlace.lon}
+                    onMove={onPendingPlace!}
+                    suppressPlaceClickRef={suppressPlaceClickRef}
+                  />
                 )}
               </>
             );

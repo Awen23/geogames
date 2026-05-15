@@ -10,8 +10,10 @@ import { useGameState } from '../lib/useGameState';
 import { submitGeoplaceResult } from '../lib/api';
 import type { GeoplacePlacement } from '@shared/types';
 import styles from './GeoPlace.module.css';
+import { useMediaQuery } from '../lib/useMediaQuery';
 
 const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
+const MOBILE_PLACEMENT_QUERY = '(max-width: 699px), (pointer: coarse)';
 const GAME_ID = 'geoplace';
 const MAX_SCORE_KM = 2500;
 const ROUNDS_TOTAL = 3;
@@ -96,6 +98,8 @@ export function GeoPlace() {
   );
   const [scores, setScores] = useState<number[]>(savedSession?.scores ?? []);
   const [copied, setCopied] = useState(false);
+  const [pendingPlace, setPendingPlace] = useState<{ lat: number; lon: number } | null>(null);
+  const useConfirmPlacement = useMediaQuery(MOBILE_PLACEMENT_QUERY);
 
   // Persist session state on every change so navigation restores progress
   useEffect(() => {
@@ -124,12 +128,31 @@ export function GeoPlace() {
       };
       setPlacedCountries((prev) => [...prev, newPlaced]);
       setScores((prev) => [...prev, score]);
+      setPendingPlace(null);
       setPhase('placed');
     },
     [phase, currentRound],
   );
 
+  const handlePendingPlace = useCallback((lat: number, lon: number) => {
+    setPendingPlace({ lat, lon });
+  }, []);
+
+  const handleCancelPending = useCallback(() => {
+    setPendingPlace(null);
+  }, []);
+
+  const handleConfirmPending = useCallback(() => {
+    if (!pendingPlace) { return; }
+    handlePlace(pendingPlace.lat, pendingPlace.lon);
+  }, [pendingPlace, handlePlace]);
+
+  useEffect(() => {
+    setPendingPlace(null);
+  }, [roundIndex, phase]);
+
   const handleNext = useCallback(() => {
+    setPendingPlace(null);
     if (roundIndex < ROUNDS_TOTAL - 1) {
       setRoundIndex((i) => i + 1);
       setPhase('placing');
@@ -246,7 +269,10 @@ export function GeoPlace() {
           onCountryClick={() => { /* placement mode — country clicks disabled */ }}
           referenceIso3={puzzle.referenceIso3}
           ghostIso3={phase === 'placing' ? currentRound.targetIso3 : undefined}
-          onPlace={phase === 'placing' ? handlePlace : undefined}
+          placementMode={useConfirmPlacement ? 'confirm' : 'immediate'}
+          pendingPlace={pendingPlace ?? undefined}
+          onPendingPlace={phase === 'placing' && useConfirmPlacement ? handlePendingPlace : undefined}
+          onPlace={phase === 'placing' && !useConfirmPlacement ? handlePlace : undefined}
           placedCountries={placedCountries}
           revealIso3s={revealIso3s}
           initialRotation={initialRotation}
@@ -255,9 +281,39 @@ export function GeoPlace() {
         />
       </div>
 
+      {phase === 'placing' && useConfirmPlacement && pendingPlace && (
+        <div className={styles.placementActions} data-testid="geoplace-placement-actions">
+          <button
+            type="button"
+            className={styles.placementCancelBtn}
+            onClick={handleCancelPending}
+            aria-label="Cancel placement"
+            data-testid="geoplace-cancel-placement"
+          >
+            ✕
+          </button>
+          <button
+            type="button"
+            className={styles.placementConfirmBtn}
+            onClick={handleConfirmPending}
+            aria-label="Confirm placement"
+            data-testid="geoplace-confirm-placement"
+          >
+            ✓
+          </button>
+        </div>
+      )}
+
       {/* Action panel */}
       <div className={styles.actionPanel}>
-        {phase === 'placing' && (
+        {phase === 'placing' && useConfirmPlacement && (
+          <p className={styles.instruction}>
+            {pendingPlace
+              ? 'Drag the outline to adjust, tap elsewhere to move it, then confirm'
+              : 'Move the globe, then tap where the country should go'}
+          </p>
+        )}
+        {phase === 'placing' && !useConfirmPlacement && (
           <p className={styles.instruction}>
             Move the globe to find the country, then click to place it
           </p>
