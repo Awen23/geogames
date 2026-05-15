@@ -109,6 +109,25 @@ function responsiveMapZoom(baseZoom: number) {
   return baseZoom;
 }
 
+/** Bottom overlay on mobile hides the south of the map — pad so the centre sits in the visible band. */
+function mobileMapPadding(bottomOverlayPx: number) {
+  if (window.matchMedia('(min-width: 700px)').matches) {
+    return { top: 0, bottom: 0, left: 0, right: 0 };
+  }
+
+  return { top: 0, bottom: bottomOverlayPx, left: 0, right: 0 };
+}
+
+function mapCameraOptions(
+  todayData: CityRevealTodayResponse,
+  bottomOverlayPx: number,
+) {
+  return {
+    center: [todayData.lon, todayData.lat] as [number, number],
+    zoom: responsiveMapZoom(todayData.zoom),
+    padding: mobileMapPadding(bottomOverlayPx),
+  };
+}
 
 // ── Confetti ──────────────────────────────────────────────────────────────────
 
@@ -150,7 +169,9 @@ function Confetti() {
 
 export function CityReveal() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const gamePanelRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapGL | null>(null);
+  const [gamePanelHeight, setGamePanelHeight] = useState(0);
   const layerMapRef = useRef<Partial<Record<LayerGroupId, string[]>>>({});
   const markersRef = useRef<Marker[]>([]);
   // Ref so async thumbnail callbacks can read the current visibility without stale closures
@@ -220,6 +241,23 @@ export function CityReveal() {
     };
   }, []);
 
+  // ── Track mobile game-panel height (map padding) ───────────────────────────
+
+  useEffect(() => {
+    const panel = gamePanelRef.current;
+    if (!panel) { return; }
+
+    function syncPanelHeight() {
+      if (!panel) { return; }
+      setGamePanelHeight(panel.offsetHeight);
+    }
+
+    syncPanelHeight();
+    const observer = new ResizeObserver(syncPanelHeight);
+    observer.observe(panel);
+    return () => { observer.disconnect(); };
+  }, []);
+
   // ── Map initialisation ─────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -259,17 +297,19 @@ export function CityReveal() {
   useEffect(() => {
     if (!mapReady || !mapRef.current || !todayData) { return; }
     const currentTodayData = todayData;
+    const currentPanelHeight = gamePanelHeight;
 
     function syncResponsiveViewport() {
       const map = mapRef.current;
       if (!map) { return; }
       map.resize();
-      map.easeTo({ zoom: responsiveMapZoom(currentTodayData.zoom), duration: 250 });
+      map.easeTo({ ...mapCameraOptions(currentTodayData, currentPanelHeight), duration: 250 });
     }
 
+    syncResponsiveViewport();
     window.addEventListener('resize', syncResponsiveViewport);
     return () => { window.removeEventListener('resize', syncResponsiveViewport); };
-  }, [mapReady, todayData]);
+  }, [mapReady, todayData, gamePanelHeight]);
 
   // ── Update layer visibility when stage changes ─────────────────────────────
 
@@ -528,7 +568,7 @@ export function CityReveal() {
       </div>
 
       {/* ── Game UI ── */}
-      <div className={styles.gamePanel}>
+      <div ref={gamePanelRef} className={styles.gamePanel}>
         <div className={styles.topBar}>
           <Link to="/" className={styles.backLink}>← Games</Link>
           {!import.meta.env.PROD && (

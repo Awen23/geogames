@@ -115,10 +115,10 @@ export function setupMapLayers(map: MapGL): Partial<Record<LayerGroupId, string[
     }
   }
 
-  // 4. Lower minzoom for road and railway groups.
-  //    streets-v4 hides minor roads below zoom 13-14 in tile data; we force
-  //    them visible from zoom 9 so they appear at all valid city zoom levels.
-  const zoomExpandGroups: LayerGroupId[] = ['majorRoads', 'streetGrid', 'railways'];
+  // 4. Lower minzoom for roads, railways, and road-name labels.
+  //    streets-v4 hides minor roads and road_label symbols until zoom 13+; we force
+  //    them visible from zoom 9 so they appear at city zoom levels (including mobile).
+  const zoomExpandGroups: LayerGroupId[] = ['majorRoads', 'streetGrid', 'railways', 'roadNames'];
   for (const groupId of zoomExpandGroups) {
     for (const id of grouped[groupId] ?? []) {
       try {

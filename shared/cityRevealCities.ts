@@ -600,8 +600,8 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     name: 'Kinshasa',
     country: 'DR Congo',
     countryCode: 'CD',
-    lat: -4.3217,
-    lon: 15.3222,
+    lat: -4.328,
+    lon: 15.304,
     zoom: 12,
     landmarks: [
       { label: '______ National Museum', lat: -4.3351, lon: 15.2994, wikiTitle: 'National Museum of the Democratic Republic of the Congo' },

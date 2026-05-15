@@ -89,8 +89,8 @@ export const LAB_CITIES: LabCity[] = [
   {
     id: 'kinshasa',
     name: 'Kinshasa',
-    lat: -4.3217,
-    lon: 15.3222,
+    lat: -4.328,
+    lon: 15.304,
     zoom: 12,
     landmarks: [
       { label: 'City Panorama', lat: -4.3217, lon: 15.3222, wikiTitle: 'Kinshasa' },
