@@ -19,7 +19,8 @@ const COUNTRIES: CountryEntry[] = Object.entries(CENTROID_MAP).map(([iso3, pos])
 
 const CHAIN_MIN_KM = 500;
 const CHAIN_MAX_KM = 2000;
-const REF_MAX_KM = 1200;
+/** Round 1 target must be within this distance of the reference (centroid-to-centroid). */
+const REF_TO_ROUND1_MAX_KM = 3000;
 
 /** FNV-1a 32-bit hash — matches the implementation in api/src/services/daily.ts */
 function fnv1a(str: string): number {
@@ -48,8 +49,19 @@ function pickFrom<T>(rng: () => number, arr: T[]): T {
 
 /**
  * Pick a country from COUNTRIES within [minKm, maxKm] of `from`, excluding `exclude`.
- * Falls back to nearest non-excluded country if no candidate found in range.
+ * Falls back to twice maxKm, then any non-excluded country, if nothing is in range.
  */
+function countriesWithin(
+  from: CountryEntry,
+  exclude: Set<string>,
+  maxKm: number,
+): CountryEntry[] {
+  return COUNTRIES.filter((c) => {
+    if (exclude.has(c.iso3) || c.iso3 === from.iso3) { return false; }
+    return haversineKm(from, c) <= maxKm;
+  });
+}
+
 function pickNear(
   rng: () => number,
   from: CountryEntry,
@@ -65,7 +77,6 @@ function pickNear(
 
   if (inRange.length > 0) { return pickFrom(rng, inRange); }
 
-  // Fallback: relax to twice the max distance
   const wider = COUNTRIES.filter((c) => {
     if (exclude.has(c.iso3) || c.iso3 === from.iso3) { return false; }
     const d = haversineKm(from, c);
@@ -74,7 +85,6 @@ function pickNear(
 
   if (wider.length > 0) { return pickFrom(rng, wider); }
 
-  // Last resort: any non-excluded country
   const any = COUNTRIES.filter((c) => !exclude.has(c.iso3) && c.iso3 !== from.iso3);
   return pickFrom(rng, any);
 }
@@ -83,26 +93,28 @@ export function getTodayPuzzle(overrideDate?: string): GeoplacePuzzle {
   const date = overrideDate ?? new Date().toISOString().slice(0, 10);
   const rng = mulberry32(fnv1a(`geoplace:${date}`));
 
-  const t1 = pickFrom(rng, COUNTRIES);
-  const used = new Set<string>([t1.iso3]);
+  for (let attempt = 0; attempt < COUNTRIES.length; attempt++) {
+    const reference = pickFrom(rng, COUNTRIES);
+    const used = new Set<string>([reference.iso3]);
+    const round1Candidates = countriesWithin(reference, used, REF_TO_ROUND1_MAX_KM);
+    if (round1Candidates.length === 0) {
+      continue;
+    }
 
-  const t2 = pickNear(rng, t1, used);
-  used.add(t2.iso3);
+    const t1 = pickFrom(rng, round1Candidates);
+    used.add(t1.iso3);
 
-  const t3 = pickNear(rng, t2, used);
-  used.add(t3.iso3);
+    const t2 = pickNear(rng, t1, used);
+    used.add(t2.iso3);
 
-  // Reference: within REF_MAX_KM of t1, not a target
-  const refCandidates = COUNTRIES.filter(
-    (c) => !used.has(c.iso3) && haversineKm(c, t1) <= REF_MAX_KM,
-  );
-  const reference =
-    refCandidates.length > 0
-      ? pickFrom(rng, refCandidates)
-      : pickFrom(rng, COUNTRIES.filter((c) => !used.has(c.iso3)));
+    const t3 = pickNear(rng, t2, used);
+    used.add(t3.iso3);
 
-  return {
-    referenceIso3: reference.iso3,
-    rounds: [{ targetIso3: t1.iso3 }, { targetIso3: t2.iso3 }, { targetIso3: t3.iso3 }],
-  };
+    return {
+      referenceIso3: reference.iso3,
+      rounds: [{ targetIso3: t1.iso3 }, { targetIso3: t2.iso3 }, { targetIso3: t3.iso3 }],
+    };
+  }
+
+  throw new Error(`GeoPlace puzzle generation failed for ${date}`);
 }
