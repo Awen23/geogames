@@ -7,6 +7,7 @@ import { ShareCard } from '../components/ShareCard/ShareCard';
 import { fetchToday, fetchTodayStats, gradeGuess, submitWhereMostResult } from '../lib/api';
 import { useGameState } from '../lib/useGameState';
 import { progressScore } from '../lib/progressScore';
+import { countSlotGuesses } from '../lib/mostleGuessCounter';
 import { displayName } from '@shared/guessCountries';
 import { TopAnswersSection } from './WhereMostTopAnswers';
 import styles from './WhereMost.module.css';
@@ -111,10 +112,10 @@ export function WhereMost() {
   const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
   const liveFoundCount = guesses.filter((g) => g.result.isTopFive).length;
-  const slotGuessCount = guesses.filter((g) => g.result.tier !== 'no-data').length;
+  const slotGuessCount = countSlotGuesses(guesses);
   const displayGuesses = guesses.length > 0 ? guesses : replayGuesses;
   const rankedDisplayGuesses = displayGuesses.filter(isRankedGuess);
-  const displaySlotCount = displayGuesses.filter((g) => g.result.tier !== 'no-data').length;
+  const displaySlotCount = countSlotGuesses(displayGuesses);
   const displayFoundFromGuesses = displayGuesses.filter((g) => g.result.isTopFive).length;
   const isGameOver =
     liveFoundCount === TOP_N ||
@@ -347,7 +348,7 @@ export function WhereMost() {
           setGuesses(nextGuesses);
         }
 
-        const nextSlotCount = nextGuesses.filter((g) => g.result.tier !== 'no-data').length;
+        const nextSlotCount = countSlotGuesses(nextGuesses);
         const nextLiveFoundCount = nextGuesses.filter((g) => g.result.isTopFive).length;
         if (
           nextLiveFoundCount === TOP_N ||
@@ -424,6 +425,7 @@ export function WhereMost() {
           today={today}
           guessesUsed={displaySlotCount}
           maxGuesses={MAX_GUESSES}
+          showGuessCounter={!showEndScreen}
         />
         <p className={styles.questionDescription}>{today.description}</p>
       </div>

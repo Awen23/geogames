@@ -1,13 +1,15 @@
 import type { TodayResponse } from '@shared/types';
+import { guessCounterLabel } from '../../lib/mostleGuessCounter';
 import styles from './DailyHeader.module.css';
 
 interface DailyHeaderProps {
   today: TodayResponse;
   guessesUsed: number;
   maxGuesses: number;
+  showGuessCounter?: boolean;
 }
 
-export function DailyHeader({ today, guessesUsed, maxGuesses }: DailyHeaderProps) {
+export function DailyHeader({ today, guessesUsed, maxGuesses, showGuessCounter = true }: DailyHeaderProps) {
   const dots = Array.from({ length: maxGuesses }, (_, i) => (
     <span
       key={i}
@@ -24,9 +26,19 @@ export function DailyHeader({ today, guessesUsed, maxGuesses }: DailyHeaderProps
           {today.source}
         </a>
       </p>
-      <div className={styles.dots} aria-label={`${guessesUsed} of ${maxGuesses} guesses used`}>
-        {dots}
-      </div>
+      {showGuessCounter && (
+        <div
+          className={styles.guessCounterRow}
+          aria-label={`${guessesUsed} of ${maxGuesses} guesses used`}
+        >
+          <p className={styles.guessCounter} data-testid="guess-counter" aria-live="polite">
+            {guessCounterLabel(guessesUsed, maxGuesses)}
+          </p>
+          <div className={styles.dots} aria-hidden="true">
+            {dots}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

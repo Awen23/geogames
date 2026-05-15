@@ -7,9 +7,10 @@ test.describe('WhereMost game', () => {
     });
   });
 
-  test('shows question icon, prompt, progress bar and country input on load', async ({ page }) => {
+  test('shows question icon, prompt, guess counter and country input on load', async ({ page }) => {
     await page.goto('/games/where-most');
     await expect(page.getByTestId('question-icon')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('guess-counter')).toHaveText('Guess 1 of 5');
     await expect(page.getByTestId('country-input')).toBeVisible();
     // End screen should not appear before any guesses
     await expect(page.getByTestId('end-screen')).not.toBeVisible();
@@ -26,7 +27,35 @@ test.describe('WhereMost game', () => {
     await expect(dropdown).toContainText('Germany');
   });
 
-  test('selecting a country shows a guess result and progress bar', async ({ page }) => {
+  test('selecting a country advances the guess counter and shows a guess result', async ({ page }) => {
+    await page.goto('/games/where-most');
+    const input = page.getByTestId('country-input');
+    await expect(input).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('guess-counter')).toHaveText('Guess 1 of 5');
+
+    await input.fill('Ger');
+    await page.getByRole('option', { name: /Germany/ }).click();
+
+    await expect(page.getByTestId('guess-counter')).toHaveText('Guess 2 of 5', { timeout: 5000 });
+    await expect(page.getByTestId('guess-list')).toBeVisible();
+    await expect(page.getByTestId('guess-list')).toContainText('Germany');
+    await expect(page.getByRole('progressbar')).toBeVisible();
+  });
+
+  test('no-data guess does not advance the guess counter', async ({ page }) => {
+    await page.route('**/api/games/where-most/grade', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tier: 'no-data',
+          isTopFive: false,
+          rank: null,
+          value: null,
+        }),
+      });
+    });
+
     await page.goto('/games/where-most');
     const input = page.getByTestId('country-input');
     await expect(input).toBeVisible({ timeout: 10000 });
@@ -34,9 +63,9 @@ test.describe('WhereMost game', () => {
     await input.fill('Ger');
     await page.getByRole('option', { name: /Germany/ }).click();
 
-    await expect(page.getByTestId('guess-list')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId('guess-list')).toContainText('Germany');
-    await expect(page.getByRole('progressbar')).toBeVisible();
+    await expect(page.getByTestId('guess-counter')).toHaveText('Guess 1 of 5', { timeout: 5000 });
+    await expect(page.getByTestId('no-data-notice')).toBeVisible();
+    await expect(page.getByTestId('guess-list')).not.toBeVisible();
   });
 
   test('guessed country is excluded from subsequent suggestions', async ({ page }) => {
@@ -123,6 +152,7 @@ test.describe('WhereMost game', () => {
 
     await page.goto('/games/where-most');
     await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('guess-counter')).not.toBeVisible();
     await expect(page.getByTestId('end-screen')).toContainText('You found 2 of the top 5 countries.');
     await expect(page.getByTestId('guess-list')).toContainText('Germany');
     await expect(page.getByTestId('guess-list')).toContainText('France');

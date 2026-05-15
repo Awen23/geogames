@@ -8,7 +8,7 @@ gamesRouter.get('/', (_req, res) => {
       id: 'where-most',
       title: 'Mostle',
       icon: '📊',
-      tagline: 'Which country _______s the most?',
+      tagline: 'Which countries rank highest?',
       enabled: true,
     },
     {

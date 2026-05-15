@@ -5,7 +5,7 @@ import type { Question } from '@shared/types';
 
 const BEER_QUESTION: Question = {
   id: 'beer-test',
-  prompt: 'Which country drinks the most beer per person?',
+  prompt: 'Which countries have the highest beer consumption per person?',
   description: 'Test fixture.',
   metric: 'Litres per capita',
   unit: 'L/capita/yr',
