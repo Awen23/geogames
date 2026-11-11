@@ -17,7 +17,9 @@ const MAP_NETWORK_ORIGINS = [
   'https://*.wikipedia.org',
   'https://commons.wikimedia.org',
 ];
-const MAP_IMAGE_ORIGINS = ['https://api.maptiler.com', 'https://upload.wikimedia.org'];
+// Wikipedia APIs now return thumbnails on thumb.wikimedia.org (fixed URLs still use upload.wikimedia.org),
+// so allow any Wikimedia media host rather than chasing individual hostnames.
+const MAP_IMAGE_ORIGINS = ['https://api.maptiler.com', 'https://*.wikimedia.org'];
 
 export function createApp() {
   const app = express();
