@@ -3,7 +3,7 @@ import { loadQuestionData } from '../src/data/csvLoader';
 
 describe('loadQuestionData', () => {
   it('ranks recognised countries and excludes aggregate or territory codes', () => {
-    const data = loadQuestionData('meat-supply-per-person.csv', 2023);
+    const data = loadQuestionData('meat-supply-per-person.csv', 2022);
     const rankedIso3s = new Set(data.ranking.map((country) => country.iso3));
 
     expect(rankedIso3s.has('SYC')).toBe(true);
@@ -14,7 +14,7 @@ describe('loadQuestionData', () => {
   });
 
   it('keeps zero-valued recognised countries rankable', () => {
-    const data = loadQuestionData('share-electricity-wind.csv', 2025);
+    const data = loadQuestionData('share-electricity-wind.csv', 2024);
     const paraguay = data.ranking.find((country) => country.iso3 === 'PRY');
 
     expect(paraguay).toEqual({ iso3: 'PRY', value: 0 });
