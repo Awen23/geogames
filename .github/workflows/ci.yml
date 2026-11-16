@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Cancel superseded PR runs only; every push to main gets its own result.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# No environment variables are needed: unit tests don't import api/src/env.ts
+# (which requires DATABASE_URL), and the builds don't run any code that reads
+# it. VITE_MAPTILER_API_KEY is only inlined into the web bundle, which CI
+# discards. End-to-end tests (Postgres, Playwright, MapTiler key) aren't run here.
+
+jobs:
+  checks:
+    name: Typecheck, lint, test and build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v7
+        with:
+          # Nothing later needs git auth; keep the token away from install scripts.
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            api/package-lock.json
+            web/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install api dependencies
+        run: npm ci --prefix api
+
+      - name: Install web dependencies
+        run: npm ci --prefix web
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test api
+        run: npm test --prefix api
+
+      - name: Test web
+        run: npm test --prefix web
+
+      - name: Build api
+        run: npm run build --prefix api
+
+      - name: Build web
+        run: npm run build --prefix web
