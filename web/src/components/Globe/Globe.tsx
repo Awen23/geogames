@@ -195,17 +195,6 @@ function DraggableGhostCountry({
   const { projection } = useMapContext();
   const groupRef = useRef<SVGGElement>(null);
   const outlineDraggedRef = useRef(false);
-  const centroidData = CENTROID_MAP[iso3];
-  if (!centroidData || !projection) { return null; }
-
-  const centroidPt = projection([centroidData.lon, centroidData.lat]);
-  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
-
-  const placedPt = projection([lon, lat]);
-  if (!placedPt || isNaN(placedPt[0])) { return null; }
-
-  const [cx, cy] = centroidPt;
-  const [px, py] = placedPt;
 
   const moveFromPointer = useCallback(
     (clientX: number, clientY: number) => {
@@ -254,6 +243,19 @@ function DraggableGhostCountry({
   const handleTouchStart = useCallback((e: React.TouchEvent<SVGGElement>) => {
     e.stopPropagation();
   }, []);
+
+  // Early returns must come after all hooks (Rules of Hooks).
+  const centroidData = CENTROID_MAP[iso3];
+  if (!centroidData || !projection) { return null; }
+
+  const centroidPt = projection([centroidData.lon, centroidData.lat]);
+  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
+
+  const placedPt = projection([lon, lat]);
+  if (!placedPt || isNaN(placedPt[0])) { return null; }
+
+  const [cx, cy] = centroidPt;
+  const [px, py] = placedPt;
 
   return (
     <g
