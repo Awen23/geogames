@@ -9,6 +9,7 @@ const BEER_QUESTION: Question = {
   description: 'Test fixture.',
   metric: 'Litres per capita',
   unit: 'L/capita/yr',
+  year: 2019,
   source: 'Test',
   sourceUrl: 'https://example.com',
   icon: '🍺',
@@ -68,8 +69,8 @@ describe('scoreGuess', () => {
 
   it('no distanceKm or bearingDeg on result', () => {
     const result = scoreGuess(BEER_QUESTION, 'AUT');
-    expect((result as Record<string, unknown>).distanceKm).toBeUndefined();
-    expect((result as Record<string, unknown>).bearingDeg).toBeUndefined();
+    expect(result).not.toHaveProperty('distanceKm');
+    expect(result).not.toHaveProperty('bearingDeg');
   });
 });
 

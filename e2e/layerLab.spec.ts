@@ -1,21 +1,26 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LAYER_GROUPS } from '../web/src/components/CityRevealMap/layers';
 
+/** Debug handles that LayerLab.tsx exposes on `window` in dev mode */
+declare global {
+  interface Window {
+    __layerLabGroups?: Record<string, string[]>;
+    __layerLabMap?: { getLayoutProperty: (id: string, prop: string) => string };
+  }
+}
+
 const STAGE_LABELS = ['Terrain', 'Water', 'Roads & Railways', 'Landmarks', 'Road Names'];
 
 /** Wait for the MapLibre map to finish its initial load and layer classification */
 async function waitForMapReady(page: Page) {
-  await page.waitForFunction(
-    () => typeof (window as Record<string, unknown>)['__layerLabGroups'] !== 'undefined',
-    { timeout: 15_000 },
-  );
+  await page.waitForFunction(() => typeof window.__layerLabGroups !== 'undefined', {
+    timeout: 15_000,
+  });
 }
 
 /** Return the layer group map exposed in dev mode */
 async function getLayerGroups(page: Page): Promise<Record<string, string[]>> {
-  return page.evaluate(
-    () => (window as Record<string, unknown>)['__layerLabGroups'] as Record<string, string[]>,
-  );
+  return page.evaluate(() => window.__layerLabGroups as Record<string, string[]>);
 }
 
 test.describe('Layer Lab', () => {
@@ -111,10 +116,8 @@ test.describe('Layer Lab', () => {
 
   test('Road Names toggle reflects visibility in map layer state', async ({ page }) => {
     const allVisible = await page.evaluate(() => {
-      const map = (window as Record<string, unknown>)['__layerLabMap'] as {
-        getLayoutProperty: (id: string, prop: string) => string;
-      };
-      const groups = (window as Record<string, unknown>)['__layerLabGroups'] as Record<string, string[]>;
+      const map = window.__layerLabMap!;
+      const groups = window.__layerLabGroups as Record<string, string[]>;
       return (groups['roadNames'] ?? []).every(
         (id) => map.getLayoutProperty(id, 'visibility') === 'visible',
       );
