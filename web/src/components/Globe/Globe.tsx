@@ -411,6 +411,7 @@ function PlaceClickTarget({
       fill="transparent"
       style={{ cursor: 'crosshair' }}
       onClick={handleClick}
+      data-testid="globe-place-target"
     />
   );
 }

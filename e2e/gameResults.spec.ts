@@ -53,11 +53,12 @@ test.describe('Where Most result endpoint', () => {
   });
 
   test('rejects guesses out of range', async ({ request }) => {
-    const payload = await whereMostPayload(request, ['DEU']);
-    const res = await request.post('/api/games/where-most/result', {
-      data: { ...payload, guesses: 0 },
-    });
+    // 6 guesses exceeds the 5-guess limit
+    const payload = await whereMostPayload(request, ['DEU', 'FRA', 'ITA', 'ESP', 'PRT', 'POL']);
+    const res = await request.post('/api/games/where-most/result', { data: payload });
     expect(res.status()).toBe(400);
+    const body = (await res.json()) as { error: { fieldErrors: Record<string, string[]> } };
+    expect(body.error.fieldErrors.guesses).toBeDefined();
   });
 
   test('rejects exact matches greater than guesses', async ({ request }) => {
@@ -91,7 +92,7 @@ test.describe('Where Most result endpoint', () => {
     expect(res.status()).toBe(400);
   });
 
-  test('stats/today reflects submitted score', async ({ request }) => {
+  test('stats/today counts a submitted play', async ({ request }) => {
     // Submit a result, then verify stats endpoint increments plays
     const before = await request.get('/api/games/where-most/stats/today');
     const beforeBody = await before.json();
@@ -104,8 +105,8 @@ test.describe('Where Most result endpoint', () => {
 
     const after = await request.get('/api/games/where-most/stats/today');
     const afterBody = await after.json();
-    // plays should be >= before (may not increase if same device already submitted today)
-    expect((afterBody as { plays: number }).plays).toBeGreaterThanOrEqual(playsBefore);
+    // Each test gets a fresh request context (no device cookie), so this counts as a new play
+    expect((afterBody as { plays: number }).plays).toBeGreaterThan(playsBefore);
     expect(afterBody).toMatchObject({
       plays: expect.any(Number),
       avgScore: expect.any(Number),
@@ -132,8 +133,8 @@ test.describe('Where Most result endpoint', () => {
     const after = await request.get('/api/games/where-most/stats/today');
     const playsAfter = ((await after.json()) as { plays: number }).plays;
 
-    // Should not double-count
-    expect(playsAfter).toBeLessThanOrEqual(playsBefore + 1);
+    // Counted exactly once; relies on this file being serial and no other spec posting results meanwhile
+    expect(playsAfter).toBe(playsBefore + 1);
   });
 });
 
@@ -179,16 +180,19 @@ test.describe('GeoPlace result endpoint', () => {
     const before = await request.get('/api/games/geoplace/stats/today');
     const playsBefore = ((await before.json()) as { plays: number }).plays;
 
-    await request.post('/api/games/geoplace/result', {
+    const firstSubmit = await request.post('/api/games/geoplace/result', {
       data: { score: 60, placements: validPlacements },
     });
-    await request.post('/api/games/geoplace/result', {
+    expect(firstSubmit.status()).toBe(200);
+    const secondSubmit = await request.post('/api/games/geoplace/result', {
       data: { score: 60, placements: validPlacements },
     });
+    expect(secondSubmit.status()).toBe(200);
 
     const after = await request.get('/api/games/geoplace/stats/today');
     const playsAfter = ((await after.json()) as { plays: number }).plays;
-    expect(playsAfter).toBeLessThanOrEqual(playsBefore + 1);
+    // Counted exactly once; relies on this file being serial and no other spec posting results meanwhile
+    expect(playsAfter).toBe(playsBefore + 1);
   });
 });
 
@@ -222,15 +226,18 @@ test.describe('City Reveal result endpoint', () => {
     const before = await request.get('/api/games/city-reveal/stats/today');
     const playsBefore = ((await before.json()) as { plays: number }).plays;
 
-    await request.post('/api/games/city-reveal/result', {
+    const firstSubmit = await request.post('/api/games/city-reveal/result', {
       data: { won: false, guesses: 5 },
     });
-    await request.post('/api/games/city-reveal/result', {
+    expect(firstSubmit.status()).toBe(200);
+    const secondSubmit = await request.post('/api/games/city-reveal/result', {
       data: { won: false, guesses: 5 },
     });
+    expect(secondSubmit.status()).toBe(200);
 
     const after = await request.get('/api/games/city-reveal/stats/today');
     const playsAfter = ((await after.json()) as { plays: number }).plays;
-    expect(playsAfter).toBeLessThanOrEqual(playsBefore + 1);
+    // Counted exactly once; relies on this file being serial and no other spec posting results meanwhile
+    expect(playsAfter).toBe(playsBefore + 1);
   });
 });

@@ -102,11 +102,11 @@ test.describe('Layer Lab', () => {
 
   test('clicking a toggle flips its checked state', async ({ page }) => {
     const toggle = page.getByRole('switch', { name: 'Toggle Water' });
-    await expect(toggle).toHaveAttribute('aria-checked', 'false');
-    await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 
   test('Road Names toggle starts on', async ({ page }) => {
@@ -115,14 +115,24 @@ test.describe('Layer Lab', () => {
   });
 
   test('Road Names toggle reflects visibility in map layer state', async ({ page }) => {
-    const allVisible = await page.evaluate(() => {
-      const map = window.__layerLabMap!;
-      const groups = window.__layerLabGroups as Record<string, string[]>;
-      return (groups['roadNames'] ?? []).every(
-        (id) => map.getLayoutProperty(id, 'visibility') === 'visible',
-      );
-    });
-    expect(allVisible).toBe(true);
+    // Distinct visibility values across the road-name layers; an empty group yields []
+    const roadNameVisibilities = () =>
+      page.evaluate(() => {
+        const map = window.__layerLabMap!;
+        const ids = window.__layerLabGroups?.['roadNames'] ?? [];
+        return [...new Set(ids.map((id) => map.getLayoutProperty(id, 'visibility')))];
+      });
+    const toggle = page.getByRole('switch', { name: 'Toggle Road Names' });
+
+    await expect.poll(roadNameVisibilities).toEqual(['visible']);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    await expect.poll(roadNameVisibilities).toEqual(['none']);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await expect.poll(roadNameVisibilities).toEqual(['visible']);
   });
 
   // ── City switching ────────────────────────────────────────────────────────

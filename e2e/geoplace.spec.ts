@@ -3,6 +3,8 @@ import { test, expect, type Page } from '@playwright/test';
 async function openPlacle(page: Page) {
   await page.goto('/games/geoplace');
   await expect(page.getByTestId('globe')).toBeVisible();
+  // The click target only renders once world-50m.json has loaded; clicks before then are lost
+  await expect(page.getByTestId('globe-place-target')).toBeVisible();
 }
 
 test.describe('Placle (GeoPlace)', () => {
