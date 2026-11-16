@@ -283,43 +283,27 @@ export function WhereMost() {
   }, [todayResult, guesses.length]);
 
   const handleEndGame = useCallback(
-    async (finalGuesses: Guess[]) => {
+    (finalGuesses: Guess[]) => {
       const slotGuesses = finalGuesses.filter((g) => g.result.tier !== 'no-data');
       const guessCount = slotGuesses.length;
       const allGuesses = finalGuesses.map((g) => ({ iso3: g.iso3, result: g.result }));
-
-      if (guessCount === 0) {
-        try {
-          await submitWhereMostResult(0, 0, 0, []);
-          recordResult(true, 0, 0, {
-            exactMatches: 0,
-            guessCountries: [],
-            guessResults: [],
-            allGuesses,
-          });
-        } catch (err) {
-          console.error('Failed to submit result:', err);
-        }
-        return;
-      }
-
       const exactMatches = slotGuesses.filter((g) => g.result.isTopFive).length;
       const guessCountries = slotGuesses.map((g) => g.iso3);
       const guessResults = slotGuesses.map((g) => g.result);
       const rawScore = progressScore(slotGuesses);
       const scorePct = Math.round(Math.min(100, maxScoreVal > 0 ? (rawScore / maxScoreVal) * 100 : 0));
-      try {
-        await submitWhereMostResult(scorePct, guessCount, exactMatches, guessCountries);
-        // won=true always for score-only game (means "played")
-        recordResult(true, guessCount, scorePct, {
-          exactMatches,
-          guessCountries,
-          guessResults,
-          allGuesses,
-        });
-      } catch (err) {
-        console.error('Failed to submit result:', err);
-      }
+      // Record locally before submitting, so a failed submit can't lose the finished game.
+      // won=true always for score-only game (means "played")
+      recordResult(true, guessCount, scorePct, {
+        exactMatches,
+        guessCountries,
+        guessResults,
+        allGuesses,
+      });
+      // Fire and forget, like the other games: a failed submit is logged, not retried.
+      submitWhereMostResult(scorePct, guessCount, exactMatches, guessCountries).catch((err: Error) =>
+        console.error('Failed to submit result:', err),
+      );
     },
     [recordResult, maxScoreVal],
   );
@@ -355,7 +339,7 @@ export function WhereMost() {
           nextSlotCount >= MAX_GUESSES ||
           nextTotalRounds >= MAX_TOTAL_SELECTIONS
         ) {
-          await handleEndGame(nextGuesses);
+          handleEndGame(nextGuesses);
         }
       } catch (err) {
         console.error('Failed to grade guess:', err);

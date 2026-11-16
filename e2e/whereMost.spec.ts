@@ -1,4 +1,57 @@
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
+
+const RESULT_URL = '**/api/games/where-most/result';
+const STATE_KEY = 'geogames:where-most:state';
+
+const STATS_URL = '**/api/games/where-most/stats/today';
+
+/**
+ * Plays today's real puzzle to the end, with guesses graded by the real API.
+ * No-data countries don't use a slot, so keep picking from the list until the end screen appears.
+ */
+async function playToEnd(page: Page) {
+  // Assumes at least 5 of these have data for whatever today's question is. If not, the
+  // list runs out before the game ends and the final end-screen expect fails loudly.
+  const candidates = [
+    'Germany', 'France', 'Italy', 'Spain', 'Poland', 'Japan', 'Brazil', 'Canada',
+    'Mexico', 'Egypt', 'Kenya', 'Peru', 'Chile', 'Norway', 'Sweden',
+  ];
+  const input = page.getByTestId('country-input');
+  const endScreen = page.getByTestId('end-screen');
+  await expect(input).toBeVisible({ timeout: 10000 });
+
+  for (const name of candidates) {
+    if (await endScreen.isVisible()) {
+      break;
+    }
+    await input.fill(name);
+    const graded = page.waitForResponse('**/api/games/where-most/grade');
+    await page.getByRole('option', { name: new RegExp(name) }).click();
+    await graded;
+    // Wait until this guess has landed (ranked, no-data notice, or game over).
+    await expect(async () => {
+      const shown = [
+        ...(await page.getByTestId('guess-list').allTextContents()),
+        ...(await page.getByTestId('no-data-notice').allTextContents()),
+      ].join(' ');
+      expect((await endScreen.isVisible()) || shown.includes(name)).toBe(true);
+    }).toPass({ timeout: 5000 });
+  }
+  await expect(endScreen).toBeVisible();
+}
+
+async function todayRecord(page: Page) {
+  const today = new Date().toISOString().slice(0, 10);
+  return page.evaluate(
+    ([key, date]) => {
+      const raw = localStorage.getItem(key);
+      const state = raw ? (JSON.parse(raw) as { history: Array<{ date: string }> }) : { history: [] };
+      return state.history.find((r) => r.date === date) ?? null;
+    },
+    [STATE_KEY, today] as const,
+  );
+}
 
 test.describe('WhereMost game', () => {
   test.beforeEach(async ({ page }) => {
@@ -159,5 +212,69 @@ test.describe('WhereMost game', () => {
     await expect(page.getByTestId('guess-list')).toContainText('Italy');
     await expect(page.getByTestId('guess-list')).toContainText(/#|Not in today/);
     await expect(page.getByTestId('country-input')).not.toBeVisible();
+  });
+});
+
+// No localStorage.clear() init script here: it would also run on reload and wipe the
+// record under test. Each test gets a fresh browser context, so storage starts empty.
+test.describe('WhereMost game end persistence', () => {
+  test('finished game survives reload when the result submit fails', async ({ page }) => {
+    const pageErrors: Error[] = [];
+    page.on('pageerror', (err) => pageErrors.push(err));
+    let submitAttempts = 0;
+    await page.route(RESULT_URL, async (route) => {
+      submitAttempts++;
+      await route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' });
+    });
+
+    await page.goto('/games/where-most');
+    await playToEnd(page);
+    await expect.poll(() => submitAttempts).toBe(1);
+    await expect.poll(() => todayRecord(page)).not.toBeNull();
+
+    // Wait for the reloaded end screen's stats fetch so a late double-submit can't be missed.
+    const statsLoaded = page.waitForResponse(STATS_URL);
+    await page.reload();
+    await statsLoaded;
+    await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('country-input')).not.toBeVisible();
+    await expect(page.getByTestId('guess-list')).toBeVisible();
+    expect(await todayRecord(page)).not.toBeNull();
+    expect(submitAttempts).toBe(1);
+    expect(pageErrors).toEqual([]);
+  });
+
+  // The submit is stubbed so this test never writes to the shared dev DB (gameResults.spec
+  // asserts exact play counts there). Server-side validation is covered in gameResults.spec.
+  test('successful game end submits the result exactly once', async ({ page }) => {
+    const payloads: Array<{ score: number; guesses: number; exactMatches: number; guessCountries: string[] }> = [];
+    await page.route(RESULT_URL, async (route) => {
+      payloads.push(route.request().postDataJSON() as (typeof payloads)[number]);
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    });
+
+    await page.goto('/games/where-most');
+    await playToEnd(page);
+    await expect.poll(() => payloads.length).toBe(1);
+    await expect.poll(() => todayRecord(page)).not.toBeNull();
+
+    const [payload] = payloads;
+    const rankedRows = await page.getByTestId('guess-list').locator('li').count();
+    expect(payload.guesses).toBe(rankedRows);
+    expect(payload.guessCountries).toHaveLength(payload.guesses);
+    expect(payload.exactMatches).toBeLessThanOrEqual(payload.guesses);
+    const record = (await todayRecord(page)) as { guesses: number; score: number; exactMatches: number } | null;
+    expect(record).toMatchObject({
+      guesses: payload.guesses,
+      score: payload.score,
+      exactMatches: payload.exactMatches,
+    });
+
+    const statsLoaded = page.waitForResponse(STATS_URL);
+    await page.reload();
+    await statsLoaded;
+    await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10000 });
+    expect(await todayRecord(page)).not.toBeNull();
+    expect(payloads).toHaveLength(1);
   });
 });
