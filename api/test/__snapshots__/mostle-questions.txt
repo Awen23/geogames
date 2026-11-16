@@ -1,0 +1,64 @@
+0. beer-per-capita-2020: 185 countries
+   Gabon (6.37), Czechia (6.298), Austria (5.877), Poland (5.52), Germany (5.277)
+1. milk-per-capita-2020: 183 countries
+   Denmark (450.8), Montenegro (430.977), Ireland (420.161), Estonia (325.709), Albania (308.25)
+2. meat-per-capita-2023: 172 countries
+   Tonga (156.931), Mongolia (136.14), Marshall Islands (125.619), United States (122.06), Saint Vincent and the Grenadines (118.457)
+3. fish-seafood-per-capita-2020: 183 countries
+   Iceland (88.596), Maldives (83.529), Kiribati (75.954), Antigua and Barbuda (55.392), South Korea (54.5)
+4. total-alcohol-per-capita-2019: 187 countries
+   Romania (16.99), Georgia (14.33), Czechia (13.29), Latvia (13.09), Germany (12.22)
+5. spirits-per-capita-2019: 187 countries
+   Latvia (5.233), Saint Lucia (5.08), Lithuania (4.958), Barbados (4.799), Bulgaria (4.755)
+6. adult-smoking-share-2022: 164 countries
+   Nauru (48.3), Myanmar (44.4), Kiribati (39.7), Papua New Guinea (39.6), Bulgaria (39.5)
+7. adult-obesity-share-2022: 191 countries
+   Tonga (70.535), Nauru (70.183), Tuvalu (63.933), Samoa (61.237), Bahamas (47.61)
+8. renewable-electricity-share-2023: 185 countries
+   Albania (100), Bhutan (100), Central African Republic (100), DR Congo (100), Ethiopia (100)
+9. life-expectancy-2023: 196 countries
+   Monaco (86.372), San Marino (85.706), Japan (84.712), South Korea (84.329), Andorra (84.041)
+10. mean-years-schooling-2020: 143 countries
+   Ireland (13.74), South Korea (13.68), Iceland (13.53), United States (13.32), Slovakia (13.14)
+11. life-satisfaction-2025: 145 countries
+   Finland (7.764), Iceland (7.54), Denmark (7.539), Costa Rica (7.439), Sweden (7.255)
+12. co2-emissions-per-capita-2023: 193 countries
+   Qatar (40.128), Brunei (27.241), Kuwait (25.454), Bahrain (24.71), Trinidad and Tobago (23.644)
+13. fertility-rate-2023: 196 countries
+   Somalia (6.132), Chad (6.12), Niger (6.061), DR Congo (6.051), Central African Republic (6.012)
+14. energy-use-per-capita-2022: 189 countries
+   Qatar (195336.34), Iceland (167531.62), Singapore (158521.72), Bahrain (154504.28), United Arab Emirates (132096.89)
+15. gdp-per-capita-2020: 186 countries
+   Luxembourg (129865.63), Singapore (115893.04), Qatar (103061.9), Ireland (101968.555), Norway (86096.055)
+16. cocoa-consumption-per-capita-2021: 183 countries
+   Dominica (14.294), Ivory Coast (7.24), Iceland (5.47), Luxembourg (5.27), France (4.51)
+17. urban-agglomerations-million-share-2020: 174 countries
+   Bahrain (89.446), Singapore (84.759), Kuwait (84.024), Republic of the Congo (82.711), Qatar (70.684)
+18. largest-city-urban-share-2020: 174 countries
+   Bahrain (91.404), Kuwait (87.369), Singapore (84.823), Maldives (78.267), Solomon Islands (75.903)
+19. migrant-stock-share-2024: 196 countries
+   Vatican City (100), Qatar (76.663), United Arab Emirates (73.972), Monaco (70.166), Liechtenstein (69.398)
+20. agricultural-labour-force-share-2019: 179 countries
+   Burundi (86.21), Somalia (80.28), Malawi (76.36), Chad (75.06), Niger (72.54)
+21. agricultural-land-per-capita-2023: 194 countries
+   Mongolia (31.314), Australia (13.733), Namibia (13.098), Kazakhstan (10.539), Botswana (10.427)
+22. food-expenditure-per-person-2023: 102 countries
+   Switzerland (4449.806), Israel (3823.026), Denmark (3726.748), New Zealand (3711.772), United States (3694.354)
+23. women-married-or-in-union-share-2025: 192 countries
+   Bangladesh (81.64), Niger (79.314), Mali (77.802), Nepal (75.386), Uzbekistan (73.576)
+24. ai-publications-2024: 180 countries
+   China (116434), India (52054), United States (50810), United Kingdom (15494), Germany (12793)
+25. generative-ai-use-share-2025: 146 countries
+   United Arab Emirates (64), Singapore (60.9), Norway (46.4), Ireland (44.6), France (44)
+26. tax-revenue-share-gdp-2023: 130 countries
+   France (43.814), Denmark (43.391), Finland (42.692), Belgium (42.58), Austria (42.543)
+27. working-hours-per-worker-2023: 128 countries
+   Sudan (2658.04), Republic of the Congo (2534.17), United Arab Emirates (2514.45), Jordan (2483.18), Pakistan (2471.08)
+28. wind-electricity-share-2025: 87 countries
+   Denmark (57.688), Lithuania (44.882), Uruguay (40.62), Ireland (37.997), Luxembourg (30.519)
+29. solar-electricity-share-2025: 89 countries
+   Luxembourg (30.519), Hungary (27.286), Chile (25.062), North Macedonia (23.754), Cyprus (23.181)
+30. forest-area-share-2022: 192 countries
+   Guyana (93.473), Micronesia (92.114), Suriname (91.765), Gabon (91.495), Palau (90.435)
+31. patent-applications-per-million-2021: 111 countries
+   South Korea (3597.579), Japan (1769.965), China (1010.114), United States (789.654), Germany (478.652)

@@ -1,10 +1,15 @@
 import type { Question } from '@shared/types';
 import { loadQuestionData, type LoadQuestionDataOptions } from './csvLoader';
 
-interface QuestionConfig extends Omit<Question, 'ranking' | 'coveredIsoCodes' | 'year'> {
+/** Data checks in `api/test/questions.test.ts` that a question can opt out of, with a reason. */
+export type QuestionDataCheck = 'coverage' | 'tieAtFifth';
+
+export interface QuestionConfig extends Omit<Question, 'ranking' | 'coveredIsoCodes' | 'year'> {
   csvFile: string;
   year: number;
   valueColumn?: LoadQuestionDataOptions['valueColumn'];
+  /** Deliberate exceptions to the question-data checks, each with the reason it's allowed. */
+  knownDataIssues?: Partial<Record<QuestionDataCheck, string>>;
 }
 
 function sourceUrl(slug: string, year: number): string {
@@ -15,7 +20,11 @@ function mapEmbedUrl(slug: string, year: number): string {
   return `https://ourworldindata.org/grapher/${slug}?tab=map&time=${year}`;
 }
 
-const questionConfigs: QuestionConfig[] = [
+/**
+ * Mostle questions. Only append: the daily schedule stores each question's position in this list.
+ * Every entry is checked automatically by `api/test/questions.test.ts`.
+ */
+export const questionConfigs: QuestionConfig[] = [
   {
     id: 'beer-per-capita-2020',
     csvFile: 'beer-consumption-per-person.csv',
@@ -106,6 +115,7 @@ const questionConfigs: QuestionConfig[] = [
     source: 'WHO via Our World in Data',
     sourceUrl: sourceUrl('share-of-adults-who-smoke', 2022),
     mapEmbedUrl: mapEmbedUrl('share-of-adults-who-smoke', 2022),
+    knownDataIssues: { tieAtFifth: 'Two countries tie at 39.5% for #5 in 2022. To recheck when moving to 2024.' },
   },
   {
     id: 'adult-obesity-share-2022',
@@ -132,6 +142,7 @@ const questionConfigs: QuestionConfig[] = [
     source: 'Ember and Energy Institute via Our World in Data',
     sourceUrl: sourceUrl('share-electricity-renewables', 2023),
     mapEmbedUrl: mapEmbedUrl('share-electricity-renewables', 2023),
+    knownDataIssues: { tieAtFifth: '8 countries tie at 100%. The question is being dropped.' },
   },
   {
     id: 'life-expectancy-2023',
@@ -367,6 +378,7 @@ const questionConfigs: QuestionConfig[] = [
     source: 'UNU-WIDER via Our World in Data',
     sourceUrl: sourceUrl('tax-revenues-as-a-share-of-gdp-unu-wider', 2023),
     mapEmbedUrl: mapEmbedUrl('tax-revenues-as-a-share-of-gdp-unu-wider', 2023),
+    knownDataIssues: { coverage: '2023 has 130 countries against 153 in 2022. Moving to 2022 is planned.' },
   },
   {
     id: 'working-hours-per-worker-2023',
@@ -393,6 +405,7 @@ const questionConfigs: QuestionConfig[] = [
     source: 'Ember via Our World in Data',
     sourceUrl: sourceUrl('share-electricity-wind', 2025),
     mapEmbedUrl: mapEmbedUrl('share-electricity-wind', 2025),
+    knownDataIssues: { coverage: '2025 has 87 countries against 178 in 2024. Moving to 2024 is planned.' },
   },
   {
     id: 'solar-electricity-share-2025',
@@ -406,6 +419,7 @@ const questionConfigs: QuestionConfig[] = [
     source: 'Ember via Our World in Data',
     sourceUrl: sourceUrl('share-electricity-solar', 2025),
     mapEmbedUrl: mapEmbedUrl('share-electricity-solar', 2025),
+    knownDataIssues: { coverage: '2025 has 89 countries against 180 in 2024. Moving to 2024 is planned.' },
   },
   {
     id: 'forest-area-share-2022',
@@ -435,8 +449,8 @@ const questionConfigs: QuestionConfig[] = [
   },
 ];
 
-export const questions: Question[] = questionConfigs.map((config) => {
-  const { csvFile, year, valueColumn, ...question } = config;
+// `knownDataIssues` is only read by the tests, so it's left out of the served question.
+function toQuestion({ csvFile, year, valueColumn, knownDataIssues: _knownDataIssues, ...question }: QuestionConfig): Question {
   const data = loadQuestionData(csvFile, year, { valueColumn });
 
   return {
@@ -445,4 +459,6 @@ export const questions: Question[] = questionConfigs.map((config) => {
     ranking: data.ranking,
     coveredIsoCodes: data.coveredIsoCodes,
   };
-});
+}
+
+export const questions: Question[] = questionConfigs.map(toQuestion);
