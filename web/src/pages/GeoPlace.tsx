@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Globe } from '../components/Globe/Globe';
 import type { PlacedCountryData } from '../components/Globe/Globe';
 import { getTodayPuzzle } from '@shared/geoplacePuzzle';
-import { COUNTRY_NAMES } from '@shared/countryNames';
+import { countryName } from '@shared/guessCountries';
 import { haversineKm } from '@shared/distance';
 import centroids from '@shared/centroids.json';
 import { useGameState } from '../lib/useGameState';
@@ -27,10 +27,6 @@ function scoreFromDistance(distKm: number): number {
 function averageScore(scores: number[]): number {
   if (scores.length === 0) { return 0; }
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
-}
-
-function countryName(iso3: string): string {
-  return COUNTRY_NAMES[iso3] ?? iso3;
 }
 
 function utcToday() {

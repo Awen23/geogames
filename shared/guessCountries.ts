@@ -231,6 +231,11 @@ export function countryByIso3(iso3: string): CountryEntry | undefined {
   return byIso3.get(iso3);
 }
 
+/** Plain country name (no flag); falls back to the raw ISO3 code */
+export function countryName(iso3: string): string {
+  return byIso3.get(iso3)?.name ?? iso3;
+}
+
 /** Country name (with flag) for display; falls back to the raw ISO3 code */
 export function displayName(iso3: string): string {
   const entry = byIso3.get(iso3);
