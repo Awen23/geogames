@@ -34,6 +34,20 @@ export function removeKey(key: string): void {
   }
 }
 
+/** Removes every key that starts with `prefix`, except those in `keep`. */
+export function pruneKeys(prefix: string, keep: string[]): void {
+  try {
+    const stale: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null && key.startsWith(prefix) && !keep.includes(key)) { stale.push(key); }
+    }
+    stale.forEach(removeKey);
+  } catch (err) {
+    console.warn(`Failed to prune ${prefix}*:`, err);
+  }
+}
+
 // ── Type-guard building blocks ────────────────────────────────────────────────
 
 export function isRecord(value: unknown): value is Record<string, unknown> {

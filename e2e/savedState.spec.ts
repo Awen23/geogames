@@ -119,3 +119,22 @@ test.describe('Placle saved session', () => {
     await expect(page.getByText('Round 2 of 3')).toBeVisible();
   });
 });
+
+test.describe('Maple saved games', () => {
+  test('old per-date keys are pruned, history is kept', async ({ page }) => {
+    const history = JSON.stringify({ history: [{ date: '2020-01-01', won: true, guesses: 3 }] });
+    await stubMapleToday(page);
+    await seed(page, {
+      'geogames:city-reveal:game:2020-01-01': JSON.stringify({ date: '2020-01-01', guesses: [], won: false, gameOver: false }),
+      'geogames:city-reveal:intro-dismissed:2020-01-01': 'true',
+      'geogames:city-reveal:state': history,
+    });
+    await page.goto('/games/city-reveal');
+    await expect(page.getByRole('button', { name: 'Start playing' })).toBeVisible();
+
+    await expect.poll(() => page.evaluate(() => Object.keys(localStorage).sort())).toEqual([
+      'geogames:city-reveal:state',
+    ]);
+    expect(await page.evaluate(() => localStorage.getItem('geogames:city-reveal:state'))).toBe(history);
+  });
+});

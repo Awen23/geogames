@@ -24,7 +24,7 @@ import {
 } from '../lib/cityRevealMap';
 import { fetchFixedCommonsImage, fetchWikiImage } from '../lib/cityRevealImages';
 import type { WikiImageAttribution } from '../lib/cityRevealImages';
-import { isArrayOf, isBoolean, isNumber, isRecord, isString, readJson, removeKey, writeJson } from '../lib/storage';
+import { isArrayOf, isBoolean, isNumber, isRecord, isString, pruneKeys, readJson, removeKey, writeJson } from '../lib/storage';
 import styles from './CityReveal.module.css';
 
 const SHARE_URL = 'https://geogames.today';
@@ -57,12 +57,17 @@ interface SelectedLandmark {
   attribution: WikiImageAttribution;
 }
 
+// Per-date keys: only the current puzzle's are kept (pruneOldDays). Streaks and history
+// live under useGameState's own key, which these prefixes don't match.
+const GAME_KEY_PREFIX = 'geogames:city-reveal:game:';
+const INTRO_KEY_PREFIX = 'geogames:city-reveal:intro-dismissed:';
+
 function storageKey(date: string) {
-  return `geogames:city-reveal:game:${date}`;
+  return `${GAME_KEY_PREFIX}${date}`;
 }
 
 function introDismissalStorageKey(date: string) {
-  return `geogames:city-reveal:intro-dismissed:${date}`;
+  return `${INTRO_KEY_PREFIX}${date}`;
 }
 
 function isGuessEntry(v: unknown): v is GuessEntry {
@@ -91,6 +96,11 @@ function saveIntroDismissal(date: string) {
 
 function saveState(state: LocalGameState) {
   writeJson(storageKey(state.date), state);
+}
+
+function pruneOldDays(date: string) {
+  pruneKeys(GAME_KEY_PREFIX, [storageKey(date)]);
+  pruneKeys(INTRO_KEY_PREFIX, [introDismissalStorageKey(date)]);
 }
 
 function utcToday() {
@@ -215,6 +225,7 @@ export function CityReveal() {
         const city = CITY_REVEAL_CITIES.find((c) => c.id === data.cityId) ?? null;
         setTodayCity(city);
 
+        pruneOldDays(data.date);
         const saved = loadState(data.date);
         const nextState = saved ?? { date: data.date, guesses: [], won: false, gameOver: false };
         setGameState(nextState);

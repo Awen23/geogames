@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isArrayOf, isRecord, isString, readJson, removeKey, writeJson } from './storage';
+import { isArrayOf, isRecord, isString, pruneKeys, readJson, removeKey, writeJson } from './storage';
 
 /** Minimal in-memory Storage: vitest runs web tests in node, which has no localStorage. */
 class MemoryStorage {
@@ -69,5 +69,24 @@ describe('writeJson / removeKey', () => {
     storage.removeItem = () => { throw new Error('SecurityError'); };
     expect(() => writeJson('k', { names: [] })).not.toThrow();
     expect(() => removeKey('k')).not.toThrow();
+  });
+});
+
+describe('pruneKeys', () => {
+  it('removes keys with the prefix except those kept', () => {
+    storage.setItem('game:2026-01-01', '1');
+    storage.setItem('game:2026-01-02', '1');
+    storage.setItem('game:2026-01-03', '1');
+    storage.setItem('other', '1');
+    pruneKeys('game:', ['game:2026-01-03']);
+    expect([...Array(storage.length).keys()].map((i) => storage.key(i)).sort()).toEqual([
+      'game:2026-01-03',
+      'other',
+    ]);
+  });
+
+  it('does not throw when storage is unavailable', () => {
+    vi.stubGlobal('localStorage', undefined);
+    expect(() => pruneKeys('game:', [])).not.toThrow();
   });
 });
