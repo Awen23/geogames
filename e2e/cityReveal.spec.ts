@@ -153,6 +153,8 @@ test.describe('Maple game', () => {
   });
 
   test('losing shows today\'s city and records the loss', async ({ page }) => {
+    // Five guesses on the WebGL map: under parallel workers this takes about 30 s.
+    test.slow();
     await openMaple(page);
     await dismissIntro(page);
 
