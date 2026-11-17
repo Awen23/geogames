@@ -33,6 +33,10 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   retries: 0,
+  // In CI (GitHub sets CI): fail on a stray test.only, and write an HTML report for the workflow
+  // to upload when the run fails.
+  forbidOnly: !!process.env.CI,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
@@ -50,6 +54,9 @@ export default defineConfig({
       command: 'npx tsx e2e/support/resetDb.ts && npm run dev --prefix api',
       url: `http://localhost:${API_PORT}/api/health`,
       reuseExistingServer: false,
+      // Covers the database reset (create, migrate, schedule) before the api starts, on a slow
+      // 2-vCPU CI runner too. The default is 60 s.
+      timeout: 120_000,
       env: {
         DATABASE_URL: e2eDatabaseUrl(),
         PORT: String(API_PORT),
