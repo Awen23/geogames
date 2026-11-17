@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { utcDateString } from '../services/daily';
 import { recordCityRevealPlay, getTodayStats } from '../services/stats';
 import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
-import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
+import { CITY_REVEAL_CITIES, IMPLEMENTED_CITIES } from '@shared/cityRevealCities';
 import { haversineKm, bearingDeg } from '@shared/distance';
 import { MAX_GUESSES } from '@shared/cityRevealTypes';
 import type { CityRevealTodayResponse, CityRevealGuessResponse } from '@shared/cityRevealTypes';
@@ -11,8 +11,6 @@ import type { CityRevealTodayResponse, CityRevealGuessResponse } from '@shared/c
 export const cityRevealRouter = Router();
 
 const GAME_ID = 'city-reveal';
-
-const IMPLEMENTED_CITIES = CITY_REVEAL_CITIES.filter((c) => c.implemented === true);
 
 if (IMPLEMENTED_CITIES.length === 0) {
   throw new Error('[city-reveal] No implemented cities — set implemented: true on at least one entry in cityRevealCities.ts');

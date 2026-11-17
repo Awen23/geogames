@@ -3611,3 +3611,6 @@ export const CITY_REVEAL_CITIES: CityRevealCity[] = [
     ],
   },
 ];
+
+/** The cities Maple can schedule; a puzzle index points into this list. */
+export const IMPLEMENTED_CITIES = CITY_REVEAL_CITIES.filter((c) => c.implemented === true);
