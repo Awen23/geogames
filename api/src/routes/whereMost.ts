@@ -84,7 +84,7 @@ whereMostRouter.post('/result', async (req, res) => {
       res.status(400).json({ error: 'Empty submission must have score 0, guesses 0, exactMatches 0' });
       return;
     }
-    await recordWhereMostPlay({ deviceId, date, guesses: 0, score: 0, exactMatches: 0, guessCountries: [] });
+    const recorded = await recordWhereMostPlay({ deviceId, date, guesses: 0, score: 0, exactMatches: 0, guessCountries: [] });
 
     res.cookie('geogames_device_id', deviceId, {
       maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -92,7 +92,7 @@ whereMostRouter.post('/result', async (req, res) => {
       sameSite: 'strict',
     });
 
-    res.json({ ok: true });
+    res.json({ ok: true, recorded });
     return;
   }
 
@@ -105,7 +105,7 @@ whereMostRouter.post('/result', async (req, res) => {
     return;
   }
 
-  await recordWhereMostPlay({ deviceId, date, guesses, score, exactMatches, guessCountries });
+  const recorded = await recordWhereMostPlay({ deviceId, date, guesses, score, exactMatches, guessCountries });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -113,7 +113,7 @@ whereMostRouter.post('/result', async (req, res) => {
     sameSite: 'strict',
   });
 
-  res.json({ ok: true });
+  res.json({ ok: true, recorded });
 });
 
 whereMostRouter.get('/stats/today', async (_req, res) => {

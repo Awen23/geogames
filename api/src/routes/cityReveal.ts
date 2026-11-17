@@ -87,7 +87,7 @@ cityRevealRouter.post('/result', async (req, res) => {
   const { won, guesses } = parsed.data;
   const { date } = await getTodayCity();
 
-  await recordCityRevealPlay({ deviceId, date, won, guesses });
+  const recorded = await recordCityRevealPlay({ deviceId, date, won, guesses });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -95,7 +95,7 @@ cityRevealRouter.post('/result', async (req, res) => {
     sameSite: 'strict',
   });
 
-  res.json({ ok: true });
+  res.json({ ok: true, recorded });
 });
 
 cityRevealRouter.get('/stats/today', async (_req, res) => {

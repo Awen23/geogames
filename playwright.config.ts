@@ -37,6 +37,14 @@ export default defineConfig({
     baseURL: `http://localhost:${WEB_PORT}`,
     trace: 'retain-on-failure',
   },
+  projects: [
+    // The result-endpoint tests run first, on their own, so they see exact play counts from the
+    // fresh database. Everything else runs after them, in parallel. The trade-off: if an
+    // api-results test fails, the e2e project is skipped; and running a single spec also runs
+    // gameResults.spec.ts unless you pass --no-deps.
+    { name: 'api-results', testMatch: 'gameResults.spec.ts' },
+    { name: 'e2e', testIgnore: 'gameResults.spec.ts', dependencies: ['api-results'] },
+  ],
   webServer: [
     {
       command: 'npx tsx e2e/support/resetDb.ts && npm run dev --prefix api',

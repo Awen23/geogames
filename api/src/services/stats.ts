@@ -25,7 +25,8 @@ interface GeoplaceRecord {
   placements: { targetIso3: string; clickLat: number; clickLon: number; score: number }[];
 }
 
-export async function recordWhereMostPlay(record: WhereMostRecord): Promise<void> {
+/** Returns false, and changes nothing, if this device already has a play for the date. */
+export async function recordWhereMostPlay(record: WhereMostRecord): Promise<boolean> {
   const { deviceId, date, guesses, score, exactMatches, guessCountries } = record;
 
   const inserted = await db
@@ -34,7 +35,7 @@ export async function recordWhereMostPlay(record: WhereMostRecord): Promise<void
     .onConflictDoNothing()
     .returning();
 
-  if (inserted.length === 0) { return; }
+  if (inserted.length === 0) { return false; }
 
   await db
     .insert(dailyStats)
@@ -47,9 +48,11 @@ export async function recordWhereMostPlay(record: WhereMostRecord): Promise<void
         totalScore: sql`${dailyStats.totalScore} + ${score}`,
       },
     });
+  return true;
 }
 
-export async function recordCityRevealPlay(record: CityRevealRecord): Promise<void> {
+/** Returns false, and changes nothing, if this device already has a play for the date. */
+export async function recordCityRevealPlay(record: CityRevealRecord): Promise<boolean> {
   const { deviceId, date, won, guesses } = record;
 
   const inserted = await db
@@ -58,7 +61,7 @@ export async function recordCityRevealPlay(record: CityRevealRecord): Promise<vo
     .onConflictDoNothing()
     .returning();
 
-  if (inserted.length === 0) { return; }
+  if (inserted.length === 0) { return false; }
 
   await db
     .insert(dailyStats)
@@ -71,9 +74,11 @@ export async function recordCityRevealPlay(record: CityRevealRecord): Promise<vo
         totalGuesses: sql`${dailyStats.totalGuesses} + ${guesses}`,
       },
     });
+  return true;
 }
 
-export async function recordGeoplacePlay(record: GeoplaceRecord): Promise<void> {
+/** Returns false, and changes nothing, if this device already has a play for the date. */
+export async function recordGeoplacePlay(record: GeoplaceRecord): Promise<boolean> {
   const { deviceId, date, score, placements } = record;
 
   const inserted = await db
@@ -82,7 +87,7 @@ export async function recordGeoplacePlay(record: GeoplaceRecord): Promise<void> 
     .onConflictDoNothing()
     .returning();
 
-  if (inserted.length === 0) { return; }
+  if (inserted.length === 0) { return false; }
 
   if (placements.length > 0) {
     await db
@@ -108,6 +113,7 @@ export async function recordGeoplacePlay(record: GeoplaceRecord): Promise<void> 
         totalScore: sql`${dailyStats.totalScore} + ${score}`,
       },
     });
+  return true;
 }
 
 export async function getTodayStats(
