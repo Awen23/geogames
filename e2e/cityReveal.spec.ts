@@ -1,5 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
 
+/** Debug handles that CityReveal.tsx exposes on `window` in dev mode */
+declare global {
+  interface Window {
+    __mapleMap?: { getPadding: () => { top: number; bottom: number; left: number; right: number } };
+  }
+}
+
 const TODAY = '2026-05-18';
 
 interface ElementBox {
@@ -33,6 +40,47 @@ async function openMaple(page: Page) {
 async function dismissIntro(page: Page) {
   await page.getByRole('button', { name: 'Start playing' }).click();
   await expect(page.getByRole('dialog', { name: 'How to play Maple' })).not.toBeVisible();
+}
+
+async function waitForMapReady(page: Page) {
+  // The real MapTiler style and tiles load here, which can be slow under parallel workers
+  await expect(page.getByTestId('city-reveal-map')).toHaveCSS('opacity', '1', { timeout: 20_000 });
+}
+
+async function stubWrongGuess(page: Page) {
+  await page.route('**/api/games/city-reveal/guess', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ correct: false, distanceKm: 435, bearing: 120 }),
+    });
+  });
+}
+
+async function makeGuess(page: Page, city: string) {
+  await page.getByRole('combobox', { name: 'Enter a city name' }).fill(city);
+  await page.getByRole('listbox', { name: 'City suggestions' }).getByRole('option', { name: new RegExp(city) }).click();
+  await expect(page.getByText('435 km')).toBeVisible();
+}
+
+async function mapPaddingAndPanelHeight(page: Page) {
+  return page.evaluate(() => {
+    const panel = document.querySelector<HTMLElement>('[data-testid="city-reveal-panel"]');
+    return {
+      padding: window.__mapleMap?.getPadding() ?? null,
+      panelHeight: panel?.offsetHeight ?? null,
+    };
+  });
+}
+
+async function expectMapPaddedByPanel(page: Page) {
+  await expect.poll(async () => {
+    const { padding, panelHeight } = await mapPaddingAndPanelHeight(page);
+    const paddingBottom = padding === null ? null : Math.round(padding.bottom);
+    const matches = paddingBottom !== null && panelHeight !== null && panelHeight > 0
+      && paddingBottom === panelHeight;
+    return matches ? 'padding matches panel' : `padding bottom ${paddingBottom}, panel height ${panelHeight}`;
+  }, { message: 'map bottom padding should match the mobile panel height' }).toBe('padding matches panel');
 }
 
 function requireBox(box: ElementBox | null, name: string) {
@@ -87,5 +135,42 @@ test.describe('Maple game', () => {
     const inputBox = requireBox(await input.boundingBox(), 'City input');
     const dropdownBox = requireBox(await dropdown.boundingBox(), 'City suggestions');
     expect(dropdownBox.y + dropdownBox.height).toBeLessThanOrEqual(inputBox.y + 1);
+  });
+
+  test('pads the mobile map by the bottom panel height, and follows it as it grows', async ({ page }) => {
+    test.slow();
+    await page.setViewportSize({ width: 375, height: 812 });
+    await stubWrongGuess(page);
+    await openMaple(page);
+    await dismissIntro(page);
+
+    await waitForMapReady(page);
+    await expectMapPaddedByPanel(page);
+    const before = await mapPaddingAndPanelHeight(page);
+
+    await makeGuess(page, 'Paris');
+
+    await expectMapPaddedByPanel(page);
+    const after = await mapPaddingAndPanelHeight(page);
+    expect(after.panelHeight).toBeGreaterThan(before.panelHeight ?? 0);
+  });
+
+  test('does not pad the desktop map, where the panel sits beside it', async ({ page }) => {
+    test.slow();
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await stubWrongGuess(page);
+    await openMaple(page);
+    await dismissIntro(page);
+
+    await waitForMapReady(page);
+    await expect.poll(async () => (await mapPaddingAndPanelHeight(page)).padding)
+      .toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+
+    // The desktop panel is full height, so resize the viewport as well to make the panel observer fire
+    await makeGuess(page, 'Paris');
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await expect.poll(async () => (await mapPaddingAndPanelHeight(page)).panelHeight).toBe(700);
+    await expect.poll(async () => (await mapPaddingAndPanelHeight(page)).padding)
+      .toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
   });
 });

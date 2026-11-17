@@ -169,7 +169,8 @@ function Confetti() {
 
 export function CityReveal() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const gamePanelRef = useRef<HTMLDivElement>(null);
+  // State, not a ref: the panel mounts only after loading, and the observer effect must rerun then
+  const [gamePanel, setGamePanel] = useState<HTMLDivElement | null>(null);
   const mapRef = useRef<MapGL | null>(null);
   const [gamePanelHeight, setGamePanelHeight] = useState(0);
   const layerMapRef = useRef<Partial<Record<LayerGroupId, string[]>>>({});
@@ -244,11 +245,10 @@ export function CityReveal() {
   // ── Track mobile game-panel height (map padding) ───────────────────────────
 
   useEffect(() => {
-    const panel = gamePanelRef.current;
-    if (!panel) { return; }
+    if (!gamePanel) { return; }
+    const panel = gamePanel;
 
     function syncPanelHeight() {
-      if (!panel) { return; }
       setGamePanelHeight(panel.offsetHeight);
     }
 
@@ -256,7 +256,7 @@ export function CityReveal() {
     const observer = new ResizeObserver(syncPanelHeight);
     observer.observe(panel);
     return () => { observer.disconnect(); };
-  }, []);
+  }, [gamePanel]);
 
   // ── Map initialisation ─────────────────────────────────────────────────────
 
@@ -281,6 +281,11 @@ export function CityReveal() {
 
     map.on('load', () => {
       layerMapRef.current = setupMapLayers(map);
+
+      if (import.meta.env.DEV) {
+        (window as unknown as Record<string, unknown>)['__mapleMap'] = map;
+      }
+
       setMapReady(true);
     });
 
@@ -568,7 +573,7 @@ export function CityReveal() {
       </div>
 
       {/* ── Game UI ── */}
-      <div ref={gamePanelRef} className={styles.gamePanel}>
+      <div ref={setGamePanel} className={styles.gamePanel} data-testid="city-reveal-panel">
         <div className={styles.topBar}>
           <Link to="/" className={styles.backLink}>← Games</Link>
           {!import.meta.env.PROD && (
