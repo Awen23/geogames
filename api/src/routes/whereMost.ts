@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { utcDateString } from '../services/daily';
-import { scoreGuess, maxScore } from '../services/scoring';
+import { scoreGuess } from '../services/scoring';
+import { MAX_GUESSES, TOP_N, maxScore, rawScore, scorePct } from '@shared/whereMostScore';
 import { recordWhereMostPlay, getTodayStats } from '../services/stats';
 import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
 import { questions } from '../data/questions';
@@ -20,7 +21,7 @@ async function getTodayQuestion() {
 whereMostRouter.get('/today', async (_req, res) => {
   const { question, date } = await getTodayQuestion();
   const { id, prompt, description, metric, unit, year, source, sourceUrl, icon, mapEmbedUrl } = question;
-  res.json({ id, date, prompt, description, metric, unit, year, source, sourceUrl, icon, mapEmbedUrl, maxScore: maxScore(question) });
+  res.json({ id, date, prompt, description, metric, unit, year, source, sourceUrl, icon, mapEmbedUrl, maxScore: maxScore(question.ranking) });
 });
 
 const gradeSchema = z.object({
@@ -43,9 +44,9 @@ whereMostRouter.post('/grade', async (req, res) => {
 const resultSchema = z
   .object({
     score: z.number().int().min(0).max(100),
-    guesses: z.number().int().min(0).max(5),
-    exactMatches: z.number().int().min(0).max(5),
-    guessCountries: z.array(z.string().length(3).toUpperCase()).max(5),
+    guesses: z.number().int().min(0).max(MAX_GUESSES),
+    exactMatches: z.number().int().min(0).max(TOP_N),
+    guessCountries: z.array(z.string().length(3).toUpperCase()).max(MAX_GUESSES),
   })
   .refine((result) => result.exactMatches <= result.guesses, {
     message: 'exactMatches cannot exceed guesses',
@@ -97,12 +98,7 @@ whereMostRouter.post('/result', async (req, res) => {
 
   const guessResults = guessCountries.map((iso3) => scoreGuess(question, iso3));
   const exactMatches = guessResults.filter((result) => result.isTopFive).length;
-  const rawScore = guessResults.reduce(
-    (sum, result) => sum + (result.value != null ? result.value : 0),
-    0,
-  );
-  const maxScoreVal = maxScore(question);
-  const score = Math.round(Math.min(100, maxScoreVal > 0 ? (rawScore / maxScoreVal) * 100 : 0));
+  const score = scorePct(rawScore(guessResults), maxScore(question.ranking));
 
   if (score !== submittedScore || exactMatches !== submittedExactMatches) {
     res.status(400).json({ error: 'Submitted result does not match guessed countries' });

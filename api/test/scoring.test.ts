@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scoreGuess, maxScore } from '../src/services/scoring';
+import { scoreGuess } from '../src/services/scoring';
 import { haversineKm } from '@shared/distance';
 import type { Question } from '@shared/types';
 
@@ -71,13 +71,6 @@ describe('scoreGuess', () => {
     const result = scoreGuess(BEER_QUESTION, 'AUT');
     expect(result).not.toHaveProperty('distanceKm');
     expect(result).not.toHaveProperty('bearingDeg');
-  });
-});
-
-describe('maxScore', () => {
-  it('sums the top-5 values', () => {
-    const expected = 126 + 107.8 + 100.3 + 99 + 97.7;
-    expect(maxScore(BEER_QUESTION)).toBeCloseTo(expected, 5);
   });
 });
 

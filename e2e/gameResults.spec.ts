@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
+import { rawScore, scorePct } from '@shared/whereMostScore';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -25,9 +26,8 @@ async function whereMostPayload(request: APIRequestContext, guessCountries: stri
       return (await res.json()) as WhereMostGrade;
     }),
   );
-  const rawScore = grades.reduce((sum, grade) => sum + (grade.value != null ? grade.value : 0), 0);
   return {
-    score: Math.round(Math.min(100, today.maxScore > 0 ? (rawScore / today.maxScore) * 100 : 0)),
+    score: scorePct(rawScore(grades), today.maxScore),
     guesses: guessCountries.length,
     exactMatches: grades.filter((grade) => grade.isTopFive).length,
     guessCountries,

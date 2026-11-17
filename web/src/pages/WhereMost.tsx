@@ -6,14 +6,12 @@ import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
 import { fetchToday, fetchTodayStats, gradeGuess, submitWhereMostResult } from '../lib/api';
 import { useGameState } from '../lib/useGameState';
-import { progressScore } from '../lib/progressScore';
 import { countSlotGuesses } from '../lib/mostleGuessCounter';
 import { displayName } from '@shared/guessCountries';
+import { MAX_GUESSES, TOP_N, coveragePct, rawScore, scorePct } from '@shared/whereMostScore';
 import { TopAnswersSection } from './WhereMostTopAnswers';
 import styles from './WhereMost.module.css';
 
-const MAX_GUESSES = 5;
-const TOP_N = 5;
 const GAME_ID = 'where-most';
 /** Safety cap: no-data guesses do not consume the five slots, so bound total picks to avoid endless play / API abuse. */
 const MAX_TOTAL_SELECTIONS = 20;
@@ -66,7 +64,7 @@ function ProgressBar({
   unit: string;
   topN: number;
 }) {
-  const pct = maxScoreVal > 0 ? Math.min(100, (score / maxScoreVal) * 100) : 0;
+  const pct = coveragePct(score, maxScoreVal);
   const pctRounded = Math.round(pct * 10) / 10;
   return (
     <div className={styles.progressSection}>
@@ -202,7 +200,7 @@ export function WhereMost() {
     };
   }, [isMapExpanded]);
 
-  const scoreVal = progressScore(displayGuesses);
+  const raw = rawScore(displayGuesses.map((g) => g.result));
   const maxScoreVal = today?.maxScore ?? 0;
 
   useEffect(() => {
@@ -290,18 +288,17 @@ export function WhereMost() {
       const exactMatches = slotGuesses.filter((g) => g.result.isTopFive).length;
       const guessCountries = slotGuesses.map((g) => g.iso3);
       const guessResults = slotGuesses.map((g) => g.result);
-      const rawScore = progressScore(slotGuesses);
-      const scorePct = Math.round(Math.min(100, maxScoreVal > 0 ? (rawScore / maxScoreVal) * 100 : 0));
+      const score = scorePct(rawScore(guessResults), maxScoreVal);
       // Record locally before submitting, so a failed submit can't lose the finished game.
       // won=true always for score-only game (means "played")
-      recordResult(true, guessCount, scorePct, {
+      recordResult(true, guessCount, score, {
         exactMatches,
         guessCountries,
         guessResults,
         allGuesses,
       });
       // Fire and forget, like the other games: a failed submit is logged, not retried.
-      submitWhereMostResult(scorePct, guessCount, exactMatches, guessCountries).catch((err: Error) =>
+      submitWhereMostResult(score, guessCount, exactMatches, guessCountries).catch((err: Error) =>
         console.error('Failed to submit result:', err),
       );
     },
@@ -375,7 +372,7 @@ export function WhereMost() {
   }
 
   // score from localStorage if replaying, otherwise compute from live guesses
-  const displayScore = todayResult?.score ?? Math.round(Math.min(100, maxScoreVal > 0 ? (scoreVal / maxScoreVal) * 100 : 0));
+  const displayScore = todayResult?.score ?? scorePct(raw, maxScoreVal);
   const displayFoundCount = todayResult?.exactMatches ?? (displayGuesses.length > 0 ? displayFoundFromGuesses : null);
 
   return (
@@ -416,7 +413,7 @@ export function WhereMost() {
 
       {/* Progress bar — only shown when there are actual guesses this session */}
       {displayGuesses.length > 0 && (
-        <ProgressBar score={scoreVal} maxScoreVal={maxScoreVal} unit={today.unit} topN={TOP_N} />
+        <ProgressBar score={raw} maxScoreVal={maxScoreVal} unit={today.unit} topN={TOP_N} />
       )}
 
       {noDataNoticeIso3 !== null && (
