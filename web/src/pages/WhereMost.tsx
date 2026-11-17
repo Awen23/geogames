@@ -189,6 +189,9 @@ export function WhereMost() {
       return;
     }
 
+    // Captured on open: the expand button stays mounted while the map is expanded,
+    // so this is the node to hand focus back to on close.
+    const expandMapButton = expandMapButtonRef.current;
     closeMapButtonRef.current?.focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -236,7 +239,7 @@ export function WhereMost() {
     window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('keydown', onKeyDown);
-      expandMapButtonRef.current?.focus();
+      expandMapButton?.focus();
     };
   }, [isMapExpanded]);
 

@@ -131,6 +131,18 @@ async function todayRecord(page: Page) {
   );
 }
 
+/** Seeds a finished game for today (Germany, France, Italy; 72%, 2 exact), so the page opens on the end screen. */
+async function seedPlayedToday(page: Page) {
+  const today = new Date().toISOString().slice(0, 10);
+  const state = {
+    history: [{ date: today, won: true, guesses: 3, score: 72, exactMatches: 2, guessCountries: ['DEU', 'FRA', 'ITA'] }],
+  };
+  await page.addInitScript(
+    ([key, value]) => { localStorage.setItem(key, value); },
+    [STATE_KEY, JSON.stringify(state)] as const,
+  );
+}
+
 test.describe('WhereMost game', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -275,11 +287,7 @@ test.describe('WhereMost game', () => {
   });
 
   test('replay guard: already played today shows end screen without country input', async ({ page }) => {
-    const today = new Date().toISOString().slice(0, 10);
-    await page.addInitScript((date) => {
-      const state = { history: [{ date, won: true, guesses: 3, score: 72, exactMatches: 2, guessCountries: ['DEU', 'FRA', 'ITA'] }] };
-      localStorage.setItem('geogames:where-most:state', JSON.stringify(state));
-    }, today);
+    await seedPlayedToday(page);
 
     await page.goto('/games/where-most');
     await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10000 });
@@ -291,6 +299,35 @@ test.describe('WhereMost game', () => {
     await expect(page.getByTestId('guess-list')).toContainText(/#|Not in today/);
     await expect(page.getByTestId('country-input')).not.toBeVisible();
   });
+
+  for (const closeAction of ['Close button', 'Escape', 'backdrop click'] as const) {
+    test(`expanded map returns focus to the expand button (${closeAction})`, async ({ page }) => {
+      await seedPlayedToday(page);
+
+      await page.goto('/games/where-most');
+      const expandButton = page.getByRole('button', { name: 'Expand map' });
+      await expect(expandButton).toBeVisible({ timeout: 10000 });
+      await expandButton.click();
+
+      const dialog = page.getByRole('dialog');
+      const closeButton = page.getByRole('button', { name: 'Close expanded map' });
+      await expect(dialog).toBeVisible();
+      await expect(closeButton).toBeFocused();
+
+      if (closeAction === 'Close button') {
+        await closeButton.click();
+      } else if (closeAction === 'Escape') {
+        await page.keyboard.press('Escape');
+      } else {
+        // The backdrop is the dialog's parent; its centre is covered by the dialog,
+        // so click inside its padding.
+        await dialog.locator('xpath=..').click({ position: { x: 4, y: 4 } });
+      }
+
+      await expect(dialog).not.toBeVisible();
+      await expect(expandButton).toBeFocused();
+    });
+  }
 });
 
 // No localStorage.clear() init script here: it would also run on reload and wipe the
