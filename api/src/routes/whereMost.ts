@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { utcDateString } from '../services/daily';
 import { scoreGuess } from '../services/scoring';
-import { MAX_GUESSES, TOP_N, maxScore, rawScore, scorePct } from '@shared/whereMostScore';
+import { MAX_GUESSES, TOP_N, maxScore, rawScore, scorePercent } from '@shared/whereMostScore';
 import { recordWhereMostPlay, getTodayStats } from '../services/stats';
 import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
 import { questions } from '../data/questions';
@@ -98,7 +98,7 @@ whereMostRouter.post('/result', async (req, res) => {
 
   const guessResults = guessCountries.map((iso3) => scoreGuess(question, iso3));
   const exactMatches = guessResults.filter((result) => result.isTopFive).length;
-  const score = scorePct(rawScore(guessResults), maxScore(question.ranking));
+  const score = scorePercent(rawScore(guessResults), maxScore(question.ranking));
 
   if (score !== submittedScore || exactMatches !== submittedExactMatches) {
     res.status(400).json({ error: 'Submitted result does not match guessed countries' });

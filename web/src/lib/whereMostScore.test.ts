@@ -5,8 +5,8 @@ import {
   MAX_GUESSES,
   maxScore,
   rawScore,
-  coveragePct,
-  scorePct,
+  coveragePercent,
+  scorePercent,
 } from '@shared/whereMostScore';
 
 // Top 5 sum to exactly 200, so each point of raw score is 0.5%.
@@ -28,7 +28,7 @@ function results(iso3s: string[]): Array<{ value: number | null }> {
 }
 
 function scoreOf(iso3s: string[]): number {
-  return scorePct(rawScore(results(iso3s)), maxScore(RANKING));
+  return scorePercent(rawScore(results(iso3s)), maxScore(RANKING));
 }
 
 describe('Mostle constants', () => {
@@ -62,7 +62,7 @@ describe('rawScore', () => {
   });
 });
 
-describe('scorePct', () => {
+describe('scorePercent', () => {
   it('no guesses scores 0', () => {
     expect(scoreOf([])).toBe(0);
   });
@@ -93,45 +93,45 @@ describe('scorePct', () => {
   });
 
   it('rounds half up, not to even', () => {
-    expect(scorePct(1, 200)).toBe(1); // 0.5
-    expect(scorePct(3, 200)).toBe(2); // 1.5
-    expect(scorePct(5, 200)).toBe(3); // 2.5
+    expect(scorePercent(1, 200)).toBe(1); // 0.5
+    expect(scorePercent(3, 200)).toBe(2); // 1.5
+    expect(scorePercent(5, 200)).toBe(3); // 2.5
   });
 
   it('rounds just below .5 down', () => {
     expect(scoreOf(['HHH'])).toBe(0); // 0.495
-    expect(scorePct(2.99, 200)).toBe(1); // 1.495
-    expect(scorePct(198.99, 200)).toBe(99); // 99.495
+    expect(scorePercent(2.99, 200)).toBe(1); // 1.495
+    expect(scorePercent(198.99, 200)).toBe(99); // 99.495
   });
 
   it('99.5% rounds up to 100 without every top-N answer', () => {
-    expect(scorePct(199, 200)).toBe(100);
+    expect(scorePercent(199, 200)).toBe(100);
   });
 
   it('caps at 100', () => {
-    expect(scorePct(250, 200)).toBe(100);
+    expect(scorePercent(250, 200)).toBe(100);
   });
 
   it('is 0 when the max is 0', () => {
-    expect(scorePct(50, 0)).toBe(0);
-    expect(scorePct(0, 0)).toBe(0);
+    expect(scorePercent(50, 0)).toBe(0);
+    expect(scorePercent(0, 0)).toBe(0);
   });
 
   it('is an integer for non-terminating fractions', () => {
-    expect(scorePct(110, 200)).toBe(55); // 55.00000000000001
-    expect(scorePct(1, 3)).toBe(33);
-    expect(scorePct(2, 3)).toBe(67);
+    expect(scorePercent(110, 200)).toBe(55); // 55.00000000000001
+    expect(scorePercent(1, 3)).toBe(33);
+    expect(scorePercent(2, 3)).toBe(67);
   });
 });
 
-describe('coveragePct (progress bar)', () => {
+describe('coveragePercent (progress bar)', () => {
   it('is the unrounded share of the top-N total', () => {
-    expect(coveragePct(1, 200)).toBe(0.5);
-    expect(coveragePct(0.99, 200)).toBeCloseTo(0.495, 10);
+    expect(coveragePercent(1, 200)).toBe(0.5);
+    expect(coveragePercent(0.99, 200)).toBeCloseTo(0.495, 10);
   });
 
   it('caps at 100 and is 0 when the max is 0', () => {
-    expect(coveragePct(250, 200)).toBe(100);
-    expect(coveragePct(50, 0)).toBe(0);
+    expect(coveragePercent(250, 200)).toBe(100);
+    expect(coveragePercent(50, 0)).toBe(0);
   });
 });

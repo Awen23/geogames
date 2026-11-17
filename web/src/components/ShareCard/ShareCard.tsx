@@ -18,18 +18,18 @@ interface ShareCardProps {
   maxGuesses: number;
   foundCount: number;
   topCount: number;
-  /** Score as a percentage (0–100, 1 decimal place) */
-  scorePct: number;
+  /** Score as a whole percent (0–100) */
+  scorePercent: number;
 }
 
-export function ShareCard({ gameTitle, date, guesses, maxGuesses, foundCount, topCount, scorePct }: ShareCardProps) {
+export function ShareCard({ gameTitle, date, guesses, maxGuesses, foundCount, topCount, scorePercent }: ShareCardProps) {
   const [copied, setCopied] = useState(false);
 
   const grid = guesses.map((g) => TIER_EMOJI[g.tier]).join('');
   const padding = '⬜'.repeat(maxGuesses - guesses.length);
   const emojiGrid = grid + padding;
 
-  const scoreStr = `${scorePct}% score · ${foundCount}/${topCount} exact`;
+  const scoreStr = `${scorePercent}% score · ${foundCount}/${topCount} exact`;
   const shareText = `${gameTitle} ${date}\n${scoreStr}\n\n${emojiGrid}\n\n${SHARE_URL}`;
 
   async function handleCopy() {

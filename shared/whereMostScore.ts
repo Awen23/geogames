@@ -20,11 +20,11 @@ export function rawScore(results: ReadonlyArray<{ value: number | null }>): numb
 }
 
 /** Unrounded share (0–100) of the top-N total covered by `raw`. Used for the progress bar. */
-export function coveragePct(raw: number, max: number): number {
+export function coveragePercent(raw: number, max: number): number {
   return max > 0 ? Math.min(100, (raw / max) * 100) : 0;
 }
 
 /** The game's score: coverage rounded to a whole percent (half up). */
-export function scorePct(raw: number, max: number): number {
-  return Math.round(coveragePct(raw, max));
+export function scorePercent(raw: number, max: number): number {
+  return Math.round(coveragePercent(raw, max));
 }

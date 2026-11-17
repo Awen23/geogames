@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { APIRequestContext } from '@playwright/test';
-import { rawScore, scorePct } from '@shared/whereMostScore';
+import { rawScore, scorePercent } from '@shared/whereMostScore';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -27,7 +27,7 @@ async function whereMostPayload(request: APIRequestContext, guessCountries: stri
     }),
   );
   return {
-    score: scorePct(rawScore(grades), today.maxScore),
+    score: scorePercent(rawScore(grades), today.maxScore),
     guesses: guessCountries.length,
     exactMatches: grades.filter((grade) => grade.isTopFive).length,
     guessCountries,

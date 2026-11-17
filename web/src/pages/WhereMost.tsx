@@ -9,7 +9,7 @@ import { isGuessEntry, useGameState } from '../lib/useGameState';
 import { countSlotGuesses } from '../lib/mostleGuessCounter';
 import { isArrayOf, isNumber, isRecord, isString, pruneKeys, readJson, removeKey, writeJson } from '../lib/storage';
 import { displayName } from '@shared/guessCountries';
-import { MAX_GUESSES, TOP_N, coveragePct, rawScore, scorePct } from '@shared/whereMostScore';
+import { MAX_GUESSES, TOP_N, coveragePercent, rawScore, scorePercent } from '@shared/whereMostScore';
 import { TopAnswersSection } from './WhereMostTopAnswers';
 import styles from './WhereMost.module.css';
 
@@ -99,34 +99,34 @@ function GuessRow({ guess, unit }: { guess: RankedGuess; unit: string }) {
 }
 
 function ProgressBar({
-  score,
-  maxScoreVal,
+  coveredTotal,
+  topNTotal,
   unit,
   topN,
 }: {
-  score: number;
-  maxScoreVal: number;
+  coveredTotal: number;
+  topNTotal: number;
   unit: string;
   topN: number;
 }) {
-  const pct = coveragePct(score, maxScoreVal);
-  const pctRounded = Math.round(pct * 10) / 10;
+  const percentCovered = coveragePercent(coveredTotal, topNTotal);
+  const percentCoveredOneDecimal = Math.round(percentCovered * 10) / 10;
   return (
     <div className={styles.progressSection}>
       <div
         className={styles.progressBar}
         role="progressbar"
-        aria-valuenow={pctRounded}
+        aria-valuenow={percentCoveredOneDecimal}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label={`Your coverage of the top-${topN} total`}
       >
-        <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+        <div className={styles.progressFill} style={{ width: `${percentCovered}%` }} />
       </div>
       <p className={styles.progressLabel}>
-        Coverage: {pctRounded}% of the top-{topN} total
+        Coverage: {percentCoveredOneDecimal}% of the top-{topN} total
         <span className={styles.progressDetail}>
-          {score.toFixed(1)} / {maxScoreVal.toFixed(1)} {unit}
+          {coveredTotal.toFixed(1)} / {topNTotal.toFixed(1)} {unit}
         </span>
       </p>
     </div>
@@ -241,7 +241,7 @@ export function WhereMost() {
   }, [isMapExpanded]);
 
   const raw = rawScore(displayGuesses.map((g) => g.result));
-  const maxScoreVal = today?.maxScore ?? 0;
+  const topNTotal = today?.maxScore ?? 0;
 
   useEffect(() => {
     fetchToday()
@@ -347,7 +347,7 @@ export function WhereMost() {
       const exactMatches = slotGuesses.filter((g) => g.result.isTopFive).length;
       const guessCountries = slotGuesses.map((g) => g.iso3);
       const guessResults = slotGuesses.map((g) => g.result);
-      const score = scorePct(rawScore(guessResults), maxScoreVal);
+      const score = scorePercent(rawScore(guessResults), topNTotal);
       // Record locally before submitting, so a failed submit can't lose the finished game.
       // won=true always for score-only game (means "played")
       recordResult(true, guessCount, score, {
@@ -361,7 +361,7 @@ export function WhereMost() {
         console.error('Failed to submit result:', err),
       );
     },
-    [recordResult, maxScoreVal],
+    [recordResult, topNTotal],
   );
 
   const handleCountrySelect = useCallback(
@@ -440,7 +440,7 @@ export function WhereMost() {
   }
 
   // score from localStorage if replaying, otherwise compute from live guesses
-  const displayScore = todayResult?.score ?? scorePct(raw, maxScoreVal);
+  const displayScore = todayResult?.score ?? scorePercent(raw, topNTotal);
   const displayFoundCount = todayResult?.exactMatches ?? (displayGuesses.length > 0 ? displayFoundFromGuesses : null);
 
   return (
@@ -482,7 +482,7 @@ export function WhereMost() {
 
       {/* Progress bar — only shown when there are actual guesses this session */}
       {displayGuesses.length > 0 && (
-        <ProgressBar score={raw} maxScoreVal={maxScoreVal} unit={today.unit} topN={TOP_N} />
+        <ProgressBar coveredTotal={raw} topNTotal={topNTotal} unit={today.unit} topN={TOP_N} />
       )}
 
       {noDataNoticeIso3 !== null && (
@@ -538,7 +538,7 @@ export function WhereMost() {
               maxGuesses={MAX_GUESSES}
               foundCount={displayFoundFromGuesses}
               topCount={TOP_N}
-              scorePct={displayScore}
+              scorePercent={displayScore}
             />
           )}
 
