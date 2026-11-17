@@ -6,12 +6,12 @@ import type { GeoplacePuzzle } from '@shared/types';
 import centroids from '@shared/centroids.json';
 
 const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
-const REF_TO_ROUND1_MAX_KM = 3000;
+const REFERENCE_TO_ROUND1_MAX_KM = 3000;
 const CHAIN_MIN_KM = 500;
 const CHAIN_MAX_KM = 2000;
 const CHAIN_WIDER_MAX_KM = CHAIN_MAX_KM * 2;
 
-/** Centroid pairs with no other country within REF_TO_ROUND1_MAX_KM — must never be reference. */
+/** Centroid pairs with no other country within REFERENCE_TO_ROUND1_MAX_KM — must never be reference. */
 const ISOLATED_REFERENCE_ISO3S = new Set(['AUS', 'NZL']);
 
 function* utcDatesBetween(startYear: number, endYear: number): Generator<string> {
@@ -96,7 +96,7 @@ describe('getTodayPuzzle', () => {
   it('keeps round 1 within 3000 km of the reference', () => {
     for (const date of utcDatesBetween(2026, 2026)) {
       const { refToRound1 } = legDistancesKm(getTodayPuzzle(date));
-      expect(refToRound1).toBeLessThanOrEqual(REF_TO_ROUND1_MAX_KM);
+      expect(refToRound1).toBeLessThanOrEqual(REFERENCE_TO_ROUND1_MAX_KM);
     }
   });
 
