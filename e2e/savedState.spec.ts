@@ -27,11 +27,13 @@ function utcToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function junkSeeds(kind: 'invalid-json' | 'wrong-shape'): Record<string, string> {
+/** `mostleDate` is the server's puzzle date, which keys Mostle's in-progress save (not the client's date). */
+function junkSeeds(kind: 'invalid-json' | 'wrong-shape', mostleDate: string): Record<string, string> {
   const today = utcToday();
   if (kind === 'invalid-json') {
     return {
       'geogames:where-most:state': '{not json',
+      [`geogames:where-most:progress:${mostleDate}`]: '{not json',
       'geogames:geoplace:state': '{not json',
       'geogames:geoplace:session': '{not json',
       'geogames:city-reveal:state': '{not json',
@@ -40,6 +42,9 @@ function junkSeeds(kind: 'invalid-json' | 'wrong-shape'): Record<string, string>
   }
   return {
     'geogames:where-most:state': JSON.stringify({ history: 5 }),
+    [`geogames:where-most:progress:${mostleDate}`]: JSON.stringify({
+      date: mostleDate, questionId: 7, guesses: [{ iso3: 'DEU', result: 'found' }], noDataIso3s: null,
+    }),
     'geogames:geoplace:state': 'null',
     'geogames:geoplace:session': JSON.stringify({
       date: today, roundIndex: 'x', phase: 'placing', placedCountries: null, scores: null,
@@ -60,7 +65,10 @@ const PAGES: Array<{ name: string; path: string; ready: (page: Page) => Promise<
   {
     name: 'Mostle',
     path: '/games/where-most',
-    ready: async (page) => { await expect(page.getByTestId('country-input')).toBeVisible({ timeout: 10000 }); },
+    ready: async (page) => {
+      await expect(page.getByTestId('country-input')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('guess-counter')).toHaveText('Guess 1 of 5');
+    },
   },
   {
     name: 'Placle',
@@ -79,7 +87,8 @@ test.describe('Corrupt saved progress', () => {
     for (const p of PAGES) {
       test(`${p.name} loads a fresh game over ${kind} data`, async ({ page }) => {
         await stubMapleToday(page);
-        await seed(page, junkSeeds(kind));
+        const mostle = (await (await page.request.get('/api/games/where-most/today')).json()) as { date: string };
+        await seed(page, junkSeeds(kind, mostle.date));
         await page.goto(p.path);
         await p.ready(page);
       });

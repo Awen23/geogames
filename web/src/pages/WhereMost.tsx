@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { TodayResponse, GuessResult, Tier, WhereMostStatsResponse } from '@shared/types';
 import { CountryInput } from '../components/CountryInput/CountryInput';
 import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
 import { fetchToday, fetchTodayStats, gradeGuess, submitWhereMostResult } from '../lib/api';
-import { useGameState } from '../lib/useGameState';
+import { isGuessEntry, useGameState } from '../lib/useGameState';
 import { countSlotGuesses } from '../lib/mostleGuessCounter';
+import { isArrayOf, isNumber, isRecord, isString, pruneKeys, readJson, removeKey, writeJson } from '../lib/storage';
 import { displayName } from '@shared/guessCountries';
 import { MAX_GUESSES, TOP_N, coveragePct, rawScore, scorePct } from '@shared/whereMostScore';
 import { TopAnswersSection } from './WhereMostTopAnswers';
@@ -15,6 +16,9 @@ import styles from './WhereMost.module.css';
 const GAME_ID = 'where-most';
 /** Safety cap: no-data guesses do not consume the five slots, so bound total picks to avoid endless play / API abuse. */
 const MAX_TOTAL_SELECTIONS = 20;
+// In-progress game, one key per puzzle date; only today's is kept. A finished game lives under
+// useGameState's own key (geogames:where-most:state), which this prefix doesn't match.
+const PROGRESS_KEY_PREFIX = 'geogames:where-most:progress:';
 
 interface Guess {
   iso3: string;
@@ -37,6 +41,47 @@ const TIER_BADGE: Record<Exclude<Tier, 'no-data'>, string> = {
 
 function isRankedGuess(guess: Guess): guess is RankedGuess {
   return guess.result.tier !== 'no-data' && guess.result.rank !== null && guess.result.value !== null;
+}
+
+/** Whether the game is over: all top-N found, every slot used, or the total-picks cap reached. */
+function isFinished(guesses: readonly Guess[], totalGradedRounds: number): boolean {
+  return guesses.filter((g) => g.result.isTopFive).length >= TOP_N
+    || countSlotGuesses(guesses) >= MAX_GUESSES
+    || totalGradedRounds >= MAX_TOTAL_SELECTIONS;
+}
+
+/** Everything needed to restore a game in progress: the graded picks, exactly as the page holds them. */
+interface SavedProgress {
+  date: string;
+  /** Which question this belongs to, so progress on another question is never restored. */
+  questionId: string;
+  /** Slot-using picks only (no-data picks are in noDataIso3s); a `cold` one may have no rank. */
+  guesses: Guess[];
+  noDataIso3s: string[];
+  totalGradedRounds: number;
+}
+
+function progressKey(date: string) {
+  return `${PROGRESS_KEY_PREFIX}${date}`;
+}
+
+/** Saved guesses use a slot, so a no-data one there is invalid. */
+function isSavedGuess(v: unknown): v is Guess {
+  return isGuessEntry(v) && v.result.tier !== 'no-data';
+}
+
+function isSavedProgress(v: unknown): v is SavedProgress {
+  return isRecord(v) && isString(v.date) && isString(v.questionId)
+    && isArrayOf(v.guesses, isSavedGuess) && isArrayOf(v.noDataIso3s, isString)
+    && isNumber(v.totalGradedRounds) && Number.isInteger(v.totalGradedRounds) && v.totalGradedRounds >= 0;
+}
+
+/** Today's saved game in progress, or null if there is none, it is for another puzzle, or it had already ended. */
+function loadProgress(today: TodayResponse): SavedProgress | null {
+  const saved = readJson<SavedProgress | null>(progressKey(today.date), isSavedProgress, null);
+  if (saved === null || saved.date !== today.date || saved.questionId !== today.id) { return null; }
+  // A finished game is recorded by useGameState, never restored from here.
+  return isFinished(saved.guesses, saved.totalGradedRounds) ? null : saved;
 }
 
 function GuessRow({ guess, unit }: { guess: RankedGuess; unit: string }) {
@@ -109,16 +154,11 @@ export function WhereMost() {
 
   const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
 
-  const liveFoundCount = guesses.filter((g) => g.result.isTopFive).length;
-  const slotGuessCount = countSlotGuesses(guesses);
   const displayGuesses = guesses.length > 0 ? guesses : replayGuesses;
   const rankedDisplayGuesses = displayGuesses.filter(isRankedGuess);
   const displaySlotCount = countSlotGuesses(displayGuesses);
   const displayFoundFromGuesses = displayGuesses.filter((g) => g.result.isTopFive).length;
-  const isGameOver =
-    liveFoundCount === TOP_N ||
-    slotGuessCount >= MAX_GUESSES ||
-    totalGradedRounds >= MAX_TOTAL_SELECTIONS;
+  const isGameOver = isFinished(guesses, totalGradedRounds);
   const showEndScreen = isGameOver || !!todayResult;
 
   const excludedIso3s = useMemo(() => {
@@ -214,6 +254,25 @@ export function WhereMost() {
         setLoading(false);
       });
   }, []);
+
+  // Restore a game in progress once today's puzzle is known (before paint, so a fresh game
+  // never flashes). Restoring only sets local state: it never regrades or submits.
+  useLayoutEffect(() => {
+    if (!today) {
+      return;
+    }
+    pruneKeys(PROGRESS_KEY_PREFIX, [progressKey(today.date)]);
+    if (todayResult) {
+      removeKey(progressKey(today.date));
+      return;
+    }
+    const saved = loadProgress(today);
+    if (saved) {
+      setGuesses(saved.guesses);
+      setNoDataExcludedIso3s(saved.noDataIso3s);
+      setTotalGradedRounds(saved.totalGradedRounds);
+    }
+  }, [today, todayResult]);
 
   useEffect(() => {
     if (!showEndScreen || todayStats !== null) {
@@ -321,22 +380,31 @@ export function WhereMost() {
         setTotalGradedRounds(nextTotalRounds);
 
         let nextGuesses: Guess[] = guesses;
+        let nextNoDataIso3s = noDataExcludedIso3s;
         if (result.tier === 'no-data') {
           setNoDataNoticeIso3(iso3);
-          setNoDataExcludedIso3s((prev) => (prev.includes(iso3) ? prev : [...prev, iso3]));
+          if (!nextNoDataIso3s.includes(iso3)) {
+            nextNoDataIso3s = [...nextNoDataIso3s, iso3];
+            setNoDataExcludedIso3s(nextNoDataIso3s);
+          }
         } else {
           nextGuesses = [...guesses, { iso3, result }];
           setGuesses(nextGuesses);
         }
 
-        const nextSlotCount = countSlotGuesses(nextGuesses);
-        const nextLiveFoundCount = nextGuesses.filter((g) => g.result.isTopFive).length;
-        if (
-          nextLiveFoundCount === TOP_N ||
-          nextSlotCount >= MAX_GUESSES ||
-          nextTotalRounds >= MAX_TOTAL_SELECTIONS
-        ) {
+        if (isFinished(nextGuesses, nextTotalRounds)) {
           handleEndGame(nextGuesses);
+          // The recorded result drives the end screen from now on.
+          removeKey(progressKey(today.date));
+        } else {
+          const progress: SavedProgress = {
+            date: today.date,
+            questionId: today.id,
+            guesses: nextGuesses,
+            noDataIso3s: nextNoDataIso3s,
+            totalGradedRounds: nextTotalRounds,
+          };
+          writeJson(progressKey(today.date), progress);
         }
       } catch (err) {
         console.error('Failed to grade guess:', err);
@@ -344,7 +412,7 @@ export function WhereMost() {
         gradingInFlightRef.current = false;
       }
     },
-    [guesses, excludedIso3s, isGameOver, today, handleEndGame, totalGradedRounds],
+    [guesses, noDataExcludedIso3s, excludedIso3s, isGameOver, today, handleEndGame, totalGradedRounds],
   );
 
   if (loading) {
@@ -384,6 +452,7 @@ export function WhereMost() {
             className={styles.devResetBtn}
             onClick={() => {
               resetForDev();
+              removeKey(progressKey(today.date));
               setGuesses([]);
               setReplayGuesses([]);
               setNoDataExcludedIso3s([]);

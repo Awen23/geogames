@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import type { GuessResult } from '@shared/types';
+import type { GuessResult, Tier } from '@shared/types';
 import { isArrayOf, isBoolean, isNumber, isRecord, isString, readJson, writeJson } from './storage';
 
 interface DayResult {
@@ -39,12 +39,15 @@ function utcToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function isGuessResult(v: unknown): v is GuessResult {
-  return isRecord(v) && isString(v.tier) && isBoolean(v.isTopFive)
+const TIERS: readonly unknown[] = ['found', 'warm', 'cold', 'no-data'] satisfies Tier[];
+
+export function isGuessResult(v: unknown): v is GuessResult {
+  return isRecord(v) && TIERS.includes(v.tier) && isBoolean(v.isTopFive)
     && (v.rank === null || isNumber(v.rank)) && (v.value === null || isNumber(v.value));
 }
 
-function isGuessEntry(v: unknown): v is { iso3: string; result: GuessResult } {
+/** A graded guess as the Mostle page holds it and saves it. */
+export function isGuessEntry(v: unknown): v is { iso3: string; result: GuessResult } {
   return isRecord(v) && isString(v.iso3) && isGuessResult(v.result);
 }
 

@@ -63,6 +63,14 @@ describe('loadState', () => {
     expect(day.allGuesses).toBeUndefined();
   });
 
+  it('strips details with an unknown tier', () => {
+    const bad = { tier: 'gold', rank: 1, value: 9, isTopFive: true };
+    seed([{ ...currentDay, guessResults: [bad, bad], allGuesses: [{ iso3: 'DEU', result: bad }] }]);
+    const [day] = loadState('where-most').history;
+    expect(day.guessResults).toBeUndefined();
+    expect(day.allGuesses).toBeUndefined();
+  });
+
   it('drops a day missing core fields, keeping the rest', () => {
     seed([{ date: '2026-11-15', won: 'yes' }, currentDay]);
     expect(loadState('where-most').history).toEqual([currentDay]);

@@ -1,44 +1,122 @@
 import { test, expect } from '@playwright/test';
-import type { Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 
 const RESULT_URL = '**/api/games/where-most/result';
 const STATE_KEY = 'geogames:where-most:state';
 
 const STATS_URL = '**/api/games/where-most/stats/today';
+const PROGRESS_PREFIX = 'geogames:where-most:progress:';
+
+// Assumes at least 5 of these have data for whatever today's question is. If not, the
+// list runs out before the game ends and the final end-screen expect fails loudly.
+const CANDIDATES = [
+  'Germany', 'France', 'Italy', 'Spain', 'Poland', 'Japan', 'Brazil', 'Canada',
+  'Mexico', 'Egypt', 'Kenya', 'Peru', 'Chile', 'Norway', 'Sweden',
+];
+
+/** Picks one country, graded by the real API, and waits until it has landed (ranked, no-data notice, or game over). */
+async function guessCountry(page: Page, name: string) {
+  const input = page.getByTestId('country-input');
+  const endScreen = page.getByTestId('end-screen');
+  await input.fill(name);
+  const graded = page.waitForResponse('**/api/games/where-most/grade');
+  await page.getByRole('option', { name: new RegExp(name) }).click();
+  await graded;
+  await expect(async () => {
+    const shown = [
+      ...(await page.getByTestId('guess-list').allTextContents()),
+      ...(await page.getByTestId('no-data-notice').allTextContents()),
+    ].join(' ');
+    expect((await endScreen.isVisible()) || shown.includes(name)).toBe(true);
+  }).toPass({ timeout: 5000 });
+}
 
 /**
  * Plays today's real puzzle to the end, with guesses graded by the real API.
  * No-data countries don't use a slot, so keep picking from the list until the end screen appears.
+ * `skip` leaves out countries already picked (they are no longer offered).
  */
-async function playToEnd(page: Page) {
-  // Assumes at least 5 of these have data for whatever today's question is. If not, the
-  // list runs out before the game ends and the final end-screen expect fails loudly.
-  const candidates = [
-    'Germany', 'France', 'Italy', 'Spain', 'Poland', 'Japan', 'Brazil', 'Canada',
-    'Mexico', 'Egypt', 'Kenya', 'Peru', 'Chile', 'Norway', 'Sweden',
-  ];
-  const input = page.getByTestId('country-input');
+async function playToEnd(page: Page, skip: string[] = []) {
   const endScreen = page.getByTestId('end-screen');
-  await expect(input).toBeVisible({ timeout: 10000 });
+  await expect(page.getByTestId('country-input')).toBeVisible({ timeout: 10000 });
 
-  for (const name of candidates) {
+  for (const name of CANDIDATES.filter((n) => !skip.includes(n))) {
     if (await endScreen.isVisible()) {
       break;
     }
-    await input.fill(name);
-    const graded = page.waitForResponse('**/api/games/where-most/grade');
-    await page.getByRole('option', { name: new RegExp(name) }).click();
-    await graded;
-    // Wait until this guess has landed (ranked, no-data notice, or game over).
-    await expect(async () => {
-      const shown = [
-        ...(await page.getByTestId('guess-list').allTextContents()),
-        ...(await page.getByTestId('no-data-notice').allTextContents()),
-      ].join(' ');
-      expect((await endScreen.isVisible()) || shown.includes(name)).toBe(true);
-    }).toPass({ timeout: 5000 });
+    await guessCountry(page, name);
   }
   await expect(endScreen).toBeVisible();
+}
+
+/** Picks countries until `count` of them are ranked guesses; returns every country picked (including no-data ones). */
+async function playGuesses(page: Page, count: number) {
+  const rows = page.getByTestId('guess-list').locator('li');
+  await expect(page.getByTestId('country-input')).toBeVisible({ timeout: 10000 });
+  const picked: string[] = [];
+  for (const name of CANDIDATES) {
+    if (await rows.count() >= count) {
+      break;
+    }
+    await guessCountry(page, name);
+    picked.push(name);
+  }
+  await expect(rows).toHaveCount(count);
+  return picked;
+}
+
+/** Everything the in-progress view shows about the guesses so far. */
+async function progressView(page: Page) {
+  return {
+    rows: await page.getByTestId('guess-list').locator('li').allTextContents(),
+    counter: await page.getByTestId('guess-counter').textContent(),
+    coverage: await page.getByRole('progressbar').getAttribute('aria-valuenow'),
+    progressLabel: await page.getByRole('progressbar').locator('xpath=..').textContent(),
+  };
+}
+
+function progressKeys(page: Page) {
+  return page.evaluate(
+    (prefix) => Object.keys(localStorage).filter((k) => k.startsWith(prefix)),
+    PROGRESS_PREFIX,
+  );
+}
+
+/**
+ * Seeds an in-progress save (once: addInitScript re-runs on reload). Defaults to today's puzzle
+ * as the server reports it; the cold France guess is unranked, exactly as /grade returns one.
+ */
+async function seedProgress(
+  page: Page,
+  request: APIRequestContext,
+  overrides: { date?: string; questionId?: string; totalGradedRounds?: number } = {},
+) {
+  const today = (await (await request.get('/api/games/where-most/today')).json()) as { id: string; date: string };
+  const saved = {
+    date: today.date,
+    questionId: today.id,
+    guesses: [
+      { iso3: 'DEU', result: { tier: 'found', rank: 1, value: 100, isTopFive: true } },
+      { iso3: 'FRA', result: { tier: 'cold', rank: null, value: null, isTopFive: false } },
+    ],
+    noDataIso3s: ['VAT'],
+    totalGradedRounds: 3,
+    ...overrides,
+  };
+  await page.addInitScript(
+    ([key, value]) => { localStorage.setItem(key, value); },
+    [`${PROGRESS_PREFIX}${saved.date}`, JSON.stringify(saved)] as const,
+  );
+}
+
+/** Stubs the result submit with a 200 so these tests never write to the shared dev DB; returns the call count. */
+async function stubSubmit(page: Page) {
+  const calls = { count: 0 };
+  await page.route(RESULT_URL, async (route) => {
+    calls.count++;
+    await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
+  return calls;
 }
 
 async function todayRecord(page: Page) {
@@ -277,4 +355,100 @@ test.describe('WhereMost game end persistence', () => {
     expect(await todayRecord(page)).not.toBeNull();
     expect(payloads).toHaveLength(1);
   });
+});
+
+// Same as above: no clear-on-load init script, or the reloads under test would start empty.
+test.describe('WhereMost in-progress persistence', () => {
+  test('guesses made so far survive a reload, without regrading or submitting', async ({ page }) => {
+    const submits = await stubSubmit(page);
+    await page.goto('/games/where-most');
+    const picked = await playGuesses(page, 2);
+    const before = await progressView(page);
+    expect(before.counter).toBe('Guess 3 of 5');
+
+    let gradeCalls = 0;
+    page.on('request', (req) => {
+      if (req.url().includes('/api/games/where-most/grade')) { gradeCalls++; }
+    });
+    await page.reload();
+    await expect(page.getByTestId('guess-list').locator('li')).toHaveCount(2, { timeout: 10000 });
+    expect(await progressView(page)).toEqual(before);
+    await expect(page.getByTestId('end-screen')).not.toBeVisible();
+
+    // Everything already picked (ranked or no-data) stays out of the suggestions.
+    const input = page.getByTestId('country-input');
+    for (const name of picked) {
+      await input.fill(name);
+      await expect(page.getByRole('option', { name: new RegExp(name) })).not.toBeVisible();
+    }
+    expect(gradeCalls).toBe(0);
+    expect(submits.count).toBe(0);
+  });
+
+  test('finishing clears the in-progress save; a reload shows the end screen', async ({ page }) => {
+    const submits = await stubSubmit(page);
+    await page.goto('/games/where-most');
+    const picked = await playGuesses(page, 2);
+    const firstRows = await page.getByTestId('guess-list').locator('li').allTextContents();
+    expect(await progressKeys(page)).toHaveLength(1);
+
+    await page.reload();
+    await expect(page.getByTestId('guess-list').locator('li')).toHaveCount(2, { timeout: 10000 });
+    await playToEnd(page, picked);
+    await expect.poll(() => submits.count).toBe(1);
+    expect(await progressKeys(page)).toEqual([]);
+    const finalRows = await page.getByTestId('guess-list').locator('li').allTextContents();
+    expect(finalRows.slice(0, 2)).toEqual(firstRows);
+
+    const statsLoaded = page.waitForResponse(STATS_URL);
+    await page.reload();
+    await statsLoaded;
+    await expect(page.getByTestId('end-screen')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('country-input')).not.toBeVisible();
+    expect(await page.getByTestId('guess-list').locator('li').allTextContents()).toEqual(finalRows);
+    expect(await progressKeys(page)).toEqual([]);
+    expect(submits.count).toBe(1);
+  });
+
+  test("a saved game for today's puzzle is restored, including its no-data picks and pick count", async ({ page, request }) => {
+    const submits = await stubSubmit(page);
+    // 19 = MAX_TOTAL_SELECTIONS - 1 (a literal: e2e doesn't import page constants), so one more pick ends the game.
+    await seedProgress(page, request, { totalGradedRounds: 19 });
+    await page.goto('/games/where-most');
+    await expect(page.getByTestId('country-input')).toBeVisible({ timeout: 10000 });
+    // The unranked cold France guess still uses a slot but has no row.
+    await expect(page.getByTestId('guess-counter')).toHaveText('Guess 3 of 5');
+    await expect(page.getByTestId('guess-list').locator('li')).toHaveCount(1);
+    await expect(page.getByTestId('guess-list')).toContainText('Germany');
+
+    // Once suggestions have rendered, the saved no-data pick must not be among them.
+    await page.getByTestId('country-input').fill('Va');
+    await expect(page.getByRole('option', { name: /Vanuatu/ })).toBeVisible();
+    await expect(page.getByRole('option', { name: /Vatican/ })).not.toBeVisible();
+
+    // The restored pick count still caps the game: the 20th pick ends it, whatever its grade.
+    await guessCountry(page, 'Spain');
+    await expect(page.getByTestId('end-screen')).toBeVisible();
+    await expect.poll(() => submits.count).toBe(1);
+    expect(await progressKeys(page)).toEqual([]);
+  });
+
+  for (const c of [
+    { name: 'another date is ignored and pruned', date: '2020-01-01' },
+    { name: 'another question is ignored', questionId: 'not-todays-question' },
+  ]) {
+    test(`a saved game for ${c.name}`, async ({ page, request }) => {
+      const submits = await stubSubmit(page);
+      await seedProgress(page, request, c);
+      await page.goto('/games/where-most');
+      await expect(page.getByTestId('country-input')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId('guess-counter')).toHaveText('Guess 1 of 5');
+      await expect(page.getByTestId('guess-list')).not.toBeVisible();
+      await expect(page.getByRole('progressbar')).not.toBeVisible();
+      if (c.date) {
+        await expect.poll(() => progressKeys(page)).toEqual([]);
+      }
+      expect(submits.count).toBe(0);
+    });
+  }
 });
