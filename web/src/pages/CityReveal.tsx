@@ -24,6 +24,7 @@ import {
 } from '../lib/cityRevealMap';
 import { fetchFixedCommonsImage, fetchWikiImage } from '../lib/cityRevealImages';
 import type { WikiImageAttribution } from '../lib/cityRevealImages';
+import { isArrayOf, isBoolean, isNumber, isRecord, isString, readJson, removeKey, writeJson } from '../lib/storage';
 import styles from './CityReveal.module.css';
 
 const SHARE_URL = 'https://geogames.today';
@@ -64,33 +65,32 @@ function introDismissalStorageKey(date: string) {
   return `geogames:city-reveal:intro-dismissed:${date}`;
 }
 
+function isGuessEntry(v: unknown): v is GuessEntry {
+  return isRecord(v) && isString(v.cityId) && isString(v.cityName) && isString(v.countryCode)
+    && isNumber(v.distanceKm) && isNumber(v.bearing) && isBoolean(v.correct);
+}
+
+function isLocalGameState(v: unknown): v is LocalGameState {
+  return isRecord(v) && isString(v.date) && isArrayOf(v.guesses, isGuessEntry)
+    && isBoolean(v.won) && isBoolean(v.gameOver)
+    && (v.wonCity === undefined || (isRecord(v.wonCity) && isString(v.wonCity.name)
+      && isString(v.wonCity.country) && isString(v.wonCity.countryCode)));
+}
+
 function loadState(date: string): LocalGameState | null {
-  try {
-    const raw = localStorage.getItem(storageKey(date));
-    if (raw) { return JSON.parse(raw) as LocalGameState; }
-  } catch (e) { console.error('CityReveal: corrupt saved state, resetting', e); }
-  return null;
+  return readJson<LocalGameState | null>(storageKey(date), isLocalGameState, null);
 }
 
 function isIntroDismissed(date: string) {
-  try {
-    return localStorage.getItem(introDismissalStorageKey(date)) === 'true';
-  } catch (e) {
-    console.error('CityReveal: failed to read intro dismissal state', e);
-    return false;
-  }
+  return readJson(introDismissalStorageKey(date), (v): v is boolean => v === true, false);
 }
 
 function saveIntroDismissal(date: string) {
-  try {
-    localStorage.setItem(introDismissalStorageKey(date), 'true');
-  } catch (e) {
-    console.error('CityReveal: failed to save intro dismissal state', e);
-  }
+  writeJson(introDismissalStorageKey(date), true);
 }
 
 function saveState(state: LocalGameState) {
-  localStorage.setItem(storageKey(state.date), JSON.stringify(state));
+  writeJson(storageKey(state.date), state);
 }
 
 function utcToday() {
@@ -454,8 +454,8 @@ export function CityReveal() {
     if (!gameState) {
       return;
     }
-    localStorage.removeItem(storageKey(gameState.date));
-    localStorage.removeItem(introDismissalStorageKey(gameState.date));
+    removeKey(storageKey(gameState.date));
+    removeKey(introDismissalStorageKey(gameState.date));
     resetGameStateBadge();
     setGameState({ date: gameState.date, guesses: [], won: false, gameOver: false });
     setShowIntroModal(true);

@@ -8,9 +8,10 @@ import { haversineKm } from '@shared/distance';
 import centroids from '@shared/centroids.json';
 import { useGameState } from '../lib/useGameState';
 import { submitGeoplaceResult } from '../lib/api';
-import type { GeoplacePlacement } from '@shared/types';
+import type { GeoplacePlacement, GeoplacePuzzle } from '@shared/types';
 import styles from './GeoPlace.module.css';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { isArrayOf, isNumber, isRecord, isString, readJson, removeKey, writeJson } from '../lib/storage';
 
 const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
 const MOBILE_PLACEMENT_QUERY = '(max-width: 699px), (pointer: coarse)';
@@ -37,31 +38,36 @@ type Phase = 'placing' | 'placed' | 'results';
 
 interface GeoplaceSession {
   date: string;
+  /** Which puzzle this session belongs to, so a session for another puzzle is never restored. */
+  referenceIso3: string;
+  targetIso3s: string[];
   roundIndex: number;
   phase: Phase;
   placedCountries: PlacedCountryData[];
   scores: number[];
 }
 
-function loadSession(): GeoplaceSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) { return null; }
-    const parsed = JSON.parse(raw) as GeoplaceSession;
-    if (parsed.date !== utcToday()) { return null; }
-    return parsed;
-  } catch (err) {
-    console.error('Failed to load GeoPlace session:', err);
-    return null;
-  }
+function isPlacedCountry(v: unknown): v is PlacedCountryData {
+  return isRecord(v) && isString(v.iso3) && isNumber(v.lat) && isNumber(v.lon) && isString(v.label);
 }
 
-function saveSession(session: GeoplaceSession) {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch (err) {
-    console.error('Failed to save GeoPlace session:', err);
-  }
+function isGeoplaceSession(v: unknown): v is GeoplaceSession {
+  return isRecord(v) && isString(v.date) && isString(v.referenceIso3)
+    && isArrayOf(v.targetIso3s, isString)
+    && isNumber(v.roundIndex) && Number.isInteger(v.roundIndex)
+    && v.roundIndex >= 0 && v.roundIndex < ROUNDS_TOTAL
+    && (v.phase === 'placing' || v.phase === 'placed' || v.phase === 'results')
+    && isArrayOf(v.placedCountries, isPlacedCountry) && isArrayOf(v.scores, isNumber);
+}
+
+/** Today's saved session, or null if there is none or it belongs to a different puzzle. */
+function loadSession(puzzle: GeoplacePuzzle): GeoplaceSession | null {
+  const session = readJson<GeoplaceSession | null>(SESSION_KEY, isGeoplaceSession, null);
+  const targets = puzzle.rounds.map((r) => r.targetIso3);
+  const samePuzzle = session !== null && session.date === utcToday()
+    && session.referenceIso3 === puzzle.referenceIso3
+    && session.targetIso3s.join() === targets.join();
+  return samePuzzle ? session : null;
 }
 
 function ResetButton({ onReset }: { onReset: () => void }) {
@@ -85,7 +91,7 @@ export function GeoPlace() {
   const puzzle = useMemo(() => getTodayPuzzle(), []);
   const { todayResult, recordResult, resetForDev: resetGameState } = useGameState(GAME_ID);
 
-  const savedSession = useMemo(() => loadSession(), []);
+  const savedSession = useMemo(() => loadSession(puzzle), [puzzle]);
 
   const [roundIndex, setRoundIndex] = useState(savedSession?.roundIndex ?? 0);
   const [phase, setPhase] = useState<Phase>(savedSession?.phase ?? 'placing');
@@ -99,8 +105,17 @@ export function GeoPlace() {
 
   // Persist session state on every change so navigation restores progress
   useEffect(() => {
-    saveSession({ date: utcToday(), roundIndex, phase, placedCountries, scores });
-  }, [roundIndex, phase, placedCountries, scores]);
+    const session: GeoplaceSession = {
+      date: utcToday(),
+      referenceIso3: puzzle.referenceIso3,
+      targetIso3s: puzzle.rounds.map((r) => r.targetIso3),
+      roundIndex,
+      phase,
+      placedCountries,
+      scores,
+    };
+    writeJson(SESSION_KEY, session);
+  }, [puzzle, roundIndex, phase, placedCountries, scores]);
 
   const currentRound = puzzle.rounds[roundIndex];
 
@@ -174,7 +189,7 @@ export function GeoPlace() {
   }, [scores, placedCountries, recordResult]);
 
   const resetForDev = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY);
+    removeKey(SESSION_KEY);
     resetGameState();
     setRoundIndex(0);
     setPhase('placing');
