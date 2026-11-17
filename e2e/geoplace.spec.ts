@@ -8,13 +8,6 @@ async function openPlacle(page: Page) {
 }
 
 test.describe('Placle (GeoPlace)', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.clear();
-    });
-  });
-
   test('desktop: single click commits placement', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openPlacle(page);
@@ -30,7 +23,7 @@ test.describe('Placle (GeoPlace)', () => {
 
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-    await expect(page.getByText(/placed —/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/placed —/i)).toBeVisible();
   });
 
   test('mobile: tap places draft, confirm commits placement', async ({ page }) => {
@@ -52,7 +45,7 @@ test.describe('Placle (GeoPlace)', () => {
 
     await page.getByTestId('geoplace-confirm-placement').click();
 
-    await expect(page.getByText(/placed —/i)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/placed —/i)).toBeVisible();
   });
 
   test('mobile: cancel clears draft placement', async ({ page }) => {
