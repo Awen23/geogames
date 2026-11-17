@@ -295,11 +295,6 @@ export function CityReveal() {
 
     map.on('load', () => {
       layerMapRef.current = setupMapLayers(map);
-
-      if (import.meta.env.DEV) {
-        (window as unknown as Record<string, unknown>)['__mapleMap'] = map;
-      }
-
       setMapReady(true);
     });
 

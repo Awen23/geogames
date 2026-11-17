@@ -1,15 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { LAYER_GROUP_IDS, classifyLayer, type LayerGroupId } from '../web/src/components/CityRevealMap/layers';
 
-/** Debug handles that CityReveal.tsx exposes on `window` in dev mode */
-declare global {
-  interface Window {
-    __mapleMap?: { getPadding: () => { top: number; bottom: number; left: number; right: number } };
-  }
-}
-
-const TODAY = '2026-05-18';
-
 interface ElementBox {
   x: number;
   y: number;
@@ -17,24 +8,11 @@ interface ElementBox {
   height: number;
 }
 
-async function stubCityRevealToday(page: Page) {
-  await page.route('**/api/games/city-reveal/today', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({
-        date: TODAY,
-        cityId: 'bern',
-        lat: 46.948,
-        lon: 7.4474,
-        zoom: 13,
-      }),
-    });
-  });
-}
+const TODAY = new Date().toISOString().slice(0, 10);
 
+// Today's city is Bern (e2e/support/knownPuzzles.ts). Each test gets a fresh browser context, so
+// storage starts empty.
 async function openMaple(page: Page) {
-  await stubCityRevealToday(page);
   await page.goto('/games/city-reveal');
 }
 
@@ -48,40 +26,23 @@ async function waitForMapReady(page: Page) {
   await expect(page.getByTestId('city-reveal-map')).toHaveCSS('opacity', '1', { timeout: 20_000 });
 }
 
-async function stubWrongGuess(page: Page) {
-  await page.route('**/api/games/city-reveal/guess', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ correct: false, distanceKm: 435, bearing: 120 }),
-    });
-  });
+/** Guesses a city through the real API, waits for its row, and returns the /guess response. */
+async function guessCity(page: Page, name: string) {
+  const rows = page.getByLabel(/^Direction: bearing/);
+  const rowsBefore = await rows.count();
+  await page.getByRole('combobox', { name: 'Enter a city name' }).fill(name);
+  const response = page.waitForResponse('**/api/games/city-reveal/guess');
+  await page.getByRole('listbox', { name: 'City suggestions' }).getByRole('option', { name: new RegExp(name) }).click();
+  const body: unknown = await (await response).json();
+  await expect(rows).toHaveCount(rowsBefore + 1);
+  return body;
 }
 
-async function makeGuess(page: Page, city: string) {
-  await page.getByRole('combobox', { name: 'Enter a city name' }).fill(city);
-  await page.getByRole('listbox', { name: 'City suggestions' }).getByRole('option', { name: new RegExp(city) }).click();
+/** Guesses Paris: Bern is 435 km away, on a bearing of 119°. */
+async function guessParis(page: Page) {
+  expect(await guessCity(page, 'Paris')).toEqual({ correct: false, distanceKm: 435, bearing: 119 });
   await expect(page.getByText('435 km')).toBeVisible();
-}
-
-async function mapPaddingAndPanelHeight(page: Page) {
-  return page.evaluate(() => {
-    const panel = document.querySelector<HTMLElement>('[data-testid="city-reveal-panel"]');
-    return {
-      padding: window.__mapleMap?.getPadding() ?? null,
-      panelHeight: panel?.offsetHeight ?? null,
-    };
-  });
-}
-
-async function expectMapPaddedByPanel(page: Page) {
-  await expect.poll(async () => {
-    const { padding, panelHeight } = await mapPaddingAndPanelHeight(page);
-    const paddingBottom = padding === null ? null : Math.round(padding.bottom);
-    const matches = paddingBottom !== null && panelHeight !== null && panelHeight > 0
-      && paddingBottom === panelHeight;
-    return matches ? 'padding matches panel' : `padding bottom ${paddingBottom}, panel height ${panelHeight}`;
-  }, { message: 'map bottom padding should match the mobile panel height' }).toBe('padding matches panel');
+  await expect(page.getByLabel('Direction: bearing 119')).toBeVisible();
 }
 
 function requireBox(box: ElementBox | null, name: string) {
@@ -92,12 +53,40 @@ function requireBox(box: ElementBox | null, name: string) {
   return box;
 }
 
+/**
+ * Checks where the map centres Bern, read from the page rather than from the map object. The third
+ * wrong guess shows Bern's three landmark markers, whose centroid is within about 10 px of the city
+ * centre at these zooms. Mobile pads the map by the bottom panel, so the centre sits in the band
+ * above it; unpadded, it would be panelHeight / 2 (well over 100 px) lower.
+ */
+async function expectBernCentredAbovePanel(page: Page, padded: boolean) {
+  const markers = page.locator('.maplibregl-marker');
+  await expect(markers).toHaveCount(3);
+  await expect(async () => {
+    const map = requireBox(await page.getByTestId('city-reveal-map').boundingBox(), 'Map');
+    const panel = requireBox(await page.getByTestId('city-reveal-panel').boundingBox(), 'Panel');
+    const centres = await markers.evaluateAll((els) => els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }));
+    const centroid = {
+      x: centres.reduce((sum, c) => sum + c.x, 0) / centres.length,
+      y: centres.reduce((sum, c) => sum + c.y, 0) / centres.length,
+    };
+    const expected = {
+      x: map.x + map.width / 2,
+      y: map.y + (map.height - (padded ? panel.height : 0)) / 2,
+    };
+    expect(Math.abs(centroid.x - expected.x), 'horizontal offset from the expected centre').toBeLessThanOrEqual(20);
+    expect(Math.abs(centroid.y - expected.y), 'vertical offset from the expected centre').toBeLessThanOrEqual(20);
+  }).toPass({ timeout: 10_000 });
+}
+
 test.describe('Maple game', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(() => {
-      localStorage.clear();
-    });
+  test('API /today returns today\'s city', async ({ request }) => {
+    const res = await request.get('/api/games/city-reveal/today');
+    expect(res.status()).toBe(200);
+    expect(await res.json()).toEqual({ date: TODAY, cityId: 'bern', lat: 46.948, lon: 7.4474, zoom: 13 });
   });
 
   test('the live map style has layers for every reveal group', async ({ page }) => {
@@ -163,40 +152,63 @@ test.describe('Maple game', () => {
     expect(dropdownBox.y + dropdownBox.height).toBeLessThanOrEqual(inputBox.y + 1);
   });
 
-  test('pads the mobile map by the bottom panel height, and follows it as it grows', async ({ page }) => {
-    test.slow();
-    await page.setViewportSize({ width: 375, height: 812 });
-    await stubWrongGuess(page);
+  test('losing shows today\'s city and records the loss', async ({ page }) => {
     await openMaple(page);
     await dismissIntro(page);
 
+    const submitted = page.waitForResponse('**/api/games/city-reveal/result');
+    for (const city of ['Paris', 'Rome', 'Vienna', 'Madrid', 'London']) {
+      await guessCity(page, city);
+    }
+    const response = await submitted;
+    expect(response.request().postDataJSON()).toEqual({ won: false, guesses: 5 });
+    expect(await response.json()).toEqual({ ok: true, recorded: true });
+
+    await expect(page.getByText('❌ Better luck tomorrow')).toBeVisible();
+    await expect(page.getByText('Bern', { exact: true })).toBeVisible();
+    await expect(page.getByText('Switzerland', { exact: true })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Enter a city name' })).not.toBeVisible();
+  });
+
+  test('pads the mobile map by the bottom panel height, and follows it as it grows', async ({ page }) => {
+    test.slow();
+    await page.setViewportSize({ width: 375, height: 812 });
+    await openMaple(page);
+    await dismissIntro(page);
     await waitForMapReady(page);
-    await expectMapPaddedByPanel(page);
-    const before = await mapPaddingAndPanelHeight(page);
 
-    await makeGuess(page, 'Paris');
+    await guessParis(page);
+    await guessCity(page, 'Rome');
+    await guessCity(page, 'Vienna');
+    await expectBernCentredAbovePanel(page, true);
+    const panelBefore = requireBox(await page.getByTestId('city-reveal-panel').boundingBox(), 'Panel');
 
-    await expectMapPaddedByPanel(page);
-    const after = await mapPaddingAndPanelHeight(page);
-    expect(after.panelHeight).toBeGreaterThan(before.panelHeight ?? 0);
+    // The panel keeps its height through the fourth guess; the fifth loses the game, and the panel
+    // grows to show the answer. (Landmarks only show from the third guess, so the earlier growth,
+    // at the first guess, can't be checked this way.)
+    await guessCity(page, 'Madrid');
+    await guessCity(page, 'London');
+    await expect.poll(async () => (await page.getByTestId('city-reveal-panel').boundingBox())?.height)
+      .toBeGreaterThan(panelBefore.height);
+    await expectBernCentredAbovePanel(page, true);
   });
 
   test('does not pad the desktop map, where the panel sits beside it', async ({ page }) => {
     test.slow();
     await page.setViewportSize({ width: 1280, height: 800 });
-    await stubWrongGuess(page);
     await openMaple(page);
     await dismissIntro(page);
-
     await waitForMapReady(page);
-    await expect.poll(async () => (await mapPaddingAndPanelHeight(page)).padding)
-      .toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+
+    await guessParis(page);
+    await guessCity(page, 'Rome');
+    await guessCity(page, 'Vienna');
+    await expectBernCentredAbovePanel(page, false);
 
     // The desktop panel is full height, so resize the viewport as well to make the panel observer fire
-    await makeGuess(page, 'Paris');
+    await guessCity(page, 'Madrid');
     await page.setViewportSize({ width: 1280, height: 700 });
-    await expect.poll(async () => (await mapPaddingAndPanelHeight(page)).panelHeight).toBe(700);
-    await expect.poll(async () => (await mapPaddingAndPanelHeight(page)).padding)
-      .toEqual({ top: 0, bottom: 0, left: 0, right: 0 });
+    await expect.poll(async () => (await page.getByTestId('city-reveal-panel').boundingBox())?.height).toBe(700);
+    await expectBernCentredAbovePanel(page, false);
   });
 });
