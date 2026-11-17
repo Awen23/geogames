@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Map as MapGL, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { LAYER_GROUPS } from '../components/CityRevealMap/layers';
+import { LAYER_GROUP_IDS } from '../components/CityRevealMap/layers';
 import type { LayerGroupId } from '../components/CityRevealMap/layers';
 import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
 import {
@@ -339,10 +339,9 @@ export function CityReveal() {
       ? new Set<string>(WIN_GROUPS)
       : new Set<string>(STAGE_GROUPS[stage]);
 
-    for (const group of LAYER_GROUPS) {
-      if (group.id === 'terrain3d') { continue; }
-      const visibility = visibleGroups.has(group.id) ? 'visible' : 'none';
-      for (const id of layerMapRef.current[group.id] ?? []) {
+    for (const groupId of LAYER_GROUP_IDS) {
+      const visibility = visibleGroups.has(groupId) ? 'visible' : 'none';
+      for (const id of layerMapRef.current[groupId] ?? []) {
         try { map.setLayoutProperty(id, 'visibility', visibility); } catch { /* ignore */ }
       }
     }

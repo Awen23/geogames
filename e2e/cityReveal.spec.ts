@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { LAYER_GROUP_IDS, classifyLayer, type LayerGroupId } from '../web/src/components/CityRevealMap/layers';
 
 /** Debug handles that CityReveal.tsx exposes on `window` in dev mode */
 declare global {
@@ -97,6 +98,31 @@ test.describe('Maple game', () => {
     await page.evaluate(() => {
       localStorage.clear();
     });
+  });
+
+  test('the live map style has layers for every reveal group', async ({ page }) => {
+    // Take the style from the game's own request, so this checks the URL and key it really uses
+    const styleResponse = page.waitForResponse((res) => new URL(res.url()).pathname.endsWith('/style.json'));
+    await openMaple(page);
+    const response = await styleResponse;
+    expect(response.ok()).toBeTruthy();
+    const style = await response.json() as {
+      layers: { id: string; type: string; 'source-layer'?: string; minzoom?: number }[];
+    };
+
+    const counts = new Map<LayerGroupId, number>();
+    for (const layer of style.layers) {
+      const group = classifyLayer(layer.id, layer.type, layer['source-layer'], layer.minzoom);
+      if (group === null) { continue; }
+      expect(LAYER_GROUP_IDS, `group of layer "${layer.id}"`).toContain(group);
+      // setupMapLayers hides 3D extrusions, so they don't count towards the buildings group
+      if (layer.type === 'fill-extrusion') { continue; }
+      counts.set(group, (counts.get(group) ?? 0) + 1);
+    }
+
+    // streets-v4 has no contour layers
+    const emptyGroups = LAYER_GROUP_IDS.filter((id) => id !== 'contours' && !counts.get(id));
+    expect(emptyGroups).toEqual([]);
   });
 
   test('dismisses the intro modal once per puzzle date', async ({ page }) => {
