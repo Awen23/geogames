@@ -177,6 +177,9 @@ function Confetti() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+/** Shared fallback before the game loads, so `guesses` keeps the same identity across renders. */
+const NO_GUESSES: readonly GuessEntry[] = [];
+
 export function CityReveal() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   // State, not a ref: the panel mounts only after loading, and the observer effect must rerun then
@@ -208,7 +211,7 @@ export function CityReveal() {
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const today = utcToday();
-  const guesses = gameState?.guesses ?? [];
+  const guesses = gameState?.guesses ?? NO_GUESSES;
   const wrongGuesses = guesses.filter((g) => !g.correct);
   const stage = Math.min(wrongGuesses.length, 4);
   const won = gameState?.won ?? false;
