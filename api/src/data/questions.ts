@@ -22,11 +22,13 @@ function mapEmbedUrl(slug: string, year: number): string {
 
 /**
  * Mostle questions. Only append: the daily schedule stores each question's position in this list.
+ * Never change an existing id. The id has no year in it, so moving a question to a new data year
+ * keeps it.
  * Every entry is checked automatically by `api/test/questions.test.ts`.
  */
 export const questionConfigs: QuestionConfig[] = [
   {
-    id: 'beer-per-capita-2022',
+    id: 'beer-per-capita',
     csvFile: 'beer-consumption-per-person.csv',
     year: 2022,
     prompt: 'Which countries have the highest beer consumption per person?',
@@ -39,7 +41,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('beer-consumption-per-person', 2022),
   },
   {
-    id: 'milk-per-capita-2022',
+    id: 'milk-per-capita',
     csvFile: 'per-capita-milk-consumption.csv',
     year: 2022,
     prompt: 'Which countries have the highest milk consumption per person?',
@@ -52,7 +54,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('per-capita-milk-consumption', 2022),
   },
   {
-    id: 'meat-per-capita-2022',
+    id: 'meat-per-capita',
     csvFile: 'meat-supply-per-person.csv',
     year: 2022,
     prompt: 'Which countries have the highest meat consumption per person?',
@@ -65,7 +67,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('meat-supply-per-person', 2022),
   },
   {
-    id: 'fish-seafood-per-capita-2022',
+    id: 'fish-seafood-per-capita',
     csvFile: 'fish-and-seafood-consumption-per-capita.csv',
     year: 2022,
     prompt: 'Which countries have the highest fish and seafood consumption per person?',
@@ -78,7 +80,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('fish-and-seafood-consumption-per-capita', 2022),
   },
   {
-    id: 'total-alcohol-per-capita-2020',
+    id: 'total-alcohol-per-capita',
     csvFile: 'total-alcohol-consumption-per-capita-litres-of-pure-alcohol.csv',
     year: 2020,
     prompt: 'Which countries have the highest alcohol consumption per person?',
@@ -91,7 +93,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('total-alcohol-consumption-per-capita-litres-of-pure-alcohol', 2020),
   },
   {
-    id: 'spirits-per-capita-2022',
+    id: 'spirits-per-capita',
     csvFile: 'spirits-consumption-per-person.csv',
     year: 2022,
     prompt: 'Which countries have the highest spirits consumption per person?',
@@ -104,7 +106,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('spirits-consumption-per-person', 2022),
   },
   {
-    id: 'adult-smoking-share-2024',
+    id: 'adult-smoking-share',
     csvFile: 'share-of-adults-who-smoke.csv',
     year: 2024,
     prompt: 'Which countries have the highest share of adults who smoke or use tobacco?',
@@ -117,7 +119,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('share-of-adults-who-smoke', 2024),
   },
   {
-    id: 'adult-obesity-share-2024',
+    id: 'adult-obesity-share',
     csvFile: 'share-of-adults-defined-as-obese.csv',
     year: 2024,
     prompt: 'Which countries have the highest obesity rate?',
@@ -130,7 +132,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('share-of-adults-defined-as-obese', 2024),
   },
   {
-    id: 'renewable-electricity-share-2023',
+    id: 'renewable-electricity-share',
     csvFile: 'share-electricity-renewables.csv',
     year: 2023,
     prompt: 'Which countries get the largest share of their electricity from renewables?',
@@ -144,7 +146,7 @@ export const questionConfigs: QuestionConfig[] = [
     knownDataIssues: { tieAtFifth: '8 countries tie at 100%. The question is being dropped.' },
   },
   {
-    id: 'life-expectancy-2023',
+    id: 'life-expectancy',
     csvFile: 'life-expectancy.csv',
     year: 2023,
     prompt: 'Which countries have the highest life expectancy?',
@@ -157,7 +159,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('life-expectancy', 2023),
   },
   {
-    id: 'mean-years-schooling-2020',
+    id: 'mean-years-schooling',
     csvFile: 'mean-years-of-schooling-long-run.csv',
     year: 2020,
     prompt: 'Which countries have the highest average years of schooling?',
@@ -170,7 +172,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('mean-years-of-schooling-long-run', 2020),
   },
   {
-    id: 'life-satisfaction-2025',
+    id: 'life-satisfaction',
     csvFile: 'happiness-cantril-ladder.csv',
     year: 2025,
     prompt: 'Which countries report the highest life satisfaction?',
@@ -183,7 +185,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('happiness-cantril-ladder', 2025),
   },
   {
-    id: 'co2-emissions-per-capita-2025',
+    id: 'co2-emissions-per-capita',
     csvFile: 'co-emissions-per-capita.csv',
     year: 2025,
     prompt: 'Which countries have the highest CO2 emissions per person?',
@@ -196,7 +198,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('co-emissions-per-capita', 2025),
   },
   {
-    id: 'fertility-rate-2023',
+    id: 'fertility-rate',
     csvFile: 'children-per-woman-un.csv',
     year: 2023,
     prompt: 'Which countries have the highest fertility rate?',
@@ -209,7 +211,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('children-per-woman-un', 2023),
   },
   {
-    id: 'energy-use-per-capita-2024',
+    id: 'energy-use-per-capita',
     csvFile: 'per-capita-energy-use.csv',
     year: 2024,
     prompt: 'Which countries use the most energy per person?',
@@ -222,7 +224,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('per-capita-energy-use', 2024),
   },
   {
-    id: 'gdp-per-capita-2024',
+    id: 'gdp-per-capita',
     csvFile: 'gdp-per-capita-worldbank.csv',
     year: 2024,
     prompt: 'Which countries have the highest GDP per person?',
@@ -235,7 +237,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('gdp-per-capita-worldbank', 2024),
   },
   {
-    id: 'cocoa-consumption-per-capita-2022',
+    id: 'cocoa-consumption-per-capita',
     csvFile: 'chocolate-consumption-per-person.csv',
     year: 2022,
     prompt: 'Which countries have the highest cocoa bean consumption per person?',
@@ -248,7 +250,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('chocolate-consumption-per-person', 2022),
   },
   {
-    id: 'urban-agglomerations-million-share-2020',
+    id: 'urban-agglomerations-million-share',
     csvFile: 'urban-agglomerations-1-million-percent.csv',
     year: 2020,
     prompt: 'Which countries have the largest share of urban residents in cities of at least one million people?',
@@ -261,7 +263,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('urban-agglomerations-1-million-percent', 2020),
   },
   {
-    id: 'largest-city-urban-share-2020',
+    id: 'largest-city-urban-share',
     csvFile: 'population-in-the-largest-city.csv',
     year: 2020,
     prompt: 'Which countries have the largest share of urban residents in their biggest city?',
@@ -274,7 +276,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('population-in-the-largest-city', 2020),
   },
   {
-    id: 'migrant-stock-share-2024',
+    id: 'migrant-stock-share',
     csvFile: 'migrant-stock-share.csv',
     year: 2024,
     prompt: 'Which countries have the highest share of people born abroad?',
@@ -287,7 +289,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('migrant-stock-share', 2024),
   },
   {
-    id: 'agricultural-labour-force-share-2021',
+    id: 'agricultural-labour-force-share',
     csvFile: 'share-of-the-labor-force-employed-in-agriculture.csv',
     year: 2021,
     prompt: 'Which countries have the largest share of their labour force in agriculture?',
@@ -300,7 +302,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('share-of-the-labor-force-employed-in-agriculture', 2021),
   },
   {
-    id: 'agricultural-land-per-capita-2023',
+    id: 'agricultural-land-per-capita',
     csvFile: 'agricultural-area-per-capita.csv',
     year: 2023,
     prompt: 'Which countries have the most agricultural land per person?',
@@ -313,7 +315,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('agricultural-area-per-capita', 2023),
   },
   {
-    id: 'food-expenditure-per-person-2023',
+    id: 'food-expenditure-per-person',
     csvFile: 'food-expenditure-per-person-per-year.csv',
     year: 2023,
     prompt: 'Which countries spend the most on food per person?',
@@ -326,7 +328,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('food-expenditure-per-person-per-year', 2023),
   },
   {
-    id: 'women-married-or-in-union-share-2025',
+    id: 'women-married-or-in-union-share',
     csvFile: 'share-of-women-aged-1549-who-are-married-or-in-a-union.csv',
     year: 2025,
     valueColumn: '15-49 years old (Projected)',
@@ -340,7 +342,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('share-of-women-aged-1549-who-are-married-or-in-a-union', 2025),
   },
   {
-    id: 'ai-publications-2024',
+    id: 'ai-publications',
     csvFile: 'annual-scholarly-publications-on-artificial-intelligence.csv',
     year: 2024,
     prompt: 'Which countries publish the most AI research papers?',
@@ -353,7 +355,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('annual-scholarly-publications-on-artificial-intelligence', 2024),
   },
   {
-    id: 'generative-ai-use-share-2025',
+    id: 'generative-ai-use-share',
     csvFile: 'estimated-share-people-generative-ai.csv',
     year: 2025,
     prompt: 'Which countries have the highest share of working-age adults using generative AI?',
@@ -366,7 +368,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('estimated-share-people-generative-ai', 2025),
   },
   {
-    id: 'tax-revenue-share-gdp-2022',
+    id: 'tax-revenue-share-gdp',
     csvFile: 'tax-revenues-as-a-share-of-gdp-unu-wider.csv',
     year: 2022,
     prompt: 'Which countries raise the most tax revenue as a share of GDP?',
@@ -379,7 +381,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('tax-revenues-as-a-share-of-gdp-unu-wider', 2022),
   },
   {
-    id: 'working-hours-per-worker-2023',
+    id: 'working-hours-per-worker',
     csvFile: 'annual-working-hours-per-worker.csv',
     year: 2023,
     prompt: 'Which countries work the longest hours per worker?',
@@ -392,7 +394,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('annual-working-hours-per-worker', 2023),
   },
   {
-    id: 'wind-electricity-share-2024',
+    id: 'wind-electricity-share',
     csvFile: 'share-electricity-wind.csv',
     year: 2024,
     prompt: 'Which countries get the largest share of their electricity from wind?',
@@ -405,7 +407,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('share-electricity-wind', 2024),
   },
   {
-    id: 'solar-electricity-share-2024',
+    id: 'solar-electricity-share',
     csvFile: 'share-electricity-solar.csv',
     year: 2024,
     prompt: 'Which countries get the largest share of their electricity from solar?',
@@ -418,7 +420,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('share-electricity-solar', 2024),
   },
   {
-    id: 'forest-area-share-2025',
+    id: 'forest-area-share',
     csvFile: 'forest-area-as-share-of-land-area.csv',
     year: 2025,
     prompt: 'Which countries have the largest share of land covered by forest?',
@@ -431,7 +433,7 @@ export const questionConfigs: QuestionConfig[] = [
     mapEmbedUrl: mapEmbedUrl('forest-area-as-share-of-land-area', 2025),
   },
   {
-    id: 'patent-applications-per-million-2020',
+    id: 'patent-applications-per-million',
     csvFile: 'patent-applications-per-million.csv',
     year: 2020,
     prompt: 'Which countries file the most patent applications per million people?',

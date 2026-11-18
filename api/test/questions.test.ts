@@ -82,8 +82,9 @@ describe('Mostle question data', () => {
       }
     }
 
-    it('has an id ending with its year', () => {
-      expect(config.id.endsWith(`-${config.year}`)).toBe(true);
+    it('has an id without a year in it', () => {
+      // The schedule stores ids, so an id must stay the same when the question's data year changes.
+      expect(config.id).not.toMatch(/(19|20)\d\d/);
     });
 
     it('links to the same chart and year as its CSV', () => {
