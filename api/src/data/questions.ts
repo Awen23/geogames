@@ -21,9 +21,9 @@ function mapEmbedUrl(slug: string, year: number): string {
 }
 
 /**
- * Mostle questions. Only append: the daily schedule stores each question's position in this list.
- * Never change an existing id. The id has no year in it, so moving a question to a new data year
- * keeps it.
+ * Mostle questions. The daily schedule stores each question's `id`, so questions can be added,
+ * removed or reordered freely. Never change an existing id: days already scheduled with it would
+ * lose their question. The id has no year in it, so moving a question to a new data year keeps it.
  * Every entry is checked automatically by `api/test/questions.test.ts`.
  */
 export const questionConfigs: QuestionConfig[] = [

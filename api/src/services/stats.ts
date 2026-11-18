@@ -5,6 +5,7 @@ import { eq, and, sql } from 'drizzle-orm';
 interface WhereMostRecord {
   deviceId: string;
   date: string;
+  questionId: string;
   guesses: number;
   score: number; // 0–100
   exactMatches: number;
@@ -14,6 +15,7 @@ interface WhereMostRecord {
 interface CityRevealRecord {
   deviceId: string;
   date: string;
+  cityId: string;
   won: boolean;
   guesses: number;
 }
@@ -26,11 +28,11 @@ interface GeoplaceRecord {
 }
 
 export async function recordWhereMostPlay(record: WhereMostRecord): Promise<void> {
-  const { deviceId, date, guesses, score, exactMatches, guessCountries } = record;
+  const { deviceId, date, questionId, guesses, score, exactMatches, guessCountries } = record;
 
   const inserted = await db
     .insert(whereMostPlays)
-    .values({ deviceId, date, guesses, score, exactMatches, guessCountries })
+    .values({ deviceId, date, questionId, guesses, score, exactMatches, guessCountries })
     .onConflictDoNothing()
     .returning();
 
@@ -50,11 +52,11 @@ export async function recordWhereMostPlay(record: WhereMostRecord): Promise<void
 }
 
 export async function recordCityRevealPlay(record: CityRevealRecord): Promise<void> {
-  const { deviceId, date, won, guesses } = record;
+  const { deviceId, date, cityId, won, guesses } = record;
 
   const inserted = await db
     .insert(cityRevealPlays)
-    .values({ deviceId, date, won, guesses })
+    .values({ deviceId, date, cityId, won, guesses })
     .onConflictDoNothing()
     .returning();
 

@@ -12,7 +12,10 @@ function fnv1a(str: string): number {
   return hash;
 }
 
-/** Deterministic index into a question pool for a given game + UTC date */
+/**
+ * Deterministic number in [0, poolSize) for a game + UTC date. Used to pick a puzzle when the
+ * database is down, and as the date-seeded random number when a day is scheduled on request.
+ */
 export function seedIndex(gameId: string, date: string, poolSize: number): number {
   return fnv1a(`${gameId}:${date}`) % poolSize;
 }

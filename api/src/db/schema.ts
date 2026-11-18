@@ -26,6 +26,11 @@ export const whereMostPlays = pgTable(
     score: integer('score').notNull(), // 0–100: % of total top-5 metric value achieved
     exactMatches: integer('exact_matches').notNull().default(0), // Count of exact top-5 countries found
     guessCountries: text('guess_countries').array().notNull().default(sql`ARRAY[]::text[]`),
+    /**
+     * Id of the question played. Null when it isn't known: plays from before migration 0004 on days
+     * with no schedule row, and plays saved by old-code machines during the 0004 deploy.
+     */
+    questionId: text('question_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.deviceId, t.date] })],
@@ -38,6 +43,11 @@ export const cityRevealPlays = pgTable(
     date: date('date').notNull(),
     won: boolean('won').notNull(),
     guesses: integer('guesses').notNull(),
+    /**
+     * Id of the city played. Null when it isn't known: plays from before migration 0004 on days
+     * with no schedule row, and plays saved by old-code machines during the 0004 deploy.
+     */
+    cityId: text('city_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.deviceId, t.date] })],
@@ -72,7 +82,11 @@ export const puzzleSchedule = pgTable(
   {
     gameId: text('game_id').notNull(),
     date: date('date').notNull(),
-    puzzleIndex: integer('puzzle_index').notNull(),
+    /**
+     * Id of the day's puzzle: a Where Most question id or a City Reveal city id. Null only for
+     * rows from before migration 0004 whose old position matched no puzzle.
+     */
+    puzzleId: text('puzzle_id'),
   },
   (t) => [primaryKey({ columns: [t.gameId, t.date] })],
 );
