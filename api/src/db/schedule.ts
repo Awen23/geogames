@@ -1,12 +1,12 @@
 import path from 'path';
 import { config } from 'dotenv';
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { eq, asc } from 'drizzle-orm';
+import { and, asc, eq, gte, isNull, notInArray, or, sql } from 'drizzle-orm';
 import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
 import { questions } from '../data/questions';
 import { utcDateString } from '../services/daily';
-import { unscheduledIndices } from '../services/scheduleUtils';
+import { addDays, planPuzzleDays } from '../services/scheduleUtils';
 import { puzzleSchedule } from './schema';
 
 config({ path: path.resolve(process.cwd(), '../.env') });
@@ -16,30 +16,79 @@ if (!DATABASE_URL) {
   throw new Error('DATABASE_URL is not set');
 }
 
-const IMPLEMENTED_CITIES = CITY_REVEAL_CITIES.filter((c) => c.implemented === true);
+/**
+ * How many days past today each game is scheduled on every deploy. A newly added puzzle is
+ * picked first for the next unscheduled day, so it appears within about this many days. Days
+ * past this that a deploy hasn't reached are scheduled on their first request instead.
+ */
+const DAYS_AHEAD = 14;
 
-const GAME_POOLS: Record<string, () => number> = {
-  'where-most': () => questions.length,
-  'city-reveal': () => IMPLEMENTED_CITIES.length,
-};
+/** Every game with a daily schedule, and the ids of the puzzles it can show. */
+const SCHEDULED_GAMES: { gameId: string; puzzleIds: string[] }[] = [
+  { gameId: 'where-most', puzzleIds: questions.map((question) => question.id) },
+  {
+    gameId: 'city-reveal',
+    puzzleIds: CITY_REVEAL_CITIES.filter((city) => city.implemented === true).map((city) => city.id),
+  },
+];
 
-function shuffle<T>(arr: T[]): T[] {
-  const out = [...arr];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+type ScheduleDb = PostgresJsDatabase<{ puzzleSchedule: typeof puzzleSchedule }>;
+
+/**
+ * Keeps every day from today to DAYS_AHEAD filled for one game. Days from today on whose
+ * puzzle has been removed are cleared first, so they get re-planned. Past days are never changed.
+ *
+ * Runs in a transaction that locks the schedule against writes, so a request scheduling a day
+ * on demand can't slip in between the clear, the read and the insert. Reads aren't blocked.
+ */
+async function scheduleGame(db: ScheduleDb, gameId: string, puzzleIds: string[]): Promise<void> {
+  const today = utcDateString();
+
+  if (puzzleIds.length === 0) {
+    console.warn(`[${gameId}] No puzzles — skipping`);
+    return;
   }
-  return out;
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`LOCK TABLE ${puzzleSchedule} IN SHARE ROW EXCLUSIVE MODE`);
+    await clearAndPlan(tx, gameId, puzzleIds, today);
+  });
 }
 
-function addDays(dateStr: string, n: number): string {
-  const d = new Date(`${dateStr}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
+type ScheduleTx = Parameters<Parameters<ScheduleDb['transaction']>[0]>[0];
 
-function maxDate(a: string, b: string): string {
-  return a.localeCompare(b) >= 0 ? a : b;
+async function clearAndPlan(db: ScheduleTx, gameId: string, puzzleIds: string[], today: string): Promise<void> {
+  const removed = await db
+    .delete(puzzleSchedule)
+    .where(
+      and(
+        eq(puzzleSchedule.gameId, gameId),
+        gte(puzzleSchedule.date, today),
+        or(isNull(puzzleSchedule.puzzleId), notInArray(puzzleSchedule.puzzleId, puzzleIds)),
+      ),
+    )
+    .returning({ date: puzzleSchedule.date });
+
+  const existing = await db
+    .select({ date: puzzleSchedule.date, puzzleId: puzzleSchedule.puzzleId })
+    .from(puzzleSchedule)
+    .where(eq(puzzleSchedule.gameId, gameId))
+    .orderBy(asc(puzzleSchedule.date));
+
+  const scheduled = existing.flatMap((day) => (day.puzzleId ? [{ date: day.date, puzzleId: day.puzzleId }] : []));
+  const planned = planPuzzleDays(scheduled, puzzleIds, today, DAYS_AHEAD, Math.random);
+
+  if (planned.length > 0) {
+    await db
+      .insert(puzzleSchedule)
+      .values(planned.map((day) => ({ gameId, date: day.date, puzzleId: day.puzzleId })))
+      .onConflictDoNothing();
+  }
+
+  console.log(
+    `[${gameId}] Cleared ${removed.length} days from today on with removed puzzles; ` +
+      `scheduled ${planned.length} new days through ${addDays(today, DAYS_AHEAD)} (pool=${puzzleIds.length}).`,
+  );
 }
 
 export async function runPuzzleSchedule(databaseUrl: string): Promise<void> {
@@ -47,40 +96,8 @@ export async function runPuzzleSchedule(databaseUrl: string): Promise<void> {
   const db = drizzle(client, { schema: { puzzleSchedule } });
 
   try {
-    for (const [gameId, getPoolSize] of Object.entries(GAME_POOLS)) {
-      const poolSize = getPoolSize();
-      if (poolSize === 0) {
-        console.warn(`[${gameId}] Pool is empty — skipping`);
-        continue;
-      }
-
-      const existing = await db
-        .select({ date: puzzleSchedule.date, puzzleIndex: puzzleSchedule.puzzleIndex })
-        .from(puzzleSchedule)
-        .where(eq(puzzleSchedule.gameId, gameId))
-        .orderBy(asc(puzzleSchedule.date));
-
-      const today = utcDateString();
-      const lastScheduledDate = existing.length > 0 ? existing[existing.length - 1].date : null;
-      const nextAfterLast = lastScheduledDate ? addDays(lastScheduledDate, 1) : today;
-      const startDate = maxDate(today, nextAfterLast);
-
-      const unseen = unscheduledIndices(existing, poolSize);
-
-      if (unseen.length === 0) {
-        console.log(`[${gameId}] All ${poolSize} puzzles scheduled once — add more content, then redeploy.`);
-        continue;
-      }
-
-      const toSchedule = shuffle(unseen);
-      const rows = toSchedule.map((puzzleIndex, i) => ({
-        gameId,
-        date: addDays(startDate, i),
-        puzzleIndex,
-      }));
-
-      await db.insert(puzzleSchedule).values(rows).onConflictDoNothing();
-      console.log(`[${gameId}] Scheduled ${rows.length} new days (pool=${poolSize}, unseen=${unseen.length}).`);
+    for (const { gameId, puzzleIds } of SCHEDULED_GAMES) {
+      await scheduleGame(db, gameId, puzzleIds);
     }
   } finally {
     await client.end();

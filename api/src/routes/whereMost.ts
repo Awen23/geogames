@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { utcDateString } from '../services/daily';
 import { scoreGuess, maxScore } from '../services/scoring';
 import { recordWhereMostPlay, getTodayStats } from '../services/stats';
-import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
+import { getScheduledPuzzleId } from '../services/dailySchedule';
 import { questions } from '../data/questions';
 import { VALID_COUNTRY_ISO3S } from '@shared/countryIso3';
 
@@ -11,10 +11,14 @@ export const whereMostRouter = Router();
 
 const GAME_ID = 'where-most';
 
+const questionsById = new Map(questions.map((question) => [question.id, question]));
+const questionIds = questions.map((question) => question.id);
+
 async function getTodayQuestion() {
   const date = utcDateString();
-  const idx = await getScheduledPuzzleIndex(GAME_ID, date, questions.length);
-  return { question: questions[idx], date };
+  const questionId = await getScheduledPuzzleId(GAME_ID, date, questionIds);
+  // getScheduledPuzzleId only returns ids from questionIds, so the lookup always succeeds.
+  return { question: questionsById.get(questionId)!, date };
 }
 
 whereMostRouter.get('/today', async (_req, res) => {
@@ -83,7 +87,7 @@ whereMostRouter.post('/result', async (req, res) => {
       res.status(400).json({ error: 'Empty submission must have score 0, guesses 0, exactMatches 0' });
       return;
     }
-    await recordWhereMostPlay({ deviceId, date, guesses: 0, score: 0, exactMatches: 0, guessCountries: [] });
+    await recordWhereMostPlay({ deviceId, date, questionId: question.id, guesses: 0, score: 0, exactMatches: 0, guessCountries: [] });
 
     res.cookie('geogames_device_id', deviceId, {
       maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -109,7 +113,7 @@ whereMostRouter.post('/result', async (req, res) => {
     return;
   }
 
-  await recordWhereMostPlay({ deviceId, date, guesses, score, exactMatches, guessCountries });
+  await recordWhereMostPlay({ deviceId, date, questionId: question.id, guesses, score, exactMatches, guessCountries });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,

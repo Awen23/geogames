@@ -1272,14 +1272,14 @@ Europe and Central Asia (WB),WB_ECA,2009,10.43301
 Europe and Central Asia (WB),WB_ECA,2010,10.2377405
 Europe and Central Asia (WB),WB_ECA,2011,10.139647
 Europe and Central Asia (WB),WB_ECA,2012,10.033665
-Europe and Central Asia (WB),WB_ECA,2013,9.865789
-Europe and Central Asia (WB),WB_ECA,2014,9.668722
-Europe and Central Asia (WB),WB_ECA,2015,9.506673
-Europe and Central Asia (WB),WB_ECA,2016,9.386737
-Europe and Central Asia (WB),WB_ECA,2017,9.317341
-Europe and Central Asia (WB),WB_ECA,2018,9.263345
-Europe and Central Asia (WB),WB_ECA,2019,9.238001
-Europe and Central Asia (WB),WB_ECA,2020,8.86739
+Europe and Central Asia (WB),WB_ECA,2013,9.865788
+Europe and Central Asia (WB),WB_ECA,2014,9.668721
+Europe and Central Asia (WB),WB_ECA,2015,9.506672
+Europe and Central Asia (WB),WB_ECA,2016,9.386736
+Europe and Central Asia (WB),WB_ECA,2017,9.317338
+Europe and Central Asia (WB),WB_ECA,2018,9.26375
+Europe and Central Asia (WB),WB_ECA,2019,9.237996
+Europe and Central Asia (WB),WB_ECA,2020,8.867381
 European Union (27),OWID_EU27,2000,12.28096
 European Union (27),OWID_EU27,2001,12.278264
 European Union (27),OWID_EU27,2002,12.177101
@@ -1298,7 +1298,7 @@ European Union (27),OWID_EU27,2014,10.886767
 European Union (27),OWID_EU27,2015,10.909602
 European Union (27),OWID_EU27,2016,10.952499
 European Union (27),OWID_EU27,2017,10.949812
-European Union (27),OWID_EU27,2018,10.951055
+European Union (27),OWID_EU27,2018,10.952909
 European Union (27),OWID_EU27,2019,10.950605
 European Union (27),OWID_EU27,2020,10.211509
 Fiji,FJI,2000,2.41
@@ -1629,14 +1629,14 @@ High-income countries,OWID_HIC,2009,10.086484
 High-income countries,OWID_HIC,2010,9.951981
 High-income countries,OWID_HIC,2011,9.888452
 High-income countries,OWID_HIC,2012,9.823425
-High-income countries,OWID_HIC,2013,9.715671
+High-income countries,OWID_HIC,2013,9.71567
 High-income countries,OWID_HIC,2014,9.598747
-High-income countries,OWID_HIC,2015,9.517541
-High-income countries,OWID_HIC,2016,9.451821
-High-income countries,OWID_HIC,2017,9.407533
-High-income countries,OWID_HIC,2018,9.378333
-High-income countries,OWID_HIC,2019,9.37743
-High-income countries,OWID_HIC,2020,9.164673
+High-income countries,OWID_HIC,2015,9.51754
+High-income countries,OWID_HIC,2016,9.45182
+High-income countries,OWID_HIC,2017,9.407531
+High-income countries,OWID_HIC,2018,9.378627
+High-income countries,OWID_HIC,2019,9.377427
+High-income countries,OWID_HIC,2020,9.164669
 Honduras,HND,2000,3.09
 Honduras,HND,2001,3.09
 Honduras,HND,2002,3.24
@@ -2183,48 +2183,48 @@ Lithuania,LTU,2017,12.29
 Lithuania,LTU,2018,11.79
 Lithuania,LTU,2019,11.79
 Lithuania,LTU,2020,12.1
-Low-income countries,OWID_LIC,2000,3.9478707
-Low-income countries,OWID_LIC,2001,3.9521203
-Low-income countries,OWID_LIC,2002,3.940728
-Low-income countries,OWID_LIC,2003,3.957972
-Low-income countries,OWID_LIC,2004,3.6985302
-Low-income countries,OWID_LIC,2005,3.4566805
-Low-income countries,OWID_LIC,2006,3.1856804
-Low-income countries,OWID_LIC,2007,3.1333072
-Low-income countries,OWID_LIC,2008,3.0950644
-Low-income countries,OWID_LIC,2009,3.0162804
-Low-income countries,OWID_LIC,2010,2.9816554
-Low-income countries,OWID_LIC,2011,2.8996923
-Low-income countries,OWID_LIC,2012,2.8748286
-Low-income countries,OWID_LIC,2013,2.9002645
-Low-income countries,OWID_LIC,2014,2.9247673
-Low-income countries,OWID_LIC,2015,2.9225826
-Low-income countries,OWID_LIC,2016,2.8404262
-Low-income countries,OWID_LIC,2017,2.7906501
-Low-income countries,OWID_LIC,2018,2.7542653
-Low-income countries,OWID_LIC,2019,2.75493
-Low-income countries,OWID_LIC,2020,2.7055783
-Lower-middle-income countries,OWID_LMC,2000,2.4057477
-Lower-middle-income countries,OWID_LMC,2001,2.406749
-Lower-middle-income countries,OWID_LMC,2002,2.4805653
-Lower-middle-income countries,OWID_LMC,2003,2.5543683
-Lower-middle-income countries,OWID_LMC,2004,2.627884
-Lower-middle-income countries,OWID_LMC,2005,2.7252083
-Lower-middle-income countries,OWID_LMC,2006,2.867611
-Lower-middle-income countries,OWID_LMC,2007,3.0596523
-Lower-middle-income countries,OWID_LMC,2008,3.3740816
-Lower-middle-income countries,OWID_LMC,2009,3.630306
-Lower-middle-income countries,OWID_LMC,2010,3.8832743
-Lower-middle-income countries,OWID_LMC,2011,4.006955
-Lower-middle-income countries,OWID_LMC,2012,4.104574
-Lower-middle-income countries,OWID_LMC,2013,4.1312747
-Lower-middle-income countries,OWID_LMC,2014,4.128736
-Lower-middle-income countries,OWID_LMC,2015,4.1087275
-Lower-middle-income countries,OWID_LMC,2016,4.0700307
-Lower-middle-income countries,OWID_LMC,2017,4.072441
-Lower-middle-income countries,OWID_LMC,2018,4.0997534
-Lower-middle-income countries,OWID_LMC,2019,4.1008387
-Lower-middle-income countries,OWID_LMC,2020,3.5364945
+Low-income countries,OWID_LIC,2000,3.5139651
+Low-income countries,OWID_LIC,2001,3.516987
+Low-income countries,OWID_LIC,2002,3.4996076
+Low-income countries,OWID_LIC,2003,3.5118
+Low-income countries,OWID_LIC,2004,3.3022692
+Low-income countries,OWID_LIC,2005,3.128029
+Low-income countries,OWID_LIC,2006,2.9080539
+Low-income countries,OWID_LIC,2007,2.8744292
+Low-income countries,OWID_LIC,2008,2.8393967
+Low-income countries,OWID_LIC,2009,2.783287
+Low-income countries,OWID_LIC,2010,2.7680001
+Low-income countries,OWID_LIC,2011,2.7233317
+Low-income countries,OWID_LIC,2012,2.7256236
+Low-income countries,OWID_LIC,2013,2.7740264
+Low-income countries,OWID_LIC,2014,2.8209982
+Low-income countries,OWID_LIC,2015,2.865265
+Low-income countries,OWID_LIC,2016,2.8441534
+Low-income countries,OWID_LIC,2017,2.862017
+Low-income countries,OWID_LIC,2018,2.884936
+Low-income countries,OWID_LIC,2019,2.885469
+Low-income countries,OWID_LIC,2020,2.78859
+Lower-middle-income countries,OWID_LMC,2000,2.318241
+Lower-middle-income countries,OWID_LMC,2001,2.3189468
+Lower-middle-income countries,OWID_LMC,2002,2.384018
+Lower-middle-income countries,OWID_LMC,2003,2.444928
+Lower-middle-income countries,OWID_LMC,2004,2.510408
+Lower-middle-income countries,OWID_LMC,2005,2.606824
+Lower-middle-income countries,OWID_LMC,2006,2.7499714
+Lower-middle-income countries,OWID_LMC,2007,2.9350445
+Lower-middle-income countries,OWID_LMC,2008,3.24482
+Lower-middle-income countries,OWID_LMC,2009,3.4802747
+Lower-middle-income countries,OWID_LMC,2010,3.7142925
+Lower-middle-income countries,OWID_LMC,2011,3.8140912
+Lower-middle-income countries,OWID_LMC,2012,3.911191
+Lower-middle-income countries,OWID_LMC,2013,3.9369025
+Lower-middle-income countries,OWID_LMC,2014,3.9331484
+Lower-middle-income countries,OWID_LMC,2015,3.8879757
+Lower-middle-income countries,OWID_LMC,2016,3.8184419
+Lower-middle-income countries,OWID_LMC,2017,3.7965996
+Lower-middle-income countries,OWID_LMC,2018,3.8132641
+Lower-middle-income countries,OWID_LMC,2019,3.8166661
+Lower-middle-income countries,OWID_LMC,2020,3.2698193
 Luxembourg,LUX,2000,13.65
 Luxembourg,LUX,2001,13.65
 Luxembourg,LUX,2002,13.41
@@ -3512,27 +3512,27 @@ Sri Lanka,LKA,2017,2.86
 Sri Lanka,LKA,2018,2.83
 Sri Lanka,LKA,2019,2.83
 Sri Lanka,LKA,2020,2.91
-Sub-Saharan Africa (WB),WB_SSA,2000,5.555143
-Sub-Saharan Africa (WB),WB_SSA,2001,5.5525794
-Sub-Saharan Africa (WB),WB_SSA,2002,5.4831686
-Sub-Saharan Africa (WB),WB_SSA,2003,5.463019
-Sub-Saharan Africa (WB),WB_SSA,2004,5.3686237
-Sub-Saharan Africa (WB),WB_SSA,2005,5.3494825
-Sub-Saharan Africa (WB),WB_SSA,2006,5.2623396
-Sub-Saharan Africa (WB),WB_SSA,2007,5.2223434
-Sub-Saharan Africa (WB),WB_SSA,2008,5.1827946
-Sub-Saharan Africa (WB),WB_SSA,2009,4.8951025
-Sub-Saharan Africa (WB),WB_SSA,2010,4.7193017
-Sub-Saharan Africa (WB),WB_SSA,2011,4.5270987
-Sub-Saharan Africa (WB),WB_SSA,2012,4.595506
-Sub-Saharan Africa (WB),WB_SSA,2013,4.6336813
-Sub-Saharan Africa (WB),WB_SSA,2014,4.646283
-Sub-Saharan Africa (WB),WB_SSA,2015,4.621027
-Sub-Saharan Africa (WB),WB_SSA,2016,4.5359335
-Sub-Saharan Africa (WB),WB_SSA,2017,4.482974
-Sub-Saharan Africa (WB),WB_SSA,2018,4.4619246
-Sub-Saharan Africa (WB),WB_SSA,2019,4.462013
-Sub-Saharan Africa (WB),WB_SSA,2020,4.153309
+Sub-Saharan Africa (WB),WB_SSA,2000,5.557871
+Sub-Saharan Africa (WB),WB_SSA,2001,5.5551996
+Sub-Saharan Africa (WB),WB_SSA,2002,5.4856443
+Sub-Saharan Africa (WB),WB_SSA,2003,5.4653277
+Sub-Saharan Africa (WB),WB_SSA,2004,5.3707085
+Sub-Saharan Africa (WB),WB_SSA,2005,5.3514366
+Sub-Saharan Africa (WB),WB_SSA,2006,5.2642245
+Sub-Saharan Africa (WB),WB_SSA,2007,5.224331
+Sub-Saharan Africa (WB),WB_SSA,2008,5.1849155
+Sub-Saharan Africa (WB),WB_SSA,2009,4.897224
+Sub-Saharan Africa (WB),WB_SSA,2010,4.7214575
+Sub-Saharan Africa (WB),WB_SSA,2011,4.5292034
+Sub-Saharan Africa (WB),WB_SSA,2012,4.5976458
+Sub-Saharan Africa (WB),WB_SSA,2013,4.6358213
+Sub-Saharan Africa (WB),WB_SSA,2014,4.648311
+Sub-Saharan Africa (WB),WB_SSA,2015,4.623003
+Sub-Saharan Africa (WB),WB_SSA,2016,4.5378075
+Sub-Saharan Africa (WB),WB_SSA,2017,4.4847865
+Sub-Saharan Africa (WB),WB_SSA,2018,4.4637613
+Sub-Saharan Africa (WB),WB_SSA,2019,4.4640446
+Sub-Saharan Africa (WB),WB_SSA,2020,4.1554036
 Sudan,SDN,2000,0
 Sudan,SDN,2001,0
 Sudan,SDN,2002,0
@@ -3953,27 +3953,27 @@ United States,USA,2017,9.55
 United States,USA,2018,9.57
 United States,USA,2019,9.57
 United States,USA,2020,9.9
-Upper-middle-income countries,OWID_UMC,2000,4.1572404
-Upper-middle-income countries,OWID_UMC,2001,4.1503835
-Upper-middle-income countries,OWID_UMC,2002,3.9863718
-Upper-middle-income countries,OWID_UMC,2003,3.8910172
-Upper-middle-income countries,OWID_UMC,2004,3.8928943
-Upper-middle-income countries,OWID_UMC,2005,4.0140777
-Upper-middle-income countries,OWID_UMC,2006,4.2278237
-Upper-middle-income countries,OWID_UMC,2007,4.446834
-Upper-middle-income countries,OWID_UMC,2008,4.6911077
-Upper-middle-income countries,OWID_UMC,2009,4.989649
-Upper-middle-income countries,OWID_UMC,2010,5.3730245
-Upper-middle-income countries,OWID_UMC,2011,5.706695
-Upper-middle-income countries,OWID_UMC,2012,5.924189
-Upper-middle-income countries,OWID_UMC,2013,6.0058794
-Upper-middle-income countries,OWID_UMC,2014,6.020631
-Upper-middle-income countries,OWID_UMC,2015,6.0206156
-Upper-middle-income countries,OWID_UMC,2016,5.901827
-Upper-middle-income countries,OWID_UMC,2017,5.5240474
-Upper-middle-income countries,OWID_UMC,2018,5.0749164
-Upper-middle-income countries,OWID_UMC,2019,5.0772967
-Upper-middle-income countries,OWID_UMC,2020,4.350937
+Upper-middle-income countries,OWID_UMC,2000,4.151867
+Upper-middle-income countries,OWID_UMC,2001,4.145714
+Upper-middle-income countries,OWID_UMC,2002,3.9984448
+Upper-middle-income countries,OWID_UMC,2003,3.9210532
+Upper-middle-income countries,OWID_UMC,2004,3.9360933
+Upper-middle-income countries,OWID_UMC,2005,4.0609927
+Upper-middle-income countries,OWID_UMC,2006,4.272279
+Upper-middle-income countries,OWID_UMC,2007,4.493681
+Upper-middle-income countries,OWID_UMC,2008,4.7408895
+Upper-middle-income countries,OWID_UMC,2009,5.0443125
+Upper-middle-income countries,OWID_UMC,2010,5.4250917
+Upper-middle-income countries,OWID_UMC,2011,5.75792
+Upper-middle-income countries,OWID_UMC,2012,5.965231
+Upper-middle-income countries,OWID_UMC,2013,6.0435867
+Upper-middle-income countries,OWID_UMC,2014,6.0567045
+Upper-middle-income countries,OWID_UMC,2015,6.065775
+Upper-middle-income countries,OWID_UMC,2016,5.9668193
+Upper-middle-income countries,OWID_UMC,2017,5.6245823
+Upper-middle-income countries,OWID_UMC,2018,5.213365
+Upper-middle-income countries,OWID_UMC,2019,5.2154264
+Upper-middle-income countries,OWID_UMC,2020,4.4864607
 Uruguay,URY,2000,6.97
 Uruguay,URY,2001,6.97
 Uruguay,URY,2002,6.39
@@ -4079,27 +4079,27 @@ Vietnam,VNM,2017,9.31
 Vietnam,VNM,2018,9.34
 Vietnam,VNM,2019,9.34
 Vietnam,VNM,2020,8.04
-World,OWID_WRL,2000,5.109159
-World,OWID_WRL,2001,5.0829287
-World,OWID_WRL,2002,5.007844
-World,OWID_WRL,2003,4.964274
-World,OWID_WRL,2004,4.957191
-World,OWID_WRL,2005,5.00661
-World,OWID_WRL,2006,5.10562
-World,OWID_WRL,2007,5.2269096
-World,OWID_WRL,2008,5.3801312
-World,OWID_WRL,2009,5.5249214
-World,OWID_WRL,2010,5.7131624
-World,OWID_WRL,2011,5.8541713
-World,OWID_WRL,2012,5.944797
-World,OWID_WRL,2013,5.953113
-World,OWID_WRL,2014,5.922959
-World,OWID_WRL,2015,5.886255
-World,OWID_WRL,2016,5.795079
-World,OWID_WRL,2017,5.6241364
-World,OWID_WRL,2018,5.4417267
-World,OWID_WRL,2019,5.430675
-World,OWID_WRL,2020,4.891759
+World,OWID_WRL,2000,5.109372
+World,OWID_WRL,2001,5.0831337
+World,OWID_WRL,2002,5.0080395
+World,OWID_WRL,2003,4.964457
+World,OWID_WRL,2004,4.9573607
+World,OWID_WRL,2005,5.0067735
+World,OWID_WRL,2006,5.1057873
+World,OWID_WRL,2007,5.2270975
+World,OWID_WRL,2008,5.3803463
+World,OWID_WRL,2009,5.52517
+World,OWID_WRL,2010,5.7134457
+World,OWID_WRL,2011,5.8544803
+World,OWID_WRL,2012,5.9451156
+World,OWID_WRL,2013,5.953432
+World,OWID_WRL,2014,5.923265
+World,OWID_WRL,2015,5.886555
+World,OWID_WRL,2016,5.7953687
+World,OWID_WRL,2017,5.624411
+World,OWID_WRL,2018,5.4418917
+World,OWID_WRL,2019,5.4309783
+World,OWID_WRL,2020,4.892066
 Yemen,YEM,2000,0.12
 Yemen,YEM,2001,0.12
 Yemen,YEM,2002,0.11

@@ -52,16 +52,17 @@ function parseCsvLine(line: string): string[] {
   return cells;
 }
 
+interface CsvRow {
+  iso3: string;
+  year: number;
+  value: number;
+}
+
 /**
- * Parses an OWID-format CSV (Entity, Code, Year, value column, optional metadata columns) for one year.
- * Ranking: recognised countries only, finite values, sorted descending.
- * coveredIsoCodes: every 3-letter code with a finite value for that year (used for cold vs no-data).
+ * Parses an OWID-format CSV (Entity, Code, Year, value column, optional metadata columns).
+ * Returns every row with a 3-letter code, a year and a finite value, for all years.
  */
-export function loadQuestionData(
-  csvFile: string,
-  year: number,
-  options: LoadQuestionDataOptions = {},
-): QuestionData {
+function readCsvRows(csvFile: string, options: LoadQuestionDataOptions): CsvRow[] {
   const raw = fs.readFileSync(path.join(CSV_DIR, csvFile), 'utf-8');
   const [headerLine, ...lines] = raw.split('\n');
   const header = parseCsvLine(headerLine);
@@ -73,31 +74,70 @@ export function loadQuestionData(
     throw new Error(`Unsupported OWID CSV shape in ${csvFile}`);
   }
 
-  const rows: RankedCountry[] = [];
-  const covered = new Set<string>();
+  const rows: CsvRow[] = [];
 
   for (const line of lines) {
     if (!line.trim()) { continue; }
 
     const cells = parseCsvLine(line);
     const iso3 = cells[codeIndex]?.trim().toUpperCase() ?? '';
-    const yearStr = cells[yearIndex]?.trim() ?? '';
-    const valueStr = cells[valueIndex]?.trim() ?? '';
+    const year = parseInt(cells[yearIndex]?.trim() ?? '', 10);
+    const value = parseFloat(cells[valueIndex]?.trim() ?? '');
 
-    if (iso3.length !== 3 || parseInt(yearStr, 10) !== year) { continue; }
+    if (iso3.length !== 3 || !Number.isInteger(year) || !isFinite(value)) { continue; }
 
-    const value = parseFloat(valueStr);
-    if (!isFinite(value)) { continue; }
+    rows.push({ iso3, year, value });
+  }
 
-    covered.add(iso3);
+  return rows;
+}
 
-    if (VALID_COUNTRY_ISO3S.has(iso3)) {
-      rows.push({ iso3, value: Math.round(value * 1000) / 1000 });
+/**
+ * Loads one year of an OWID-format CSV.
+ * Ranking: recognised countries only, finite values, sorted descending.
+ * coveredIsoCodes: every 3-letter code with a finite value for that year (used for cold vs no-data).
+ */
+export function loadQuestionData(
+  csvFile: string,
+  year: number,
+  options: LoadQuestionDataOptions = {},
+): QuestionData {
+  const ranking: RankedCountry[] = [];
+  const covered = new Set<string>();
+
+  for (const row of readCsvRows(csvFile, options)) {
+    if (row.year !== year) { continue; }
+
+    covered.add(row.iso3);
+
+    if (VALID_COUNTRY_ISO3S.has(row.iso3)) {
+      ranking.push({ iso3: row.iso3, value: Math.round(row.value * 1000) / 1000 });
     }
   }
 
-  rows.sort((a, b) => b.value - a.value);
+  ranking.sort((a, b) => b.value - a.value);
   const coveredIsoCodes = Array.from(covered).sort();
 
-  return { ranking: rows, coveredIsoCodes };
+  return { ranking, coveredIsoCodes };
+}
+
+/**
+ * For each year in an OWID-format CSV, how many recognised countries have a value.
+ * Used by the question-data tests to compare a question's year with the CSV's best-covered year.
+ */
+export function countRankedCountriesByYear(
+  csvFile: string,
+  options: LoadQuestionDataOptions = {},
+): Map<number, number> {
+  const countriesByYear = new Map<number, Set<string>>();
+
+  for (const row of readCsvRows(csvFile, options)) {
+    if (!VALID_COUNTRY_ISO3S.has(row.iso3)) { continue; }
+
+    const countries = countriesByYear.get(row.year) ?? new Set<string>();
+    countries.add(row.iso3);
+    countriesByYear.set(row.year, countries);
+  }
+
+  return new Map(Array.from(countriesByYear, ([year, countries]) => [year, countries.size]));
 }

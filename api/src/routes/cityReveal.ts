@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { utcDateString } from '../services/daily';
 import { recordCityRevealPlay, getTodayStats } from '../services/stats';
-import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
+import { getScheduledPuzzleId } from '../services/dailySchedule';
 import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
 import { haversineKm, bearingDeg } from '@shared/distance';
 import { MAX_GUESSES } from '@shared/cityRevealTypes';
@@ -18,10 +18,14 @@ if (IMPLEMENTED_CITIES.length === 0) {
   throw new Error('[city-reveal] No implemented cities — set implemented: true on at least one entry in cityRevealCities.ts');
 }
 
+const citiesById = new Map(IMPLEMENTED_CITIES.map((city) => [city.id, city]));
+const cityIds = IMPLEMENTED_CITIES.map((city) => city.id);
+
 async function getTodayCity() {
   const date = utcDateString();
-  const idx = await getScheduledPuzzleIndex(GAME_ID, date, IMPLEMENTED_CITIES.length);
-  return { city: IMPLEMENTED_CITIES[idx], date };
+  const cityId = await getScheduledPuzzleId(GAME_ID, date, cityIds);
+  // getScheduledPuzzleId only returns ids from cityIds, so the lookup always succeeds.
+  return { city: citiesById.get(cityId)!, date };
 }
 
 cityRevealRouter.get('/today', async (_req, res) => {
@@ -87,9 +91,9 @@ cityRevealRouter.post('/result', async (req, res) => {
     `anon-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   const { won, guesses } = parsed.data;
-  const { date } = await getTodayCity();
+  const { city, date } = await getTodayCity();
 
-  await recordCityRevealPlay({ deviceId, date, won, guesses });
+  await recordCityRevealPlay({ deviceId, date, cityId: city.id, won, guesses });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,

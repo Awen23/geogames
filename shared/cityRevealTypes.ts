@@ -16,6 +16,7 @@ export interface CityRevealLandmark {
 }
 
 export interface CityRevealCity {
+  /** Stable id. The daily schedule and saved plays store it, so never change an existing one. */
   id: string;
   name: string;
   country: string;

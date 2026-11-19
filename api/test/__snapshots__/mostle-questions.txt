@@ -1,0 +1,62 @@
+0. beer-per-capita: 186 countries
+   Czechia (6.835), Namibia (6.704), Austria (6.42), Gabon (6.18), Poland (5.47)
+1. milk-per-capita: 183 countries
+   Ireland (594.541), Denmark (569.85), Montenegro (457.741), Estonia (336.889), Netherlands (310.91)
+2. meat-per-capita: 183 countries
+   Tonga (151.591), Mongolia (131.59), Saint Vincent and the Grenadines (127.484), United States (122.46), Argentina (113.86)
+3. fish-seafood-per-capita: 182 countries
+   Iceland (85.398), Maldives (80.019), Kiribati (73.413), Tuvalu (54.809), Antigua and Barbuda (54.794)
+4. total-alcohol-per-capita: 185 countries
+   Romania (16.8), Georgia (14.41), Latvia (12.87), Lithuania (12.1), Czechia (11.99)
+5. spirits-per-capita: 186 countries
+   Saint Lucia (6.138), Latvia (5.95), Estonia (5.85), Lithuania (5.35), Slovakia (5.1)
+6. adult-smoking-share: 166 countries
+   Timor-Leste (48.8), Lebanon (46.9), Myanmar (43.4), Serbia (39.7), North Macedonia (39.6)
+7. adult-obesity-share: 191 countries
+   Tonga (72.262), Nauru (71.448), Tuvalu (64.666), Samoa (63.17), Bahamas (48.412)
+8. life-expectancy: 196 countries
+   Monaco (86.372), San Marino (85.706), Japan (84.712), South Korea (84.329), Andorra (84.041)
+9. mean-years-schooling: 143 countries
+   Ireland (13.74), South Korea (13.68), Iceland (13.53), United States (13.32), Slovakia (13.14)
+10. life-satisfaction: 145 countries
+   Finland (7.764), Iceland (7.54), Denmark (7.539), Costa Rica (7.439), Sweden (7.255)
+11. co2-emissions-per-capita: 193 countries
+   Qatar (31.471), Brunei (23.2), Bahrain (22.503), Kuwait (22.456), United Arab Emirates (20.739)
+12. fertility-rate: 196 countries
+   Somalia (6.132), Chad (6.12), Niger (6.061), DR Congo (6.051), Central African Republic (6.012)
+13. energy-use-per-capita: 189 countries
+   Iceland (220265.36), Qatar (207339.44), Singapore (175199.02), Bahrain (152038.3), United Arab Emirates (127934.94)
+14. gdp-per-capita: 184 countries
+   Singapore (134548.77), Luxembourg (128475.28), Ireland (118833.31), Qatar (111314.25), Norway (94803.67)
+15. cocoa-consumption-per-capita: 183 countries
+   Dominica (14.07), Ivory Coast (8.01), Israel (6.46), Iceland (5.22), Luxembourg (5.13)
+16. urban-agglomerations-million-share: 174 countries
+   Bahrain (89.446), Singapore (84.759), Kuwait (84.024), Republic of the Congo (82.711), Qatar (70.684)
+17. largest-city-urban-share: 174 countries
+   Bahrain (91.404), Kuwait (87.369), Singapore (84.823), Maldives (78.267), Solomon Islands (75.903)
+18. migrant-stock-share: 196 countries
+   Vatican City (100), Qatar (76.663), United Arab Emirates (73.972), Monaco (70.166), Liechtenstein (69.398)
+19. agricultural-labour-force-share: 179 countries
+   Burundi (85.66), Niger (74.953), Mozambique (73.514), Chad (72.111), Madagascar (71.062)
+20. agricultural-land-per-capita: 194 countries
+   Mongolia (31.314), Australia (13.733), Namibia (13.098), Kazakhstan (10.539), Botswana (10.427)
+21. food-expenditure-per-person: 102 countries
+   Switzerland (4449.806), Israel (3823.026), Denmark (3726.748), New Zealand (3711.772), United States (3694.354)
+22. women-married-or-in-union-share: 192 countries
+   Bangladesh (81.64), Niger (79.314), Mali (77.802), Nepal (75.386), Uzbekistan (73.576)
+23. ai-publications: 180 countries
+   China (116434), India (52054), United States (50810), United Kingdom (15494), Germany (12793)
+24. generative-ai-use-share: 146 countries
+   United Arab Emirates (64), Singapore (60.9), Norway (46.4), Ireland (44.6), France (44)
+25. tax-revenue-share-gdp: 153 countries
+   France (45.774), Norway (43.437), Finland (43.429), Austria (43.175), Sweden (42.512)
+26. working-hours-per-worker: 128 countries
+   Sudan (2658.04), Republic of the Congo (2534.17), United Arab Emirates (2514.45), Jordan (2483.18), Pakistan (2471.08)
+27. wind-electricity-share: 178 countries
+   Denmark (58.214), Lithuania (46.143), Uruguay (38.594), Ireland (37.323), Djibouti (35)
+28. solar-electricity-share: 180 countries
+   Palestine (39.394), Namibia (35.366), Lebanon (29.963), Kiribati (25), Hungary (24.211)
+29. forest-area-share: 194 countries
+   Micronesia (92.243), Suriname (91.424), Gabon (91.417), Palau (91.022), Solomon Islands (89.815)
+30. patent-applications-per-million: 117 countries
+   South Korea (3481.676), Japan (1800.619), China (953.027), United States (813.039), Germany (508.172)

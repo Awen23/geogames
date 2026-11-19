@@ -1,0 +1,5 @@
+# Mostle question data, downloaded from Our World in Data. Marked as generated so GitHub collapses
+# these diffs in pull requests (they still show as changed, with "Load diff" to expand) and leaves
+# them out of the repository's language stats. The readable record of what changed is
+# api/test/__snapshots__/mostle-questions.txt.
+api/src/data/csv/*.csv linguist-generated=true
