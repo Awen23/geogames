@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { getTodayPuzzle } from '../shared/geoplacePuzzle';
+import { puzzleKey } from '../web/src/lib/geoplaceSession';
 import { MOSTLE } from './support/knownPuzzles';
 
 // Each test gets a fresh browser context, so storage starts empty. Seeds go in with
@@ -18,12 +20,13 @@ function utcToday() {
 
 function junkSeeds(kind: 'invalid-json' | 'wrong-shape'): Record<string, string> {
   const today = utcToday();
+  const placleSession = puzzleKey(today, getTodayPuzzle(today));
   if (kind === 'invalid-json') {
     return {
       'geogames:where-most:state': '{not json',
       [`geogames:where-most:progress:${today}`]: '{not json',
       'geogames:geoplace:state': '{not json',
-      'geogames:geoplace:session': '{not json',
+      [placleSession]: '{not json',
       'geogames:city-reveal:state': '{not json',
       [`geogames:city-reveal:game:${today}`]: '{not json',
     };
@@ -34,8 +37,8 @@ function junkSeeds(kind: 'invalid-json' | 'wrong-shape'): Record<string, string>
       date: today, questionId: 7, guesses: [{ iso3: 'DEU', result: 'found' }], noDataIso3s: null,
     }),
     'geogames:geoplace:state': 'null',
-    'geogames:geoplace:session': JSON.stringify({
-      date: today, roundIndex: 'x', phase: 'placing', placedCountries: null, scores: null,
+    [placleSession]: JSON.stringify({
+      roundIndex: 'x', phase: 'placing', placedCountries: null, scores: null,
     }),
     'geogames:city-reveal:state': JSON.stringify({ history: [{ date: today, won: 'yes' }, 'junk'] }),
     [`geogames:city-reveal:game:${today}`]: JSON.stringify({
@@ -84,18 +87,43 @@ test.describe('Corrupt saved progress', () => {
 });
 
 test.describe('Placle saved session', () => {
-  test('a session for a different puzzle is discarded', async ({ page }) => {
+  /** A session one round in, having placed `placedIso3`. */
+  function roundTwoSession(placedIso3: string) {
+    return {
+      roundIndex: 1,
+      phase: 'placing',
+      placedCountries: [{ iso3: placedIso3, lat: 0, lon: 0, label: '50%' }],
+      scores: [50],
+    };
+  }
+
+  test('sessions for other days and puzzles, and the old bare key, are ignored and pruned', async ({ page }) => {
+    const today = utcToday();
+    const puzzle = getTodayPuzzle(today);
+    const firstTarget = puzzle.rounds[0].targetIso3;
     await seed(page, {
+      // The old format, for today's puzzle: before per-puzzle keys this would have restored
       'geogames:geoplace:session': JSON.stringify({
-        date: utcToday(),
-        referenceIso3: 'XXX',
-        targetIso3s: ['YYY', 'ZZZ', 'QQQ'],
-        roundIndex: 1,
-        phase: 'placing',
-        placedCountries: [{ iso3: 'YYY', lat: 0, lon: 0, label: '50%' }],
-        scores: [50],
+        date: today,
+        referenceIso3: puzzle.referenceIso3,
+        targetIso3s: puzzle.rounds.map((r) => r.targetIso3),
+        ...roundTwoSession(firstTarget),
       }),
+      [puzzleKey('2020-01-01', puzzle)]: JSON.stringify(roundTwoSession(firstTarget)),
+      [`geogames:geoplace:session:${today}:XXX-YYY-ZZZ-QQQ`]: JSON.stringify(roundTwoSession('YYY')),
     });
+    await page.goto('/games/geoplace');
+    await expect(page.getByText('Round 1 of 3')).toBeVisible();
+
+    await expect.poll(() => page.evaluate(
+      () => Object.keys(localStorage).filter((k) => k.startsWith('geogames:geoplace:session')),
+    )).toEqual([puzzleKey(today, puzzle)]);
+  });
+
+  test('a session placing a country outside the puzzle is discarded', async ({ page }) => {
+    // TZA isn't in today's puzzle, and has no centroid for the globe to draw it at
+    const today = utcToday();
+    await seed(page, { [puzzleKey(today, getTodayPuzzle(today))]: JSON.stringify(roundTwoSession('TZA')) });
     await page.goto('/games/geoplace');
     await expect(page.getByText('Round 1 of 3')).toBeVisible();
   });

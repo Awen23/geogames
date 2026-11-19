@@ -591,10 +591,11 @@ export function Globe({
               const iso3 = numericToIso3[String(geo.id).padStart(3, '0')];
               if (iso3) { geoByIso3.set(iso3, geo as unknown as GeoPermissibleObjects); }
             }
-            // The ghost is always a Placle pool country, and every one has a world-50m outline.
+            // Ghosts and placed countries are always Placle pool countries (GeoPlace discards a
+            // saved session that places anything else), and every one has a world-50m outline.
             const geoFor = (iso3: string): GeoPermissibleObjects => {
               const geo = geoByIso3.get(iso3);
-              if (!geo) { throw new Error(`No world-50m outline for ${iso3}, so the globe can't draw its ghost`); }
+              if (!geo) { throw new Error(`No world-50m outline for ${iso3}, so the globe can't draw it`); }
               return geo;
             };
 
@@ -664,12 +665,9 @@ export function Globe({
                 )}
 
                 {/* Frozen placed shapes from previous rounds */}
-                {placedCountries?.map((p) => {
-                  const geo = geoByIso3.get(p.iso3);
-                  return geo ? (
-                    <PlacedCountry key={`placed-${p.iso3}`} geo={geo} {...p} />
-                  ) : null;
-                })}
+                {placedCountries?.map((p) => (
+                  <PlacedCountry key={`placed-${p.iso3}`} geo={geoFor(p.iso3)} {...p} />
+                ))}
 
                 {/* Tap target for placement — below draggable ghost so ghost receives drags */}
                 {showPlaceTarget && placeHandler && (
