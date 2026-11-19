@@ -33,7 +33,11 @@ function fnv1a(str: string): number {
   return hash;
 }
 
-/** murmur3 32-bit finaliser: plain FNV-1a of near-identical strings is too unevenly spread. */
+/**
+ * MurmurHash3's 32-bit finaliser, which mixes every input bit into every output bit. FNV-1a
+ * alone spreads keys that differ only in the trailing iso3 unevenly, so some countries would
+ * be picked far more often than others.
+ */
 function fmix32(hash: number): number {
   hash ^= hash >>> 16;
   hash = Math.imul(hash, 0x85ebca6b);
