@@ -16,6 +16,3 @@ e2e
 tools
 *.md
 .github
-# Fly builds from the local working copy: keep stale tsc-emitted .js files
-# on a developer machine from shadowing shared/*.ts in the image's vite build.
-shared/**/*.js
