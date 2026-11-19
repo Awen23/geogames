@@ -4,8 +4,15 @@ import { COUNTRIES, countryName } from '@shared/guessCountries';
 import { haversineKm } from '@shared/distance';
 import type { GeoplacePuzzle } from '@shared/types';
 import centroids from '@shared/centroids.json';
+import world50m from '../../public/world-50m.json';
+import { numericToIso3 } from './iso3Lookup';
 
 const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
+const WORLD_50M = world50m as { objects: { countries: { geometries: { id?: string }[] } } };
+/** Countries the Globe can draw, keyed the way it looks them up. */
+const WORLD_50M_ISO3S = new Set(
+  WORLD_50M.objects.countries.geometries.map((g) => numericToIso3[String(g.id).padStart(3, '0')]),
+);
 const REFERENCE_TO_ROUND1_MAX_KM = 3000;
 const CHAIN_MIN_KM = 500;
 const CHAIN_MAX_KM = 2000;
@@ -175,6 +182,16 @@ describe('Placle country pool', () => {
 
   it('shows Gabon by name', () => {
     expect(countryName('GAB')).toBe('Gabon');
+  });
+
+  // True by construction: guards the pool's centroid filter, which the Globe relies on.
+  it('only contains countries with a centroid', () => {
+    expect(GEOPLACE_POOL.filter((c) => !CENTROID_MAP[c.iso3]).map((c) => c.iso3)).toEqual([]);
+  });
+
+  // The Globe throws if it has no outline to show as the ghost.
+  it('only contains countries with an outline in world-50m', () => {
+    expect(GEOPLACE_POOL.filter((c) => !WORLD_50M_ISO3S.has(c.iso3)).map((c) => c.iso3)).toEqual([]);
   });
 });
 
