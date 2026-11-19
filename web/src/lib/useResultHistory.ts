@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import type { GuessResult, Tier } from '@shared/types';
-import { isArrayOf, isBoolean, isNumber, isRecord, isString, readJson, writeJson } from './storage';
+import { isBoolean, isNumber, isRecord, isString, readJson, writeJson } from './storage';
 
-interface DayResult {
+/** The fields every game records for a day. */
+interface CoreDayResult {
   date: string;
   /** For City Reveal: actually won. For score-only games (Where Most, GeoPlace): always true (means played). */
   won: boolean;
@@ -10,27 +10,28 @@ interface DayResult {
   guesses: number;
   /** Game-specific score (0–100 for Where Most and GeoPlace). */
   score?: number;
-  /** Mostle: exact top-N answers found. */
-  exactMatches?: number;
-  /** Mostle: ISO3 countries guessed (slot-consuming only), in order — matches API /result payload. */
-  guessCountries?: string[];
-  /** Mostle: graded guess details, same order as guessCountries. */
-  guessResults?: GuessResult[];
-  /** Mostle: full session order including no-data tiers (local replay only). */
-  allGuesses?: Array<{ iso3: string; result: GuessResult }>;
 }
 
-interface PersistedState {
-  history: DayResult[];
+/** The details of a game that records only the core fields. */
+export type NoDetails = Record<never, never>;
+
+/** One day's result. `D` is the game's own details, saved flat alongside the core fields. */
+export type DayResult<D extends object = NoDetails> = CoreDayResult & D;
+
+/**
+ * Reads a game's own details from a saved day. Malformed details should be dropped, not
+ * the whole day, so one bad field can't cost a player their streak.
+ */
+export type DetailsReader<D extends object> = (saved: Record<string, unknown>) => D;
+
+interface SavedHistory<D extends object> {
+  history: DayResult<D>[];
 }
 
-interface ResultDetails {
-  exactMatches?: number;
-  guessCountries?: string[];
-  guessResults?: GuessResult[];
-  allGuesses?: Array<{ iso3: string; result: GuessResult }>;
-}
+/** The reader for a game that records only the core fields. */
+export const readNoDetails: DetailsReader<NoDetails> = () => ({});
 
+// The key predates the rename to result history; it stays so saved histories keep loading.
 function storageKey(gameId: string) {
   return `geogames:${gameId}:state`;
 }
@@ -39,24 +40,8 @@ function utcToday() {
   return new Date().toISOString().slice(0, 10);
 }
 
-const TIERS: readonly unknown[] = ['found', 'warm', 'cold', 'no-data'] satisfies Tier[];
-
-export function isGuessResult(v: unknown): v is GuessResult {
-  return isRecord(v) && TIERS.includes(v.tier) && isBoolean(v.isTopFive)
-    && (v.rank === null || isNumber(v.rank)) && (v.value === null || isNumber(v.value));
-}
-
-/** A graded guess as the Mostle page holds it and saves it. */
-export function isGuessEntry(v: unknown): v is { iso3: string; result: GuessResult } {
-  return isRecord(v) && isString(v.iso3) && isGuessResult(v.result);
-}
-
-/**
- * Keeps a saved day if its core fields are valid. Malformed optional Mostle details are
- * dropped (the page then regrades from guessCountries, or shows less), not the whole day,
- * so one bad field can't cost a player their streak.
- */
-function toDayResult(v: unknown): DayResult[] {
+/** Keeps a saved day if its core fields are valid, with whatever details `readDetails` accepts. */
+function toDayResult<D extends object>(v: unknown, readDetails: DetailsReader<D>): DayResult<D>[] {
   if (!isRecord(v) || !isString(v.date) || !isBoolean(v.won) || !isNumber(v.guesses)) {
     return [];
   }
@@ -65,20 +50,18 @@ function toDayResult(v: unknown): DayResult[] {
     won: v.won,
     guesses: v.guesses,
     score: isNumber(v.score) ? v.score : undefined,
-    exactMatches: isNumber(v.exactMatches) ? v.exactMatches : undefined,
-    guessCountries: isArrayOf(v.guessCountries, isString) ? v.guessCountries : undefined,
-    guessResults: isArrayOf(v.guessResults, isGuessResult) ? v.guessResults : undefined,
-    allGuesses: isArrayOf(v.allGuesses, isGuessEntry) ? v.allGuesses : undefined,
+    ...readDetails(v),
   }];
 }
 
-export function loadState(gameId: string): PersistedState {
+/** Loads a game's saved history, keeping the core fields and whatever details `readDetails` reads. */
+export function loadResultHistory<D extends object>(gameId: string, readDetails: DetailsReader<D>): SavedHistory<D> {
   const isSaved = (v: unknown): v is { history: unknown[] } => isRecord(v) && Array.isArray(v.history);
   const saved = readJson(storageKey(gameId), isSaved, { history: [] });
-  return { history: saved.history.flatMap(toDayResult) };
+  return { history: saved.history.flatMap((v) => toDayResult(v, readDetails)) };
 }
 
-function computeStreak(history: DayResult[]): { streak: number; longestStreak: number } {
+function computeStreak(history: CoreDayResult[]): { streak: number; longestStreak: number } {
   // Sort descending so won[0] is the most recent win
   const won = history
     .filter((r) => r.won)
@@ -116,12 +99,17 @@ function computeStreak(history: DayResult[]): { streak: number; longestStreak: n
   return { streak, longestStreak };
 }
 
-export function useGameState(gameId: string) {
-  const [persisted, setPersisted] = useState<PersistedState>(() => loadState(gameId));
+/**
+ * A game's saved result history: today's result, the streak, and recording today's result.
+ * `readDetails` is required: every caller loads, and the next recordResult writes back, only
+ * what its reader keeps, so a game's details reader can't be forgotten (readNoDetails if none).
+ */
+export function useResultHistory<D extends object>(gameId: string, readDetails: DetailsReader<D>) {
+  const [persisted, setPersisted] = useState<SavedHistory<D>>(() => loadResultHistory(gameId, readDetails));
   // Latest state, read synchronously so a second call in the same tick sees the first.
   const latest = useRef(persisted);
 
-  const save = useCallback((next: PersistedState) => {
+  const save = useCallback((next: SavedHistory<D>) => {
     latest.current = next;
     writeJson(storageKey(gameId), next);
     setPersisted(next);
@@ -139,12 +127,14 @@ export function useGameState(gameId: string) {
   );
 
   const recordResult = useCallback(
-    (won: boolean, guesses: number, score?: number, details?: ResultDetails) => {
+    (won: boolean, guesses: number, score?: number, details?: D) => {
       const prev = latest.current;
       const alreadyRecorded = prev.history.some((r) => r.date === today);
       if (alreadyRecorded) { return; }
       save({
-        history: [{ date: today, won, guesses, score, ...details }, ...prev.history].slice(0, 90),
+        // D's fields must all be optional (as readers return them), so a day recorded without
+        // details is still a DayResult<D>; spreading undefined adds nothing. The cast says so.
+        history: [{ date: today, won, guesses, score, ...(details as D) }, ...prev.history].slice(0, 90),
       });
     },
     [save, today],

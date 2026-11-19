@@ -5,7 +5,8 @@ import { CountryInput } from '../components/CountryInput/CountryInput';
 import { DailyHeader } from '../components/DailyHeader/DailyHeader';
 import { ShareCard } from '../components/ShareCard/ShareCard';
 import { fetchToday, fetchTodayStats, gradeGuess, submitWhereMostResult } from '../lib/api';
-import { isGuessEntry, useGameState } from '../lib/useGameState';
+import { isGuessEntry, readMostleDetails } from '../lib/mostleResult';
+import { useResultHistory } from '../lib/useResultHistory';
 import { countSlotGuesses } from '../lib/mostleGuessCounter';
 import { isArrayOf, isNumber, isRecord, isString, pruneKeys, readJson, removeKey, writeJson } from '../lib/storage';
 import { displayName } from '@shared/guessCountries';
@@ -17,7 +18,7 @@ const GAME_ID = 'where-most';
 /** Safety cap: no-data guesses do not consume the five slots, so bound total picks to avoid endless play / API abuse. */
 const MAX_TOTAL_SELECTIONS = 20;
 // In-progress game, one key per puzzle date; only today's is kept. A finished game lives under
-// useGameState's own key (geogames:where-most:state), which this prefix doesn't match.
+// useResultHistory's own key (geogames:where-most:state), which this prefix doesn't match.
 const PROGRESS_KEY_PREFIX = 'geogames:where-most:progress:';
 
 interface Guess {
@@ -80,7 +81,7 @@ function isSavedProgress(v: unknown): v is SavedProgress {
 function loadProgress(today: TodayResponse): SavedProgress | null {
   const saved = readJson<SavedProgress | null>(progressKey(today.date), isSavedProgress, null);
   if (saved === null || saved.date !== today.date || saved.questionId !== today.id) { return null; }
-  // A finished game is recorded by useGameState, never restored from here.
+  // A finished game is recorded by useResultHistory, never restored from here.
   return isFinished(saved.guesses, saved.totalGradedRounds) ? null : saved;
 }
 
@@ -152,7 +153,7 @@ export function WhereMost() {
   const closeMapButtonRef = useRef<HTMLButtonElement>(null);
   const mapDialogRef = useRef<HTMLDivElement>(null);
 
-  const { todayResult, streak, longestStreak, recordResult, resetForDev } = useGameState(GAME_ID);
+  const { todayResult, streak, longestStreak, recordResult, resetForDev } = useResultHistory(GAME_ID, readMostleDetails);
 
   const displayGuesses = guesses.length > 0 ? guesses : replayGuesses;
   const rankedDisplayGuesses = displayGuesses.filter(isRankedGuess);

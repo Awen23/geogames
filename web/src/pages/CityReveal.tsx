@@ -12,7 +12,7 @@ import {
 } from '@shared/cityRevealTypes';
 import type { CityRevealCity, CityRevealTodayResponse } from '@shared/cityRevealTypes';
 import { CityInput } from '../components/CityInput/CityInput';
-import { useGameState } from '../lib/useGameState';
+import { readNoDetails, useResultHistory } from '../lib/useResultHistory';
 import { fetchCityRevealToday, guessCityReveal, submitCityRevealResult } from '../lib/api';
 import {
   STYLE_URL,
@@ -58,7 +58,7 @@ interface SelectedLandmark {
 }
 
 // Per-date keys: only the current puzzle's are kept (pruneOldDays). Streaks and history
-// live under useGameState's own key, which these prefixes don't match.
+// live under useResultHistory's own key, which these prefixes don't match.
 const GAME_KEY_PREFIX = 'geogames:city-reveal:game:';
 const INTRO_KEY_PREFIX = 'geogames:city-reveal:intro-dismissed:';
 
@@ -206,7 +206,7 @@ export function CityReveal() {
   );
 
   // For the home screen "played today" badge
-  const { recordResult, resetForDev: resetGameStateBadge } = useGameState('city-reveal');
+  const { recordResult, resetForDev: resetResultHistory } = useResultHistory('city-reveal', readNoDetails);
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
@@ -464,10 +464,10 @@ export function CityReveal() {
     }
     removeKey(storageKey(gameState.date));
     removeKey(introDismissalStorageKey(gameState.date));
-    resetGameStateBadge();
+    resetResultHistory();
     setGameState({ date: gameState.date, guesses: [], won: false, gameOver: false });
     setShowIntroModal(true);
-  }, [gameState, resetGameStateBadge]);
+  }, [gameState, resetResultHistory]);
 
   const handleStartMaple = useCallback(() => {
     if (gameState) {

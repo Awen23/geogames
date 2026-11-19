@@ -6,7 +6,7 @@ import { getTodayPuzzle } from '@shared/geoplacePuzzle';
 import { countryName } from '@shared/guessCountries';
 import { haversineKm } from '@shared/distance';
 import centroids from '@shared/centroids.json';
-import { useGameState } from '../lib/useGameState';
+import { readNoDetails, useResultHistory } from '../lib/useResultHistory';
 import { submitGeoplaceResult } from '../lib/api';
 import type { GeoplacePlacement, GeoplacePuzzle } from '@shared/types';
 import styles from './GeoPlace.module.css';
@@ -89,7 +89,7 @@ function ResetButton({ onReset }: { onReset: () => void }) {
 
 export function GeoPlace() {
   const puzzle = useMemo(() => getTodayPuzzle(), []);
-  const { todayResult, recordResult, resetForDev: resetGameState } = useGameState(GAME_ID);
+  const { todayResult, recordResult, resetForDev: resetResultHistory } = useResultHistory(GAME_ID, readNoDetails);
 
   const savedSession = useMemo(() => loadSession(puzzle), [puzzle]);
 
@@ -190,12 +190,12 @@ export function GeoPlace() {
 
   const resetForDev = useCallback(() => {
     removeKey(SESSION_KEY);
-    resetGameState();
+    resetResultHistory();
     setRoundIndex(0);
     setPhase('placing');
     setPlacedCountries([]);
     setScores([]);
-  }, [resetGameState]);
+  }, [resetResultHistory]);
 
   const handleCopyShare = useCallback(() => {
     const date = new Date().toISOString().slice(0, 10);
