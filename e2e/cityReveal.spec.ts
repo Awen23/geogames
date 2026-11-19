@@ -109,8 +109,7 @@ test.describe('Maple game', () => {
       counts.set(group, (counts.get(group) ?? 0) + 1);
     }
 
-    // streets-v4 has no contour layers
-    const emptyGroups = LAYER_GROUP_IDS.filter((id) => id !== 'contours' && !counts.get(id));
+    const emptyGroups = LAYER_GROUP_IDS.filter((id) => !counts.get(id));
     expect(emptyGroups).toEqual([]);
   });
 

@@ -30,7 +30,7 @@ export const STAGE_GROUPS: Record<number, LayerGroupId[]> = {
 /** All layer groups revealed when the player wins. */
 export const WIN_GROUPS: LayerGroupId[] = [
   'terrain', 'water', 'majorRoads', 'streetGrid', 'railways',
-  'roadNames', 'urbanFabric', 'buildings', 'districtLabels', 'contours',
+  'roadNames', 'urbanFabric', 'buildings', 'districtLabels',
 ];
 
 /** Banner text shown in-game after each wrong guess reveals a new layer. */

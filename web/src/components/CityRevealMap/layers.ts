@@ -4,7 +4,6 @@
  */
 export const LAYER_GROUP_IDS = [
   'terrain', // hillshade and natural land cover
-  'contours', // elevation contour lines
   'water', // rivers, lakes, ocean fill
   'urbanFabric', // residential, commercial and industrial zone fills
   'buildings', // 2D building footprints
@@ -81,11 +80,6 @@ export function classifyLayer(
       return 'roadNames';
     }
 
-    // ── Contour elevation labels ──
-    if (sourceLayer === 'contour') {
-      return 'contours';
-    }
-
     // Everything else (POIs, building numbers, water names, ferry labels, etc.)
     // goes into the permanently-hidden pool.
     return 'labels';
@@ -115,10 +109,7 @@ export function classifyLayer(
     return 'urbanFabric';
   }
 
-  // Contour lines (revealed only on a win)
-  if (/contour/.test(id)) {
-    return 'contours';
-  }
+  // streets-v4 has no contour layers; an Outdoor/Topo style would need a branch here.
 
   // Terrain: topographic and natural land-cover features
   if (/hillshade|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|landcover|landuse|wetland|meadow|farmland|border|boundary|admin|crop/.test(id)) {
