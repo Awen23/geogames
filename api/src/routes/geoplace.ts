@@ -33,7 +33,7 @@ geoplaceRouter.post('/result', async (req, res) => {
   const { score, placements } = parsed.data;
   const date = utcDateString();
 
-  await recordGeoplacePlay({ deviceId, date, score, placements });
+  const recorded = await recordGeoplacePlay({ deviceId, date, score, placements });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -41,7 +41,7 @@ geoplaceRouter.post('/result', async (req, res) => {
     sameSite: 'strict',
   });
 
-  res.json({ ok: true });
+  res.json({ ok: true, recorded });
 });
 
 geoplaceRouter.get('/stats/today', async (_req, res) => {

@@ -50,11 +50,13 @@ npm run db:generate     # Regenerate SQL from schema changes (api/src/db/schema.
 
 ```bash
 npm test          # Vitest unit tests (13 tests — scoring, daily seed, distance)
-npm run test:e2e  # Playwright E2E tests (10 tests — requires dev stack running)
+npm run test:e2e  # Playwright E2E tests (requires Postgres running)
 npm run typecheck # TypeScript across api + web
 ```
 
-Playwright tests start the dev servers automatically if they aren't already running (`reuseExistingServer: true`).
+E2E tests never touch the dev database. Each run recreates a separate database (`geogames_e2e` by default, or `E2E_DATABASE_URL`), migrates it and schedules known puzzles for today (`e2e/support/`). Playwright then starts its own api (port 3201) and web (port 5273) servers against it, so dev servers can keep running.
+
+`gameResults.spec.ts` runs first, as its own Playwright project, so it sees exact play counts. If it fails, the UI specs are skipped, and running any single spec also runs it unless you pass `--no-deps`.
 
 ## Project layout
 

@@ -1,6 +1,9 @@
 {
   "name": "geogames-api",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "npm run build:server && npm run build:migrate && npm run build:schedule",

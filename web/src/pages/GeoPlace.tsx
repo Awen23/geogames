@@ -3,21 +3,24 @@ import { Link } from 'react-router-dom';
 import { Globe } from '../components/Globe/Globe';
 import type { PlacedCountryData } from '../components/Globe/Globe';
 import { getTodayPuzzle } from '@shared/geoplacePuzzle';
-import { COUNTRY_NAMES } from '@shared/countryNames';
+import { countryName } from '@shared/guessCountries';
 import { haversineKm } from '@shared/distance';
 import centroids from '@shared/centroids.json';
-import { useGameState } from '../lib/useGameState';
+import { readNoDetails, useResultHistory } from '../lib/useResultHistory';
 import { submitGeoplaceResult } from '../lib/api';
-import type { GeoplacePlacement } from '@shared/types';
+import type { GeoplacePlacement, GeoplacePuzzle } from '@shared/types';
 import styles from './GeoPlace.module.css';
 import { useMediaQuery } from '../lib/useMediaQuery';
+import { isArrayOf, isNumber, isRecord, isString, pruneKeys, readJson, removeKey, writeJson } from '../lib/storage';
+import { isRestorable, puzzleKey, SESSION_KEY_PREFIX } from '../lib/geoplaceSession';
 
 const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
 const MOBILE_PLACEMENT_QUERY = '(max-width: 699px), (pointer: coarse)';
 const GAME_ID = 'geoplace';
 const MAX_SCORE_KM = 2500;
 const ROUNDS_TOTAL = 3;
-const SESSION_KEY = 'geogames:geoplace:session';
+/** The single key used before sessions were keyed by puzzle. This can go once old saves are gone. */
+const LEGACY_SESSION_KEY = 'geogames:geoplace:session';
 const SHARE_URL = 'https://geogames.today';
 
 function scoreFromDistance(distKm: number): number {
@@ -29,10 +32,6 @@ function averageScore(scores: number[]): number {
   return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
 }
 
-function countryName(iso3: string): string {
-  return COUNTRY_NAMES[iso3] ?? iso3;
-}
-
 function utcToday() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -40,32 +39,29 @@ function utcToday() {
 type Phase = 'placing' | 'placed' | 'results';
 
 interface GeoplaceSession {
-  date: string;
   roundIndex: number;
   phase: Phase;
   placedCountries: PlacedCountryData[];
   scores: number[];
 }
 
-function loadSession(): GeoplaceSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) { return null; }
-    const parsed = JSON.parse(raw) as GeoplaceSession;
-    if (parsed.date !== utcToday()) { return null; }
-    return parsed;
-  } catch (err) {
-    console.error('Failed to load GeoPlace session:', err);
-    return null;
-  }
+function isPlacedCountry(v: unknown): v is PlacedCountryData {
+  return isRecord(v) && isString(v.iso3) && isNumber(v.lat) && isNumber(v.lon) && isString(v.label);
 }
 
-function saveSession(session: GeoplaceSession) {
-  try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  } catch (err) {
-    console.error('Failed to save GeoPlace session:', err);
-  }
+function isGeoplaceSession(v: unknown): v is GeoplaceSession {
+  return isRecord(v) && isNumber(v.roundIndex) && Number.isInteger(v.roundIndex)
+    && v.roundIndex >= 0 && v.roundIndex < ROUNDS_TOTAL
+    && (v.phase === 'placing' || v.phase === 'placed' || v.phase === 'results')
+    && isArrayOf(v.placedCountries, isPlacedCountry) && isArrayOf(v.scores, isNumber);
+}
+
+/** This puzzle's saved session, or null. Prunes every other puzzle's session. */
+function loadSession(key: string, puzzle: GeoplacePuzzle): GeoplaceSession | null {
+  pruneKeys(SESSION_KEY_PREFIX, [key]);
+  removeKey(LEGACY_SESSION_KEY);
+  const session = readJson<GeoplaceSession | null>(key, isGeoplaceSession, null);
+  return session && isRestorable(session, puzzle) ? session : null;
 }
 
 function ResetButton({ onReset }: { onReset: () => void }) {
@@ -86,10 +82,13 @@ function ResetButton({ onReset }: { onReset: () => void }) {
 }
 
 export function GeoPlace() {
-  const puzzle = useMemo(() => getTodayPuzzle(), []);
-  const { todayResult, recordResult, resetForDev: resetGameState } = useGameState(GAME_ID);
+  // One date for both, so the puzzle and its session key can't straddle midnight UTC
+  const today = useMemo(utcToday, []);
+  const puzzle = useMemo(() => getTodayPuzzle(today), [today]);
+  const { todayResult, recordResult, resetForDev: resetResultHistory } = useResultHistory(GAME_ID, readNoDetails);
 
-  const savedSession = useMemo(() => loadSession(), []);
+  const sessionKey = useMemo(() => puzzleKey(today, puzzle), [today, puzzle]);
+  const savedSession = useMemo(() => loadSession(sessionKey, puzzle), [sessionKey, puzzle]);
 
   const [roundIndex, setRoundIndex] = useState(savedSession?.roundIndex ?? 0);
   const [phase, setPhase] = useState<Phase>(savedSession?.phase ?? 'placing');
@@ -103,8 +102,9 @@ export function GeoPlace() {
 
   // Persist session state on every change so navigation restores progress
   useEffect(() => {
-    saveSession({ date: utcToday(), roundIndex, phase, placedCountries, scores });
-  }, [roundIndex, phase, placedCountries, scores]);
+    const session: GeoplaceSession = { roundIndex, phase, placedCountries, scores };
+    writeJson(sessionKey, session);
+  }, [sessionKey, roundIndex, phase, placedCountries, scores]);
 
   const currentRound = puzzle.rounds[roundIndex];
 
@@ -178,13 +178,13 @@ export function GeoPlace() {
   }, [scores, placedCountries, recordResult]);
 
   const resetForDev = useCallback(() => {
-    localStorage.removeItem(SESSION_KEY);
-    resetGameState();
+    removeKey(sessionKey);
+    resetResultHistory();
     setRoundIndex(0);
     setPhase('placing');
     setPlacedCountries([]);
     setScores([]);
-  }, [resetGameState]);
+  }, [sessionKey, resetResultHistory]);
 
   const handleCopyShare = useCallback(() => {
     const date = new Date().toISOString().slice(0, 10);

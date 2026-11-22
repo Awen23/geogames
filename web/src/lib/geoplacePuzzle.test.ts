@@ -1,16 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { getTodayPuzzle } from '@shared/geoplacePuzzle';
+import { GEOPLACE_POOL, generatePuzzle, getTodayPuzzle } from '@shared/geoplacePuzzle';
+import { COUNTRIES, countryName } from '@shared/guessCountries';
 import { haversineKm } from '@shared/distance';
 import type { GeoplacePuzzle } from '@shared/types';
 import centroids from '@shared/centroids.json';
+import world50m from '../../public/world-50m.json';
+import { numericToIso3 } from './iso3Lookup';
 
 const CENTROID_MAP = centroids as Record<string, { lat: number; lon: number }>;
-const REF_TO_ROUND1_MAX_KM = 3000;
+const WORLD_50M = world50m as { objects: { countries: { geometries: { id?: string }[] } } };
+/** Countries the Globe can draw, keyed the way it looks them up. */
+const WORLD_50M_ISO3S = new Set(
+  WORLD_50M.objects.countries.geometries.map((g) => numericToIso3[String(g.id).padStart(3, '0')]),
+);
+const REFERENCE_TO_ROUND1_MAX_KM = 3000;
 const CHAIN_MIN_KM = 500;
 const CHAIN_MAX_KM = 2000;
 const CHAIN_WIDER_MAX_KM = CHAIN_MAX_KM * 2;
 
-/** Centroid pairs with no other country within REF_TO_ROUND1_MAX_KM — must never be reference. */
+/** Centroid pairs with no other country within REFERENCE_TO_ROUND1_MAX_KM — must never be reference. */
 const ISOLATED_REFERENCE_ISO3S = new Set(['AUS', 'NZL']);
 
 function* utcDatesBetween(startYear: number, endYear: number): Generator<string> {
@@ -95,7 +103,7 @@ describe('getTodayPuzzle', () => {
   it('keeps round 1 within 3000 km of the reference', () => {
     for (const date of utcDatesBetween(2026, 2026)) {
       const { refToRound1 } = legDistancesKm(getTodayPuzzle(date));
-      expect(refToRound1).toBeLessThanOrEqual(REF_TO_ROUND1_MAX_KM);
+      expect(refToRound1).toBeLessThanOrEqual(REFERENCE_TO_ROUND1_MAX_KM);
     }
   });
 
@@ -114,27 +122,27 @@ describe('getTodayPuzzle', () => {
 
   it('matches golden puzzles for fixed dates (seed regression)', () => {
     expect(getTodayPuzzle('2026-01-01')).toEqual({
-      referenceIso3: 'PAN',
+      referenceIso3: 'JAM',
       rounds: [
-        { targetIso3: 'SLV' },
-        { targetIso3: 'MEX' },
-        { targetIso3: 'GTM' },
+        { targetIso3: 'PAN' },
+        { targetIso3: 'DOM' },
+        { targetIso3: 'COL' },
       ],
     });
     expect(getTodayPuzzle('2026-05-30')).toEqual({
-      referenceIso3: 'LKA',
+      referenceIso3: 'TUN',
       rounds: [
-        { targetIso3: 'VNM' },
-        { targetIso3: 'THA' },
-        { targetIso3: 'BGD' },
+        { targetIso3: 'HUN' },
+        { targetIso3: 'ALB' },
+        { targetIso3: 'SVK' },
       ],
     });
     expect(getTodayPuzzle('2026-12-31')).toEqual({
-      referenceIso3: 'CAN',
+      referenceIso3: 'DEU',
       rounds: [
-        { targetIso3: 'USA' },
-        { targetIso3: 'GTM' },
-        { targetIso3: 'MEX' },
+        { targetIso3: 'BGR' },
+        { targetIso3: 'CHE' },
+        { targetIso3: 'POL' },
       ],
     });
   });
@@ -162,5 +170,58 @@ describe('getTodayPuzzle', () => {
         expect(legs.round2ToRound3).toBeLessThanOrEqual(CHAIN_WIDER_MAX_KM + 1);
       }
     });
+  });
+});
+
+describe('Placle country pool', () => {
+  const canonicalIso3s = new Set(COUNTRIES.map((c) => c.iso3));
+
+  it('only contains countries from the canonical COUNTRIES list', () => {
+    expect(GEOPLACE_POOL.filter((c) => !canonicalIso3s.has(c.iso3)).map((c) => c.iso3)).toEqual([]);
+  });
+
+  it('shows Gabon by name', () => {
+    expect(countryName('GAB')).toBe('Gabon');
+  });
+
+  // True by construction: guards the pool's centroid filter, which the Globe relies on.
+  it('only contains countries with a centroid', () => {
+    expect(GEOPLACE_POOL.filter((c) => !CENTROID_MAP[c.iso3]).map((c) => c.iso3)).toEqual([]);
+  });
+
+  // The Globe throws if it has no outline to show as the ghost.
+  it('only contains countries with an outline in world-50m', () => {
+    expect(GEOPLACE_POOL.filter((c) => !WORLD_50M_ISO3S.has(c.iso3)).map((c) => c.iso3)).toEqual([]);
+  });
+});
+
+describe('generatePuzzle stability', () => {
+  const dates = [...utcDatesBetween(2026, 2026)];
+
+  it('is unchanged when a country that is not in the puzzle is removed from the pool', () => {
+    dates.forEach((date, i) => {
+      const puzzle = generatePuzzle(date, GEOPLACE_POOL);
+      const inPuzzle = new Set(puzzleIso3s(puzzle));
+      const absent = GEOPLACE_POOL.filter((c) => !inPuzzle.has(c.iso3));
+      // A few different absent countries per day, rotating through the pool across the year
+      for (let k = 0; k < 3; k++) {
+        const removed = absent[(i * 3 + k) % absent.length].iso3;
+        const smaller = GEOPLACE_POOL.filter((c) => c.iso3 !== removed);
+        expect(generatePuzzle(date, smaller), `${date} without ${removed}`).toEqual(puzzle);
+      }
+    });
+  });
+
+  it('does not depend on the order of the pool', () => {
+    const reversed = [...GEOPLACE_POOL].reverse();
+    const interleaved = [
+      ...GEOPLACE_POOL.filter((_, i) => i % 2 === 1),
+      ...GEOPLACE_POOL.filter((_, i) => i % 2 === 0),
+    ];
+    for (const date of dates) {
+      const puzzle = generatePuzzle(date, GEOPLACE_POOL);
+      expect(generatePuzzle(date, reversed), date).toEqual(puzzle);
+      expect(generatePuzzle(date, interleaved), date).toEqual(puzzle);
+    }
   });
 });

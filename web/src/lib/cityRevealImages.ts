@@ -161,10 +161,6 @@ function fallbackAttribution(sourceUrl: string): WikiImageAttribution {
   return { sourceUrl };
 }
 
-export async function fetchWikiThumb(title: string): Promise<string | null> {
-  return (await fetchSummaryThumb(title))?.imageUrl ?? null;
-}
-
 export async function fetchWikiImage(title: string): Promise<WikiImage | null> {
   const summaryThumb = await fetchSummaryThumb(title);
   if (!summaryThumb) {

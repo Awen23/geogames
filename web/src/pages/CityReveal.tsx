@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Map as MapGL, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { LAYER_GROUPS } from '../components/CityRevealMap/layers';
+import { LAYER_GROUP_IDS } from '../components/CityRevealMap/layers';
 import type { LayerGroupId } from '../components/CityRevealMap/layers';
 import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@shared/cityRevealTypes';
 import type { CityRevealCity, CityRevealTodayResponse } from '@shared/cityRevealTypes';
 import { CityInput } from '../components/CityInput/CityInput';
-import { useGameState } from '../lib/useGameState';
+import { readNoDetails, useResultHistory } from '../lib/useResultHistory';
 import { fetchCityRevealToday, guessCityReveal, submitCityRevealResult } from '../lib/api';
 import {
   STYLE_URL,
@@ -24,6 +24,7 @@ import {
 } from '../lib/cityRevealMap';
 import { fetchFixedCommonsImage, fetchWikiImage } from '../lib/cityRevealImages';
 import type { WikiImageAttribution } from '../lib/cityRevealImages';
+import { isArrayOf, isBoolean, isNumber, isRecord, isString, pruneKeys, readJson, removeKey, writeJson } from '../lib/storage';
 import styles from './CityReveal.module.css';
 
 const SHARE_URL = 'https://geogames.today';
@@ -56,41 +57,50 @@ interface SelectedLandmark {
   attribution: WikiImageAttribution;
 }
 
+// Per-date keys: only the current puzzle's are kept (pruneOldDays). Streaks and history
+// live under useResultHistory's own key, which these prefixes don't match.
+const GAME_KEY_PREFIX = 'geogames:city-reveal:game:';
+const INTRO_KEY_PREFIX = 'geogames:city-reveal:intro-dismissed:';
+
 function storageKey(date: string) {
-  return `geogames:city-reveal:game:${date}`;
+  return `${GAME_KEY_PREFIX}${date}`;
 }
 
 function introDismissalStorageKey(date: string) {
-  return `geogames:city-reveal:intro-dismissed:${date}`;
+  return `${INTRO_KEY_PREFIX}${date}`;
+}
+
+function isGuessEntry(v: unknown): v is GuessEntry {
+  return isRecord(v) && isString(v.cityId) && isString(v.cityName) && isString(v.countryCode)
+    && isNumber(v.distanceKm) && isNumber(v.bearing) && isBoolean(v.correct);
+}
+
+function isLocalGameState(v: unknown): v is LocalGameState {
+  return isRecord(v) && isString(v.date) && isArrayOf(v.guesses, isGuessEntry)
+    && isBoolean(v.won) && isBoolean(v.gameOver)
+    && (v.wonCity === undefined || (isRecord(v.wonCity) && isString(v.wonCity.name)
+      && isString(v.wonCity.country) && isString(v.wonCity.countryCode)));
 }
 
 function loadState(date: string): LocalGameState | null {
-  try {
-    const raw = localStorage.getItem(storageKey(date));
-    if (raw) { return JSON.parse(raw) as LocalGameState; }
-  } catch (e) { console.error('CityReveal: corrupt saved state, resetting', e); }
-  return null;
+  return readJson<LocalGameState | null>(storageKey(date), isLocalGameState, null);
 }
 
 function isIntroDismissed(date: string) {
-  try {
-    return localStorage.getItem(introDismissalStorageKey(date)) === 'true';
-  } catch (e) {
-    console.error('CityReveal: failed to read intro dismissal state', e);
-    return false;
-  }
+  return readJson(introDismissalStorageKey(date), (v): v is boolean => v === true, false);
 }
 
 function saveIntroDismissal(date: string) {
-  try {
-    localStorage.setItem(introDismissalStorageKey(date), 'true');
-  } catch (e) {
-    console.error('CityReveal: failed to save intro dismissal state', e);
-  }
+  writeJson(introDismissalStorageKey(date), true);
 }
 
 function saveState(state: LocalGameState) {
-  localStorage.setItem(storageKey(state.date), JSON.stringify(state));
+  writeJson(storageKey(state.date), state);
+}
+
+function pruneOldDays(date: string) {
+  pruneKeys(GAME_KEY_PREFIX, [storageKey(date)]);
+  pruneKeys(INTRO_KEY_PREFIX, [introDismissalStorageKey(date)]);
 }
 
 function utcToday() {
@@ -167,9 +177,13 @@ function Confetti() {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+/** Shared fallback before the game loads, so `guesses` keeps the same identity across renders. */
+const NO_GUESSES: readonly GuessEntry[] = [];
+
 export function CityReveal() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const gamePanelRef = useRef<HTMLDivElement>(null);
+  // State, not a ref: the panel mounts only after loading, and the observer effect must rerun then
+  const [gamePanel, setGamePanel] = useState<HTMLDivElement | null>(null);
   const mapRef = useRef<MapGL | null>(null);
   const [gamePanelHeight, setGamePanelHeight] = useState(0);
   const layerMapRef = useRef<Partial<Record<LayerGroupId, string[]>>>({});
@@ -192,12 +206,12 @@ export function CityReveal() {
   );
 
   // For the home screen "played today" badge
-  const { recordResult, resetForDev: resetGameStateBadge } = useGameState('city-reveal');
+  const { recordResult, resetForDev: resetResultHistory } = useResultHistory('city-reveal', readNoDetails);
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const today = utcToday();
-  const guesses = gameState?.guesses ?? [];
+  const guesses = gameState?.guesses ?? NO_GUESSES;
   const wrongGuesses = guesses.filter((g) => !g.correct);
   const stage = Math.min(wrongGuesses.length, 4);
   const won = gameState?.won ?? false;
@@ -214,6 +228,7 @@ export function CityReveal() {
         const city = CITY_REVEAL_CITIES.find((c) => c.id === data.cityId) ?? null;
         setTodayCity(city);
 
+        pruneOldDays(data.date);
         const saved = loadState(data.date);
         const nextState = saved ?? { date: data.date, guesses: [], won: false, gameOver: false };
         setGameState(nextState);
@@ -244,11 +259,10 @@ export function CityReveal() {
   // ── Track mobile game-panel height (map padding) ───────────────────────────
 
   useEffect(() => {
-    const panel = gamePanelRef.current;
-    if (!panel) { return; }
+    if (!gamePanel) { return; }
+    const panel = gamePanel;
 
     function syncPanelHeight() {
-      if (!panel) { return; }
       setGamePanelHeight(panel.offsetHeight);
     }
 
@@ -256,7 +270,7 @@ export function CityReveal() {
     const observer = new ResizeObserver(syncPanelHeight);
     observer.observe(panel);
     return () => { observer.disconnect(); };
-  }, []);
+  }, [gamePanel]);
 
   // ── Map initialisation ─────────────────────────────────────────────────────
 
@@ -320,10 +334,9 @@ export function CityReveal() {
       ? new Set<string>(WIN_GROUPS)
       : new Set<string>(STAGE_GROUPS[stage]);
 
-    for (const group of LAYER_GROUPS) {
-      if (group.id === 'terrain3d') { continue; }
-      const visibility = visibleGroups.has(group.id) ? 'visible' : 'none';
-      for (const id of layerMapRef.current[group.id] ?? []) {
+    for (const groupId of LAYER_GROUP_IDS) {
+      const visibility = visibleGroups.has(groupId) ? 'visible' : 'none';
+      for (const id of layerMapRef.current[groupId] ?? []) {
         try { map.setLayoutProperty(id, 'visibility', visibility); } catch { /* ignore */ }
       }
     }
@@ -449,12 +462,12 @@ export function CityReveal() {
     if (!gameState) {
       return;
     }
-    localStorage.removeItem(storageKey(gameState.date));
-    localStorage.removeItem(introDismissalStorageKey(gameState.date));
-    resetGameStateBadge();
+    removeKey(storageKey(gameState.date));
+    removeKey(introDismissalStorageKey(gameState.date));
+    resetResultHistory();
     setGameState({ date: gameState.date, guesses: [], won: false, gameOver: false });
     setShowIntroModal(true);
-  }, [gameState, resetGameStateBadge]);
+  }, [gameState, resetResultHistory]);
 
   const handleStartMaple = useCallback(() => {
     if (gameState) {
@@ -568,7 +581,7 @@ export function CityReveal() {
       </div>
 
       {/* ── Game UI ── */}
-      <div ref={gamePanelRef} className={styles.gamePanel}>
+      <div ref={setGamePanel} className={styles.gamePanel} data-testid="city-reveal-panel">
         <div className={styles.topBar}>
           <Link to="/" className={styles.backLink}>← Games</Link>
           {!import.meta.env.PROD && (

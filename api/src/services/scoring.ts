@@ -1,6 +1,5 @@
 import type { Question, GuessResult, Tier } from '@shared/types';
-
-const TOP_N = 5;
+import { TOP_N } from '@shared/whereMostScore';
 
 function rankToTier(rank: number): Tier {
   if (rank < TOP_N) { return 'found'; }
@@ -35,9 +34,4 @@ export function scoreGuess(q: Question, iso3: string): GuessResult {
     value: null,
     isTopFive: false,
   };
-}
-
-/** Sum of the top-N values — the maximum achievable score. */
-export function maxScore(q: Question): number {
-  return q.ranking.slice(0, TOP_N).reduce((sum, r) => sum + r.value, 0);
 }

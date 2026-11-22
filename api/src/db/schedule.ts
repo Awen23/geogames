@@ -3,7 +3,7 @@ import { config } from 'dotenv';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { eq, asc } from 'drizzle-orm';
-import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
+import { IMPLEMENTED_CITIES } from '@shared/cityRevealCities';
 import { questions } from '../data/questions';
 import { utcDateString } from '../services/daily';
 import { unscheduledIndices } from '../services/scheduleUtils';
@@ -15,8 +15,6 @@ const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   throw new Error('DATABASE_URL is not set');
 }
-
-const IMPLEMENTED_CITIES = CITY_REVEAL_CITIES.filter((c) => c.implemented === true);
 
 const GAME_POOLS: Record<string, () => number> = {
   'where-most': () => questions.length,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { scoreGuess, maxScore } from '../src/services/scoring';
+import { scoreGuess } from '../src/services/scoring';
 import { haversineKm } from '@shared/distance';
 import type { Question } from '@shared/types';
 
@@ -9,6 +9,7 @@ const BEER_QUESTION: Question = {
   description: 'Test fixture.',
   metric: 'Litres per capita',
   unit: 'L/capita/yr',
+  year: 2019,
   source: 'Test',
   sourceUrl: 'https://example.com',
   icon: '🍺',
@@ -68,15 +69,8 @@ describe('scoreGuess', () => {
 
   it('no distanceKm or bearingDeg on result', () => {
     const result = scoreGuess(BEER_QUESTION, 'AUT');
-    expect((result as Record<string, unknown>).distanceKm).toBeUndefined();
-    expect((result as Record<string, unknown>).bearingDeg).toBeUndefined();
-  });
-});
-
-describe('maxScore', () => {
-  it('sums the top-5 values', () => {
-    const expected = 126 + 107.8 + 100.3 + 99 + 97.7;
-    expect(maxScore(BEER_QUESTION)).toBeCloseTo(expected, 5);
+    expect(result).not.toHaveProperty('distanceKm');
+    expect(result).not.toHaveProperty('bearingDeg');
   });
 });
 

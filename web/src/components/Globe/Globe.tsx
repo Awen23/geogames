@@ -12,12 +12,15 @@ import type { GeoPermissibleObjects } from 'd3-geo';
 import centroids from '@shared/centroids.json';
 import styles from './Globe.module.css';
 import { numericToIso3 } from '../../lib/iso3Lookup';
-import { pointerToLatLon } from '../../lib/globeCoords';
+import {
+  GLOBE_BASE_SCALE as BASE_SCALE,
+  GLOBE_SIZE,
+  pointerToLatLon,
+  projectCentroid,
+  projectPoint,
+} from '../../lib/globeCoords';
 
 const GEO_URL = '/world-50m.json';
-const WIDTH = 650;
-const HEIGHT = 650;
-const BASE_SCALE = 290;
 const MIN_SCALE = 200;
 const MAX_SCALE = 1800;
 const BASE_ROTATION_SENSITIVITY = 0.4;
@@ -93,18 +96,22 @@ function destPoint(lon0: number, lat0: number, bearing: number, arcDeg: number):
   return [lon2 * TO_DEG, lat2 * TO_DEG];
 }
 
+/** The globe's <svg>, from an element inside it or from the container around it. */
+function globeSvg(el: Element): SVGSVGElement {
+  const svg = el instanceof SVGElement ? el.ownerSVGElement : el.querySelector('svg');
+  if (!svg) { throw new Error(`No globe <svg> found from a <${el.tagName.toLowerCase()}> handler`); }
+  return svg;
+}
+
 function HintArrow({ fromIso3, bearingDeg }: { fromIso3: string; bearingDeg: number }) {
   const { projection } = useMapContext();
   const fromData = CENTROID_MAP[fromIso3];
+  // Nothing passes `arrow` today; if a caller does, its country may lack a centroid.
+  if (!fromData) { return null; }
 
-  if (!fromData || !projection) { return null; }
-
-  const fromPt = projection([fromData.lon, fromData.lat]);
-  if (!fromPt || isNaN(fromPt[0])) { return null; }
-
+  const fromPt = projectPoint(projection, fromData.lon, fromData.lat, `${fromIso3}'s centroid`);
   const [toLon, toLat] = destPoint(fromData.lon, fromData.lat, bearingDeg, ARROW_ARC_DEG);
-  const toPt = projection([toLon, toLat]);
-  if (!toPt || isNaN(toPt[0])) { return null; }
+  const toPt = projectPoint(projection, toLon, toLat, `the ${fromIso3} hint arrow's tip`);
 
   return (
     <g>
@@ -146,13 +153,7 @@ function GhostCountry({
   mouseSvgPos: [number, number];
 }) {
   const { projection } = useMapContext();
-  const centroidData = CENTROID_MAP[iso3];
-  if (!centroidData || !projection) { return null; }
-
-  const centroidPt = projection([centroidData.lon, centroidData.lat]);
-  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
-
-  const [cx, cy] = centroidPt;
+  const [cx, cy] = projectCentroid(projection, iso3);
   const [mx, my] = mouseSvgPos;
 
   return (
@@ -193,25 +194,11 @@ function DraggableGhostCountry({
   suppressPlaceClickRef: React.RefObject<boolean>;
 }) {
   const { projection } = useMapContext();
-  const groupRef = useRef<SVGGElement>(null);
   const outlineDraggedRef = useRef(false);
-  const centroidData = CENTROID_MAP[iso3];
-  if (!centroidData || !projection) { return null; }
-
-  const centroidPt = projection([centroidData.lon, centroidData.lat]);
-  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
-
-  const placedPt = projection([lon, lat]);
-  if (!placedPt || isNaN(placedPt[0])) { return null; }
-
-  const [cx, cy] = centroidPt;
-  const [px, py] = placedPt;
 
   const moveFromPointer = useCallback(
-    (clientX: number, clientY: number) => {
-      const svg = groupRef.current?.ownerSVGElement;
-      if (!svg) { return; }
-      const pos = pointerToLatLon(svg, clientX, clientY, projection, WIDTH, HEIGHT);
+    (target: SVGGElement, clientX: number, clientY: number) => {
+      const pos = pointerToLatLon(globeSvg(target), clientX, clientY, projection, GLOBE_SIZE, GLOBE_SIZE);
       if (pos) {
         onMove(pos.lat, pos.lon);
       }
@@ -242,7 +229,7 @@ function DraggableGhostCountry({
     (e: React.PointerEvent<SVGGElement>) => {
       if (!e.currentTarget.hasPointerCapture(e.pointerId)) { return; }
       outlineDraggedRef.current = true;
-      moveFromPointer(e.clientX, e.clientY);
+      moveFromPointer(e.currentTarget, e.clientX, e.clientY);
     },
     [moveFromPointer],
   );
@@ -255,9 +242,11 @@ function DraggableGhostCountry({
     e.stopPropagation();
   }, []);
 
+  const [cx, cy] = projectCentroid(projection, iso3);
+  const [px, py] = projectPoint(projection, lon, lat, `the ${iso3} draft placement`);
+
   return (
     <g
-      ref={groupRef}
       data-testid="draggable-ghost-country"
       transform={`translate(${px - cx}, ${py - cy})`}
       style={{ cursor: 'grab', touchAction: 'none' }}
@@ -292,17 +281,8 @@ function PlacedCountry({
   label,
 }: PlacedCountryData & { geo: GeoPermissibleObjects }) {
   const { projection } = useMapContext();
-  const centroidData = CENTROID_MAP[iso3];
-  if (!centroidData || !projection) { return null; }
-
-  const centroidPt = projection([centroidData.lon, centroidData.lat]);
-  if (!centroidPt || isNaN(centroidPt[0])) { return null; }
-
-  const placedPt = projection([lon, lat]);
-  if (!placedPt || isNaN(placedPt[0])) { return null; }
-
-  const [cx, cy] = centroidPt;
-  const [px, py] = placedPt;
+  const [cx, cy] = projectCentroid(projection, iso3);
+  const [px, py] = projectPoint(projection, lon, lat, `the ${iso3} placement`);
 
   const showArrow = parseInt(label) < 98;
 
@@ -393,9 +373,7 @@ function PlaceClickTarget({
         suppressPlaceClickRef.current = false;
         return;
       }
-      const svg = e.currentTarget.ownerSVGElement;
-      if (!svg || !projection) { return; }
-      const pos = pointerToLatLon(svg, e.clientX, e.clientY, projection, WIDTH, HEIGHT);
+      const pos = pointerToLatLon(globeSvg(e.currentTarget), e.clientX, e.clientY, projection, GLOBE_SIZE, GLOBE_SIZE);
       if (!pos) { return; }
       onPosition(pos.lat, pos.lon);
     },
@@ -406,11 +384,12 @@ function PlaceClickTarget({
     <rect
       x={0}
       y={0}
-      width={WIDTH}
-      height={HEIGHT}
+      width={GLOBE_SIZE}
+      height={GLOBE_SIZE}
       fill="transparent"
       style={{ cursor: 'crosshair' }}
       onClick={handleClick}
+      data-testid="globe-place-target"
     />
   );
 }
@@ -504,13 +483,9 @@ export function Globe({
   const handleContainerMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!showCursorGhost) { return; }
-      const el = containerRef.current;
-      if (!el) { return; }
-      const svg = el.querySelector('svg');
-      if (!svg) { return; }
-      const rect = svg.getBoundingClientRect();
-      const svgX = ((e.clientX - rect.left) / rect.width) * WIDTH;
-      const svgY = ((e.clientY - rect.top) / rect.height) * HEIGHT;
+      const rect = globeSvg(e.currentTarget).getBoundingClientRect();
+      const svgX = ((e.clientX - rect.left) / rect.width) * GLOBE_SIZE;
+      const svgY = ((e.clientY - rect.top) / rect.height) * GLOBE_SIZE;
       setMouseSvgPos([svgX, svgY]);
     },
     [showCursorGhost],
@@ -593,8 +568,8 @@ export function Globe({
       <ComposableMap
         projection="geoOrthographic"
         projectionConfig={{ scale, rotate: [rotation[0], rotation[1], 0] }}
-        width={WIDTH}
-        height={HEIGHT}
+        width={GLOBE_SIZE}
+        height={GLOBE_SIZE}
         style={{ width: '100%', height: 'auto', display: 'block' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -616,6 +591,13 @@ export function Globe({
               const iso3 = numericToIso3[String(geo.id).padStart(3, '0')];
               if (iso3) { geoByIso3.set(iso3, geo as unknown as GeoPermissibleObjects); }
             }
+            // Ghosts and placed countries are always Placle pool countries (GeoPlace discards a
+            // saved session that places anything else), and every one has a world-50m outline.
+            const geoFor = (iso3: string): GeoPermissibleObjects => {
+              const geo = geoByIso3.get(iso3);
+              if (!geo) { throw new Error(`No world-50m outline for ${iso3}, so the globe can't draw it`); }
+              return geo;
+            };
 
             return (
               <>
@@ -674,21 +656,18 @@ export function Globe({
                 })}
 
                 {/* Ghost shape following cursor (desktop immediate mode) */}
-                {showCursorGhost && ghostIso3 && mouseSvgPos && geoByIso3.get(ghostIso3) && (
+                {showCursorGhost && ghostIso3 && mouseSvgPos && (
                   <GhostCountry
-                    geo={geoByIso3.get(ghostIso3)!}
+                    geo={geoFor(ghostIso3)}
                     iso3={ghostIso3}
                     mouseSvgPos={mouseSvgPos}
                   />
                 )}
 
                 {/* Frozen placed shapes from previous rounds */}
-                {placedCountries?.map((p) => {
-                  const geo = geoByIso3.get(p.iso3);
-                  return geo ? (
-                    <PlacedCountry key={`placed-${p.iso3}`} geo={geo} {...p} />
-                  ) : null;
-                })}
+                {placedCountries?.map((p) => (
+                  <PlacedCountry key={`placed-${p.iso3}`} geo={geoFor(p.iso3)} {...p} />
+                ))}
 
                 {/* Tap target for placement — below draggable ghost so ghost receives drags */}
                 {showPlaceTarget && placeHandler && (
@@ -700,9 +679,9 @@ export function Globe({
                 )}
 
                 {/* Draft ghost for confirm placement (mobile) */}
-                {isConfirmPlacement && ghostIso3 && pendingPlace && geoByIso3.get(ghostIso3) && (
+                {isConfirmPlacement && ghostIso3 && pendingPlace && (
                   <DraggableGhostCountry
-                    geo={geoByIso3.get(ghostIso3)!}
+                    geo={geoFor(ghostIso3)}
                     iso3={ghostIso3}
                     lat={pendingPlace.lat}
                     lon={pendingPlace.lon}

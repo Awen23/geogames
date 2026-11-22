@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useGameState } from '../lib/useGameState';
+import { readNoDetails, useResultHistory } from '../lib/useResultHistory';
 import { fetchGames } from '../lib/api';
 import type { GameInfo } from '@shared/types';
 import styles from './Home.module.css';
@@ -20,7 +20,7 @@ function playedHint(game: GameInfo, guesses: number, score?: number) {
 }
 
 function GameCard({ game }: { game: GameInfo }) {
-  const { todayResult } = useGameState(game.id);
+  const { todayResult } = useResultHistory(game.id, readNoDetails);
   const route = GAME_ROUTE[game.id];
   const played = !!todayResult;
 

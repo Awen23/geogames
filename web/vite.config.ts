@@ -14,7 +14,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        // e2e points this at its own api server (see playwright.config.ts)
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:3001',
         changeOrigin: true,
       },
     },

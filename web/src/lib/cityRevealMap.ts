@@ -1,13 +1,11 @@
 /**
- * Shared map setup utilities for the City Reveal game and Layer Lab.
- *
- * Both pages use the same MapTiler style, the same DEM/hillshade configuration,
- * the same layer classification, and the same initial visibility rules. Keeping
- * them here means a single change benefits both.
+ * Map setup utilities for the City Reveal game: the MapTiler style, the
+ * DEM/hillshade configuration, layer classification, stage visibility rules
+ * and landmark markers.
  */
 
 import type { Map as MapGL } from 'maplibre-gl';
-import { LAYER_GROUPS, classifyLayer } from '../components/CityRevealMap/layers';
+import { LAYER_GROUP_IDS, classifyLayer } from '../components/CityRevealMap/layers';
 import type { LayerGroupId } from '../components/CityRevealMap/layers';
 
 // ── Map style / source constants ──────────────────────────────────────────────
@@ -32,7 +30,7 @@ export const STAGE_GROUPS: Record<number, LayerGroupId[]> = {
 /** All layer groups revealed when the player wins. */
 export const WIN_GROUPS: LayerGroupId[] = [
   'terrain', 'water', 'majorRoads', 'streetGrid', 'railways',
-  'roadNames', 'urbanFabric', 'buildings', 'districtLabels', 'contours',
+  'roadNames', 'urbanFabric', 'buildings', 'districtLabels',
 ];
 
 /** Banner text shown in-game after each wrong guess reveals a new layer. */
@@ -61,7 +59,7 @@ export const STAGE_REVEAL_LABELS: Record<number, string> = {
  */
 export function setupMapLayers(map: MapGL): Partial<Record<LayerGroupId, string[]>> {
   const grouped: Partial<Record<LayerGroupId, string[]>> = {};
-  for (const g of LAYER_GROUPS) { grouped[g.id] = []; }
+  for (const groupId of LAYER_GROUP_IDS) { grouped[groupId] = []; }
 
   // 1. Classify existing style layers
   for (const layer of map.getStyle().layers) {
@@ -144,9 +142,9 @@ export function setupMapLayers(map: MapGL): Partial<Record<LayerGroupId, string[
   // 5. Set initial visibility: only terrain visible; all other classified groups hidden.
   //    This includes labels/placeLabels which must stay hidden to avoid naming the city.
   const initialVisible = new Set<string>(STAGE_GROUPS[0]);
-  for (const group of LAYER_GROUPS) {
-    const visibility = initialVisible.has(group.id) ? 'visible' : 'none';
-    for (const id of grouped[group.id] ?? []) {
+  for (const groupId of LAYER_GROUP_IDS) {
+    const visibility = initialVisible.has(groupId) ? 'visible' : 'none';
+    for (const id of grouped[groupId] ?? []) {
       try {
         map.setLayoutProperty(id, 'visibility', visibility);
       } catch (err) {

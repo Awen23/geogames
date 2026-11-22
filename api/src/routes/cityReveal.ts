@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { utcDateString } from '../services/daily';
 import { recordCityRevealPlay, getTodayStats } from '../services/stats';
 import { getScheduledPuzzleIndex } from '../services/puzzleSchedule';
-import { CITY_REVEAL_CITIES } from '@shared/cityRevealCities';
+import { CITY_REVEAL_CITIES, IMPLEMENTED_CITIES } from '@shared/cityRevealCities';
 import { haversineKm, bearingDeg } from '@shared/distance';
 import { MAX_GUESSES } from '@shared/cityRevealTypes';
 import type { CityRevealTodayResponse, CityRevealGuessResponse } from '@shared/cityRevealTypes';
@@ -11,8 +11,6 @@ import type { CityRevealTodayResponse, CityRevealGuessResponse } from '@shared/c
 export const cityRevealRouter = Router();
 
 const GAME_ID = 'city-reveal';
-
-const IMPLEMENTED_CITIES = CITY_REVEAL_CITIES.filter((c) => c.implemented === true);
 
 if (IMPLEMENTED_CITIES.length === 0) {
   throw new Error('[city-reveal] No implemented cities — set implemented: true on at least one entry in cityRevealCities.ts');
@@ -89,7 +87,7 @@ cityRevealRouter.post('/result', async (req, res) => {
   const { won, guesses } = parsed.data;
   const { date } = await getTodayCity();
 
-  await recordCityRevealPlay({ deviceId, date, won, guesses });
+  const recorded = await recordCityRevealPlay({ deviceId, date, won, guesses });
 
   res.cookie('geogames_device_id', deviceId, {
     maxAge: 365 * 24 * 60 * 60 * 1000,
@@ -97,7 +95,7 @@ cityRevealRouter.post('/result', async (req, res) => {
     sameSite: 'strict',
   });
 
-  res.json({ ok: true });
+  res.json({ ok: true, recorded });
 });
 
 cityRevealRouter.get('/stats/today', async (_req, res) => {

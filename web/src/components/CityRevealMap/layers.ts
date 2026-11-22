@@ -1,115 +1,22 @@
-export type LayerGroupId =
-  | 'terrain'
-  | 'contours'
-  | 'terrain3d'
-  | 'water'
-  | 'urbanFabric'
-  | 'buildings'
-  | 'majorRoads'
-  | 'roadNames'
-  | 'streetGrid'
-  | 'railways'
-  | 'landmarks'
-  | 'labels'
-  | 'districtLabels'
-  | 'placeLabels';
+/**
+ * The groups that classifyLayer sorts MapTiler style layers into. The game
+ * shows or hides each group as a whole as the reveal stages progress.
+ */
+export const LAYER_GROUP_IDS = [
+  'terrain', // hillshade and natural land cover
+  'water', // rivers, lakes, ocean fill
+  'urbanFabric', // residential, commercial and industrial zone fills
+  'buildings', // 2D building footprints
+  'majorRoads', // motorways, primary roads
+  'roadNames', // highway shields and road name labels
+  'streetGrid', // secondary streets, residential roads, footways
+  'railways', // rail, metro and transit lines
+  'labels', // POIs and other map labels; never revealed
+  'districtLabels', // neighbourhood and suburb names (no city name)
+  'placeLabels', // city, country and admin names; never revealed (gives away the answer)
+] as const;
 
-export interface LayerGroup {
-  id: LayerGroupId;
-  label: string;
-  description: string;
-  defaultVisible: boolean;
-  /** If true, this group must never be revealed during gameplay (it gives away the city). */
-  alwaysHiddenInGame?: boolean;
-}
-
-export const LAYER_GROUPS: LayerGroup[] = [
-  {
-    id: 'terrain',
-    label: 'Terrain',
-    description: 'Hillshade and natural land cover',
-    defaultVisible: true,
-  },
-  {
-    id: 'contours',
-    label: 'Contour Lines',
-    description: 'Elevation contour lines',
-    defaultVisible: false,
-  },
-  {
-    id: 'terrain3d',
-    label: '3D Terrain',
-    description: 'Raises the map surface with real elevation — best with tilt',
-    defaultVisible: false,
-  },
-  {
-    id: 'water',
-    label: 'Water',
-    description: 'Rivers, lakes, ocean fill',
-    defaultVisible: false,
-  },
-  {
-    id: 'urbanFabric',
-    label: 'Urban Fabric',
-    description: 'Residential, commercial and industrial zone fills',
-    defaultVisible: false,
-  },
-  {
-    id: 'buildings',
-    label: 'Buildings',
-    description: 'Building footprints (2D)',
-    defaultVisible: false,
-  },
-  {
-    id: 'majorRoads',
-    label: 'Major Roads',
-    description: 'Motorways, primary roads',
-    defaultVisible: false,
-  },
-  {
-    id: 'roadNames',
-    label: 'Road Names',
-    description: 'Highway shields and major road name labels',
-    defaultVisible: false,
-  },
-  {
-    id: 'streetGrid',
-    label: 'Street Grid',
-    description: 'Secondary streets, residential roads, footways',
-    defaultVisible: false,
-  },
-  {
-    id: 'railways',
-    label: 'Railways',
-    description: 'Rail, metro and transit lines',
-    defaultVisible: false,
-  },
-  {
-    id: 'landmarks',
-    label: 'Landmarks',
-    description: 'Famous places (photo markers)',
-    defaultVisible: false,
-  },
-  {
-    id: 'labels',
-    label: 'Street Labels',
-    description: '6 curated street/square names',
-    defaultVisible: false,
-  },
-  {
-    id: 'districtLabels',
-    label: 'District Names',
-    description: 'Neighbourhood and suburb names (safe — no city name)',
-    defaultVisible: false,
-  },
-  {
-    id: 'placeLabels',
-    label: 'Place Names',
-    description: 'City, country and admin labels — reveals the answer',
-    defaultVisible: false,
-    alwaysHiddenInGame: true,
-  },
-];
+export type LayerGroupId = (typeof LAYER_GROUP_IDS)[number];
 
 /**
  * Classify a MapLibre layer into a game reveal group.
@@ -173,13 +80,8 @@ export function classifyLayer(
       return 'roadNames';
     }
 
-    // ── Contour elevation labels ──
-    if (sourceLayer === 'contour') {
-      return 'contours';
-    }
-
     // Everything else (POIs, building numbers, water names, ferry labels, etc.)
-    // goes into the permanently-hidden pool — our curated GeoJSON labels replace them.
+    // goes into the permanently-hidden pool.
     return 'labels';
   }
 
@@ -188,7 +90,7 @@ export function classifyLayer(
     return 'terrain';
   }
 
-  // 3D extruded buildings — classified but filtered to 2D-only in LayerLab
+  // 3D extruded buildings — classified, then hidden by setupMapLayers (2D only)
   if (layerType === 'fill-extrusion') {
     return 'buildings';
   }
@@ -207,10 +109,7 @@ export function classifyLayer(
     return 'urbanFabric';
   }
 
-  // Contour lines — separate toggle so they can be layered on top of anything
-  if (/contour/.test(id)) {
-    return 'contours';
-  }
+  // streets-v4 has no contour layers; an Outdoor/Topo style would need a branch here.
 
   // Terrain: topographic and natural land-cover features
   if (/hillshade|cliff|glacier|scrub|tree|forest|wood|grass|sand|park|landcover|landuse|wetland|meadow|farmland|border|boundary|admin|crop/.test(id)) {
